@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PHP einrichten
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Composer-Abhängigkeiten installieren
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Version aus Tag ermitteln
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Release-ZIP bauen
+        run: |
+          zip -r "time-manager-v${{ steps.version.outputs.VERSION }}.zip" . \
+            -x "*.git/*" \
+            -x ".github/*" \
+            -x "_build_release.ps1" \
+            -x "config.php" \
+            -x "invoices/*" \
+            -x "_installer/installed.lock"
+
+      - name: GitHub Release erstellen und ZIP hochladen
+        uses: softprops/action-gh-release@v2
+        with:
+          files: time-manager-v${{ steps.version.outputs.VERSION }}.zip
+          generate_release_notes: true
