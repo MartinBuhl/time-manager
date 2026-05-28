@@ -1,0 +1,18 @@
+# Datenbankverbindung – niemals ins Repository!
+/config.php
+
+# Composer-Abhängigkeiten – werden via composer install gebaut
+/vendor/
+
+# Generierte Rechnungs-PDFs – pro Installation verschieden
+/invoices/
+
+# Installer-Lockdatei – pro Installation verschieden
+/_installer/installed.lock
+
+# Windows / macOS / IDE
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
+*.swp

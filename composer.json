@@ -1,0 +1,10 @@
+{
+    "require": {
+        "horstoeko/zugferd": "^1.0",
+        "mpdf/mpdf": "^8.2",
+        "phpmailer/phpmailer": "^7.0"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

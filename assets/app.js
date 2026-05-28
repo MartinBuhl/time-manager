@@ -1,0 +1,603 @@
+'use strict';
+
+/* ------------------------------------------------------------------
+   API helper – sends POST to api.php with CSRF token header
+------------------------------------------------------------------ */
+async function api(action, data = {}) {
+    const body = new URLSearchParams({ action, ...data });
+    const res = await fetch('api.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': window.CSRF_TOKEN || '',
+        },
+        body,
+    });
+    return res.json();
+}
+
+/* ------------------------------------------------------------------
+   Countdown
+------------------------------------------------------------------ */
+let countdownValue    = 1800;
+let countdownInterval = null;
+
+function updateCountdownDisplay() {
+    const el = document.getElementById('countdown');
+    if (!el) return;
+    el.textContent = countdownValue;
+    el.classList.toggle('warning', countdownValue <= 600 && countdownValue > 120);
+    el.classList.toggle('urgent',  countdownValue <= 120);
+}
+
+function startCountdown() {
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+        countdownValue--;
+        updateCountdownDisplay();
+        if (countdownValue <= 0) {
+            clearInterval(countdownInterval);
+            alert('Zeit läuft noch');
+            countdownValue = 1800;
+            updateCountdownDisplay();
+            startCountdown();
+        }
+    }, 1000);
+}
+
+function resetCountdown() {
+    clearInterval(countdownInterval);
+    countdownValue = 1800;
+    updateCountdownDisplay();
+    startCountdown();
+}
+
+/* ------------------------------------------------------------------
+   Inline edit
+------------------------------------------------------------------ */
+function showEdit(id) {
+    document.getElementById('row-'  + id).classList.add('hidden');
+    document.getElementById('edit-' + id).classList.remove('hidden');
+}
+
+function hideEdit(id) {
+    document.getElementById('row-'  + id).classList.remove('hidden');
+    document.getElementById('edit-' + id).classList.add('hidden');
+}
+
+async function saveEdit(id) {
+    const editRow    = document.getElementById('edit-' + id);
+    const date       = editRow.querySelector('.edit-date').value;
+    const start      = editRow.querySelector('.edit-start').value.trim();
+    const end        = editRow.querySelector('.edit-end').value.trim();
+    const comment    = editRow.querySelector('.edit-comment').value.trim();
+    const customerId = editRow.querySelector('.edit-customer').value;
+    const activity   = editRow.querySelector('.edit-activity').value;
+    const project    = editRow.querySelector('.edit-project').value.trim();
+
+    const res = await api('update_entry', {
+        id,
+        date,
+        start_datetime: start,
+        end_datetime:   end,
+        comment,
+        customer_id:    customerId,
+        activity,
+        project,
+    });
+
+    if (res.success) {
+        location.reload();
+    } else {
+        alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
+    }
+}
+
+/* ------------------------------------------------------------------
+   Delete (soft delete)
+------------------------------------------------------------------ */
+function showDeleteConfirm(id) {
+    document.getElementById('actions-'         + id).classList.add('hidden');
+    document.getElementById('actions-confirm-' + id).classList.remove('hidden');
+}
+
+function cancelDelete(id) {
+    document.getElementById('actions-confirm-' + id).classList.add('hidden');
+    document.getElementById('actions-'         + id).classList.remove('hidden');
+}
+
+async function confirmDelete(id) {
+    const res = await api('delete_entry', { id });
+    if (res.success) {
+        const row     = document.getElementById('row-'  + id);
+        const editRow = document.getElementById('edit-' + id);
+        if (row)     row.remove();
+        if (editRow) editRow.remove();
+    } else {
+        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        cancelDelete(id);
+    }
+}
+
+/* ------------------------------------------------------------------
+   Time helper
+------------------------------------------------------------------ */
+function nowTime() {
+    const d = new Date();
+    return [
+        String(d.getHours()).padStart(2, '0'),
+        String(d.getMinutes()).padStart(2, '0'),
+        String(d.getSeconds()).padStart(2, '0'),
+    ].join(':');
+}
+
+function nowDate() {
+    const d = new Date();
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+}
+
+/* ------------------------------------------------------------------
+   Tracker helpers
+------------------------------------------------------------------ */
+function lockSelect(sel) {
+    sel.disabled = true;
+}
+
+function showSelect(sel) {
+    sel.classList.remove('hidden');
+}
+
+function showRunningRows() {
+    document.getElementById('rowComment').classList.remove('hidden');
+    document.getElementById('rowStop')   .classList.remove('hidden');
+}
+
+
+/* ------------------------------------------------------------------
+   Main
+------------------------------------------------------------------ */
+document.addEventListener('DOMContentLoaded', () => {
+
+    /* ---- Login page ---- */
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd  = new FormData(loginForm);
+            const res = await fetch('api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action:   'login',
+                    username: fd.get('username'),
+                    password: fd.get('password'),
+                }),
+            });
+            const json = await res.json();
+            if (json.success) {
+                location.reload();
+            } else {
+                const errEl = document.getElementById('loginError');
+                errEl.textContent = json.error || 'Anmeldung fehlgeschlagen.';
+                errEl.classList.remove('hidden');
+            }
+        });
+
+        /* ---- Passwort vergessen ---- */
+        const forgotLink   = document.getElementById('forgotLink');
+        const backToLogin  = document.getElementById('backToLogin');
+        const forgotPanel  = document.getElementById('forgotPanel');
+        const loginSwitch  = document.querySelector('.login-switch');
+
+        forgotLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            loginSwitch.classList.add('hidden');
+            forgotPanel.classList.remove('hidden');
+        });
+
+        backToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            forgotPanel.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            loginSwitch.classList.remove('hidden');
+        });
+
+        document.getElementById('forgotSubmit').addEventListener('click', async () => {
+            const emailInput = document.getElementById('forgotEmail');
+            const email      = emailInput.value.trim();
+            const msgEl      = document.getElementById('forgotMessage');
+            const btn        = document.getElementById('forgotSubmit');
+
+            // Lokale Vorprüfung
+            if (!email) {
+                msgEl.className   = 'login-error';
+                msgEl.textContent = 'Bitte E-Mail-Adresse eingeben.';
+                msgEl.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled        = true;
+            btn.textContent     = 'Sende …';
+            msgEl.classList.add('hidden');
+
+            try {
+                const res  = await fetch('api.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ action: 'request_password_reset', email }),
+                });
+                const json = await res.json();
+
+                msgEl.classList.remove('hidden');
+                if (json.success) {
+                    msgEl.className   = 'success-message';
+                    msgEl.textContent = 'Falls ein Konto mit dieser Adresse existiert, wurde ein Link gesendet.';
+                    emailInput.value  = '';
+                } else {
+                    msgEl.className   = 'login-error';
+                    msgEl.textContent = json.error || 'Fehler beim Senden.';
+                }
+            } catch (err) {
+                msgEl.classList.remove('hidden');
+                msgEl.className   = 'login-error';
+                msgEl.textContent = 'Verbindungsfehler – bitte erneut versuchen.';
+            } finally {
+                btn.disabled    = false;
+                btn.textContent = 'Link senden';
+            }
+        });
+
+        return;
+    }
+
+    /* ---- App page ---- */
+    const selectCustomer   = document.getElementById('selectCustomer');
+    const selectProject    = document.getElementById('selectProject');
+    const selectActivity  = document.getElementById('selectActivity');
+    const inputComment    = document.getElementById('inputComment');
+    const resetBtn         = document.getElementById('resetBtn');
+    const stopBtn          = document.getElementById('stopBtn');
+    const customerDisplay  = document.getElementById('customerDisplay');
+    const projectDisplay   = document.getElementById('projectDisplay');
+    const activityDisplay  = document.getElementById('activityDisplay');
+    const startTimeEl      = document.getElementById('startTime');
+
+    function updateRunningDisplay() {
+        customerDisplay.textContent = selectedCustomerName;
+        projectDisplay.textContent  = selectedProject;
+        activityDisplay.textContent = selectedActivity;
+    }
+
+    if (!selectCustomer) return;
+
+    let selectedCustomerId   = null;
+    let selectedCustomerName = '';
+    let selectedProject      = '';
+    let selectedActivity     = '';
+    let trackingStartTime    = '';
+
+    function updateShortcuts() {
+        const container = document.getElementById('shortcutBtns');
+        const row       = document.getElementById('rowShortcuts');
+        if (!container || !row) return;
+
+        const matching = (window.SHORTCUTS || []).filter(s =>
+            s.activity === selectedActivity &&
+            (!s.customer_id || String(s.customer_id) === String(selectedCustomerId))
+        );
+
+        container.innerHTML = '';
+        if (matching.length > 0) {
+            matching.forEach(s => {
+                const btn = document.createElement('button');
+                btn.type      = 'button';
+                btn.className = 'btn';
+                btn.style.fontSize = '12px';
+                btn.textContent    = s.shortcut_text;
+                btn.addEventListener('click', () => {
+                    const input = document.getElementById('inputComment');
+                    input.value = s.shortcut_text;
+                    input.dispatchEvent(new Event('input'));
+                });
+                container.appendChild(btn);
+            });
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    }
+
+    /* Reset button */
+    resetBtn.addEventListener('click', resetCountdown);
+
+    /* Step 1 – customer selected */
+    selectCustomer.addEventListener('change', () => {
+        const opt = selectCustomer.selectedOptions[0];
+        if (!selectCustomer.value) return;
+
+        selectedCustomerId   = selectCustomer.value;
+        selectedCustomerName = opt.dataset.name || opt.text;
+        selectedProject      = '';
+
+        lockSelect(selectCustomer);
+
+        const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
+
+        if (projects.length > 1) {
+            selectProject.innerHTML = '<option value="">-- Projekt wählen --</option>';
+            projects.forEach(function(p) {
+                const o = document.createElement('option');
+                o.value = p.name;
+                o.textContent = p.name;
+                selectProject.appendChild(o);
+            });
+            showSelect(selectProject);
+        } else {
+            if (projects.length === 1) {
+                selectedProject = projects[0].name;
+            }
+            showSelect(selectActivity);
+        }
+    });
+
+    /* Step 2 – project selected */
+    selectProject.addEventListener('change', () => {
+        if (!selectProject.value) return;
+        selectedProject = selectProject.value;
+        lockSelect(selectProject);
+        showSelect(selectActivity);
+    });
+
+    /* Step 3 – activity selected → start timer */
+    selectActivity.addEventListener('change', async () => {
+        if (!selectActivity.value) return;
+
+        selectedActivity  = selectActivity.value;
+        trackingStartTime = nowTime();
+
+        lockSelect(selectActivity);
+
+        updateRunningDisplay();
+        startTimeEl.textContent = trackingStartTime;
+
+        stopBtn.disabled   = true;
+        inputComment.value = '';
+
+        showRunningRows();
+        updateShortcuts();
+        resetCountdown();
+
+        await api('save_start_state', {
+            customer_id:   selectedCustomerId || '',
+            customer_name: selectedCustomerName,
+            activity:      selectedActivity,
+            project:       selectedProject,
+            start_time:    trackingStartTime,
+        });
+    });
+
+    /* Stop – save entry */
+    stopBtn.addEventListener('click', async () => {
+        clearInterval(countdownInterval);
+
+        const comment   = inputComment.value.trim();
+        const stopTime  = nowTime();
+        const stopDate  = nowDate();
+
+        const res = await api('send_work', {
+            customer_id: selectedCustomerId || '',
+            activity:    selectedActivity,
+            project:     selectedProject,
+            comment,
+            start_time:  trackingStartTime,
+            stop_time:   stopTime,
+            stop_date:   stopDate,
+        });
+
+        if (res.success) {
+            location.reload();
+        } else {
+            alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            startCountdown();
+        }
+    });
+
+    /* Kommentar-Pflichtfeld: Stop-Button nur aktiv wenn Inhalt vorhanden */
+    inputComment.addEventListener('input', () => {
+        stopBtn.disabled = inputComment.value.trim() === '';
+    });
+
+    /* Restore state (page reload while tracking) */
+    if (window.USER_STATE) {
+        const s = window.USER_STATE;
+
+        selectedCustomerId   = s.customer_id   || null;
+        selectedCustomerName = s.customer_name || '';
+        selectedActivity     = s.activity      || '';
+        selectedProject      = s.project       || '';
+        trackingStartTime    = s.start_time    || '';
+
+        // Kunde wiederherstellen und sperren
+        if (selectedCustomerId) {
+            selectCustomer.value = selectedCustomerId;
+            lockSelect(selectCustomer);
+        }
+
+        // Projekt wiederherstellen falls mehrere vorhanden
+        const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
+        if (projects.length > 1) {
+            selectProject.innerHTML = '<option value="">-- Projekt wählen --</option>';
+            projects.forEach(function(p) {
+                const o = document.createElement('option');
+                o.value = p.name;
+                o.textContent = p.name;
+                selectProject.appendChild(o);
+            });
+            selectProject.value = selectedProject;
+            showSelect(selectProject);
+            lockSelect(selectProject);
+        }
+
+        // Tätigkeit wiederherstellen und sperren
+        selectActivity.value = selectedActivity;
+        showSelect(selectActivity);
+        lockSelect(selectActivity);
+
+        updateRunningDisplay();
+        startTimeEl.textContent = trackingStartTime;
+
+        if (trackingStartTime) {
+            const [h, m, sec] = trackingStartTime.split(':').map(Number);
+            const savedDate = new Date();
+            savedDate.setHours(h, m, sec, 0);
+            const elapsed = Math.floor((new Date() - savedDate) / 1000);
+            countdownValue = Math.max(0, 1800 - elapsed);
+        }
+
+        stopBtn.disabled = true;
+
+        showRunningRows();
+        updateShortcuts();
+        updateCountdownDisplay();
+
+        if (countdownValue > 0) startCountdown();
+    } else {
+        updateCountdownDisplay();
+    }
+
+    /* ---- Settings panel ---- */
+    const btnSettings   = document.getElementById('btnSettings');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    const fontSizeLbl   = document.getElementById('fontSizeValue');
+    const appEl         = document.querySelector('.app');
+
+    function applyZoom(pct) {
+        document.documentElement.style.setProperty('--app-zoom', pct / 100);
+        if (fontSizeLbl)    fontSizeLbl.textContent   = pct + '%';
+        if (fontSizeSlider) fontSizeSlider.value       = pct;
+        localStorage.setItem('tm_zoom', pct);
+    }
+
+    const savedZoom = localStorage.getItem('tm_zoom');
+    if (savedZoom) applyZoom(Number(savedZoom));
+
+    btnSettings.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsPanel.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!settingsPanel.classList.contains('hidden') &&
+            !settingsPanel.contains(e.target) &&
+            e.target !== btnSettings) {
+            settingsPanel.classList.add('hidden');
+        }
+    });
+
+    fontSizeSlider.addEventListener('input', () => {
+        applyZoom(Number(fontSizeSlider.value));
+    });
+
+    /* ---- Monthly overview ---- */
+    const monthCustomer    = document.getElementById('monthCustomer');
+    const monthProjectSel  = document.getElementById('monthProject');
+    const monthEntriesWrap = document.getElementById('monthEntriesWrap');
+    const monthTbody       = document.getElementById('monthEntriesTbody');
+    const monthTotalEl     = document.getElementById('monthTotal');
+
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    async function loadMonthEntries() {
+        const cid     = monthCustomer.value;
+        const project = monthProjectSel.classList.contains('hidden') ? '' : monthProjectSel.value;
+        if (!cid) return;
+
+        const res = await api('get_monthly_entries', { customer_id: cid, project });
+        if (!res.success) return;
+
+        const entries = res.data || [];
+        monthTbody.innerHTML = '';
+        let totalMin = 0;
+
+        entries.forEach(e => {
+            const [y, mo, d] = e.date.split('-');
+            const dateStr = d + '.' + mo + '.' + y;
+            let desc = escHtml(e.activity || '');
+            if (e.project) desc += ' <span class="project-tag">' + escHtml(e.project) + '</span>';
+            if (e.comment) desc += '<span class="comment">: ' + escHtml(e.comment) + '</span>';
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + escHtml(dateStr) + '</td><td>' + desc + '</td><td class="col-dur">' + e.duration_minutes + '</td>';
+            monthTbody.appendChild(tr);
+            totalMin += Number(e.duration_minutes);
+        });
+
+        monthTotalEl.textContent = (totalMin / 60).toFixed(2) + ' h';
+        monthEntriesWrap.classList.toggle('hidden', entries.length === 0);
+    }
+
+    monthCustomer.addEventListener('change', () => {
+        const cid      = monthCustomer.value;
+        const projects = (window.CUSTOMER_PROJECTS || {})[cid] || [];
+
+        monthProjectSel.innerHTML = '<option value="">-- Projekt wählen --</option>';
+        monthEntriesWrap.classList.add('hidden');
+
+        if (!cid) {
+            monthProjectSel.classList.add('hidden');
+            return;
+        }
+
+        if (projects.length > 1) {
+            projects.forEach(p => {
+                const o = document.createElement('option');
+                o.value       = p.name;
+                o.textContent = p.name;
+                monthProjectSel.appendChild(o);
+            });
+            monthProjectSel.classList.remove('hidden');
+        } else {
+            monthProjectSel.classList.add('hidden');
+            loadMonthEntries();
+        }
+    });
+
+    monthProjectSel.addEventListener('change', () => {
+        if (monthProjectSel.value) loadMonthEntries();
+    });
+
+    /* ---- Projekt-Select bei Kundenwechsel im Edit-Formular aktualisieren ---- */
+    document.addEventListener('change', (e) => {
+        if (!e.target.classList.contains('edit-customer')) return;
+        const form       = e.target.closest('.edit-form');
+        const projectSel = form && form.querySelector('.edit-project');
+        if (!projectSel) return;
+        const projects   = (window.CUSTOMER_PROJECTS || {})[e.target.value] || [];
+        projectSel.innerHTML = '<option value="">— Kein Projekt —</option>';
+        projects.forEach(p => {
+            const o = document.createElement('option');
+            o.value = p.name;
+            o.textContent = p.name;
+            projectSel.appendChild(o);
+        });
+    });
+
+    /* ---- Date picker for entry list ---- */
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.addEventListener('change', () => {
+            if (datePicker.value) {
+                location.href = 'index.php?date=' + datePicker.value;
+            }
+        });
+    }
+});

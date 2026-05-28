@@ -1,0 +1,20 @@
+<?php
+const ACTIVITIES = [
+    'Abrechnung',
+    'E-Mails bearbeiten',
+    'PHP Programmierung',
+    'HTML Programmierung',
+    'Flash Programmierung',
+    'Typo3 Programmierung',
+    'Joomla Programmierung',
+    'WordPress Programmierung',
+    'VB Programmierung',
+    'Office Programmierung',
+    'Sonstige Programmierung',
+    'Webserver Administration',
+    'Kunden Aquise',
+    'Kundenbetreuung',
+    'Telefonat',
+    'E-Mail Antwort',
+    'Sonstiges',
+];

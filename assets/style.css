@@ -1,0 +1,775 @@
+/* -------------------------------------------------------
+   CSS Custom Properties
+------------------------------------------------------- */
+:root {
+    --bg:          #111111;
+    --card-bg:     #f5f5f5;
+    --card-border: #e0e0e0;
+    --text:        #222222;
+    --text-muted:  #777777;
+    --accent:      #0078d4;
+    --accent-dark: #005a9e;
+    --danger:      #c0392b;
+    --success:     #27ae60;
+    --radius:      6px;
+    --shadow:      0 2px 10px rgba(0, 0, 0, 0.2);
+    --font:        -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+}
+
+/* -------------------------------------------------------
+   Reset & Base
+------------------------------------------------------- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html { font-size: 14px; }
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: #ffffff;
+    min-height: 100vh;
+    line-height: 1.4;
+}
+
+/* -------------------------------------------------------
+   Utility
+------------------------------------------------------- */
+.hidden { display: none !important; }
+
+/* -------------------------------------------------------
+   Form elements (shared)
+------------------------------------------------------- */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+input[type="date"],
+select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 0.15s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="search"]:focus,
+input[type="date"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,120,212,0.15);
+}
+
+/* -------------------------------------------------------
+   Buttons
+------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    background: #fdfdfd;
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:hover {
+    background: #e0eef9;
+    border-color: var(--accent);
+}
+
+.btn--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.btn--primary:hover {
+    background: var(--accent-dark);
+    border-color: var(--accent-dark);
+    color: #fff;
+}
+
+.btn--danger:hover {
+    background: #fde;
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn:disabled,
+.btn--primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 3px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s;
+    line-height: 0;
+}
+
+.btn-icon:hover          { color: var(--accent); }
+.btn-icon--danger:hover  { color: var(--danger); }
+.btn-icon--confirm       { color: var(--success); }
+.btn-icon--confirm:hover { color: var(--success); opacity: 0.8; }
+
+.btn-icon svg { fill: currentColor; }
+
+.actions-normal,
+.actions-confirm {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.col-actions { width: 56px; }
+
+/* -------------------------------------------------------
+   Login
+------------------------------------------------------- */
+.login-overlay {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 300px;
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: var(--shadow);
+}
+
+.login-card h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text);
+}
+
+.login-card input {
+    margin-bottom: 10px;
+}
+
+.login-card .btn--primary {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.login-error {
+    background: #fde8e8;
+    color: var(--danger);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+/* -------------------------------------------------------
+   App wrapper
+------------------------------------------------------- */
+.app {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 12px;
+    zoom: var(--app-zoom, 1);
+}
+
+/* -------------------------------------------------------
+   Tracker card
+------------------------------------------------------- */
+.tracker-card {
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+}
+
+.tracker-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+}
+
+.tracker-row + .tracker-row {
+    margin-top: 6px;
+}
+
+/* Header row */
+.tracker-header {
+    position: relative;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 12px;
+    font-weight: 600;
+    padding-bottom: 8px;
+    padding-right: 52px;
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: 6px;
+}
+@media (min-width: 576px) {
+    .tracker-header {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding-right: 52px;
+    }
+}
+
+.tracker-header-icons {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.tracker-stats {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Countdown */
+.countdown {
+    font-weight: 700;
+    font-size: 14px;
+    min-width: 46px;
+    text-align: center;
+    color: var(--text);
+}
+
+.countdown.warning { color: #e67e22; }
+.countdown.urgent  { color: var(--danger); }
+
+/* Customer display (running state) */
+.customer-display {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.display-sep:not(:empty)::before {
+    content: ' · ';
+}
+
+/* Start time display */
+.start-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Wide select rows */
+.tracker-row select {
+    flex: 1;
+}
+
+/* Selects-Container: auf Mobile untereinander, auf Desktop nebeneinander */
+.tracker-selects {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+.tracker-selects select {
+    flex: none;
+    width: 100%;
+}
+@media (min-width: 768px) {
+    .tracker-selects {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+    .tracker-selects select {
+        flex: 1;
+        width: auto;
+    }
+}
+
+/* Gesperrtes Select (Auswahl bereits getroffen) */
+.tracker-selects select:disabled {
+    opacity: 1;
+    cursor: default;
+    background: #f0f4f8;
+    color: var(--text-muted);
+    border-color: var(--card-border);
+}
+
+/* Comment row */
+.tracker-row #inputComment {
+    flex: 1;
+}
+
+/* Stop row */
+#rowStop .btn--primary {
+    flex: 0 0 auto;
+}
+
+/* -------------------------------------------------------
+   Entries section
+------------------------------------------------------- */
+.entries-section {
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+}
+
+.month-section {
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    margin-top: 14px;
+}
+
+.month-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+@media (min-width: 768px) {
+    .month-controls {
+        flex-direction: row;
+    }
+    .month-controls select {
+        flex: 1;
+    }
+}
+
+.month-sum-label {
+    text-align: right;
+    font-weight: 600;
+    font-size: 12px;
+}
+.month-sum-value {
+    font-weight: 600;
+}
+
+.entries-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.entries-header-title {
+    font-weight: 600;
+}
+
+.entries-meta {
+    color: var(--text-muted);
+}
+
+.btn-settings {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius);
+    transition: color 0.15s;
+}
+.btn-settings:hover {
+    color: var(--accent);
+}
+
+.settings-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.settings-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 10px 14px;
+    min-width: 220px;
+    z-index: 200;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.settings-label {
+    white-space: nowrap;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.settings-val {
+    min-width: 34px;
+    text-align: right;
+    color: var(--text-muted);
+}
+
+.btn-reload {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius);
+    transition: color 0.15s;
+}
+.btn-reload:hover {
+    color: var(--accent);
+}
+
+.btn-logout {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 3px 8px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-logout:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* Table */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.entries-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 420px;
+}
+
+.entries-table th {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 2px solid var(--card-border);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.entries-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #ebebeb;
+    vertical-align: middle;
+}
+
+.entry-row:last-child td { border-bottom: none; }
+
+.entry-row:hover td { background: #eef4fb; }
+
+.col-time     { white-space: nowrap; }
+.col-dur      { white-space: nowrap; text-align: right; }
+.col-actions  { width: 30px; text-align: center; }
+
+.comment { color: var(--text-muted); }
+
+.project-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #e0eaff;
+    color: #3b5bdb;
+    font-size: 0.75em;
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+/* Edit row */
+.edit-row td {
+    background: #f0f4f8;
+    padding: 8px;
+}
+
+.edit-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.edit-form .edit-start,
+.edit-form .edit-end {
+    flex: 0 1 160px;
+    min-width: 130px;
+}
+
+.edit-form .edit-comment {
+    flex: 1 1 160px;
+    min-width: 120px;
+}
+
+.edit-form .btn {
+    flex: 0 0 auto;
+}
+
+/* Empty state */
+.empty-message {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+/* -------------------------------------------------------
+   Login extras
+------------------------------------------------------- */
+.login-switch {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 11px;
+}
+
+.login-switch a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.login-switch a:hover { color: var(--accent); }
+
+.success-message {
+    background: #e8f5e9;
+    color: var(--success);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+/* -------------------------------------------------------
+   Tablet  ≥ 576px
+------------------------------------------------------- */
+@media (min-width: 576px) {
+    .app {
+        padding: 16px;
+    }
+
+    .tracker-card,
+    .entries-section {
+        padding: 16px 18px;
+    }
+
+    .entries-table {
+        font-size: 13px;
+    }
+
+    .entries-table th,
+    .entries-table td {
+        padding: 7px 10px;
+    }
+}
+
+/* -------------------------------------------------------
+   Admin icon (main app header)
+------------------------------------------------------- */
+.btn-admin {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    text-decoration: none;
+    line-height: 0;
+    transition: color 0.15s;
+}
+.btn-admin svg  { fill: currentColor; }
+.btn-admin:hover { color: var(--accent); }
+
+/* -------------------------------------------------------
+   Admin pages
+------------------------------------------------------- */
+.admin-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px;
+}
+
+.admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+}
+
+.admin-header h1 {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.admin-breadcrumb {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.admin-breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.admin-breadcrumb a:hover { color: var(--accent); }
+
+.admin-section {
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+}
+
+.admin-section h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+/* Dashboard cards */
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.admin-card {
+    background: var(--card-bg);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 28px 16px;
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+.admin-card:hover {
+    background: #e8f0fb;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.admin-card svg { fill: var(--accent); }
+
+/* Add-form row */
+.add-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.add-form input { flex: 1; }
+
+/* Status badge */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge--active   { background: #e8f5e9; color: var(--success); }
+.badge--inactive { background: #fde8e8; color: var(--danger); }
+
+/* Role badge */
+.badge--admin      { background: #fff3e0; color: #e65100; }
+.badge--mitarbeiter{ background: #e3f2fd; color: #1565c0; }
+.badge--kunde      { background: #f3e5f5; color: #6a1b9a; }
+
+/* Admin message feedback */
+.admin-msg {
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+.admin-msg--ok  { background: #e8f5e9; color: var(--success); }
+.admin-msg--err { background: #fde8e8; color: var(--danger); }
+
+/* -------------------------------------------------------
+   Desktop  ≥ 992px
+------------------------------------------------------- */
+@media (min-width: 992px) {
+    .app {
+        padding: 24px;
+    }
+
+    .tracker-card {
+        padding: 18px 20px;
+    }
+
+    .tracker-row {
+        gap: 12px;
+    }
+}
