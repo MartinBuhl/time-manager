@@ -130,6 +130,7 @@ switch ($action) {
             'invoice_iban', 'invoice_bic', 'invoice_bank', 'invoice_account_holder',
             'invoice_hourly_rate', 'invoice_tax_rate', 'invoice_payment_days',
             'invoice_number_prefix', 'invoice_number_start', 'invoice_mail_subject',
+            'github_repo', 'github_token',
             'site_url', 'mail_from', 'mail_name', 'mail_bcc',
             'mail_signature_html', 'mail_signature_plain',
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_encryption',
@@ -1170,20 +1171,56 @@ switch ($action) {
         jsonOk(['marked' => $marked]);
 
     // ----------------------------------------------------------------
-    case 'check_update':
-        $repo    = cfg('github_repo', '');
-        $token   = cfg('github_token', '');
-        $headers = "User-Agent: TimeManager-Updater/" . APP_VERSION . "\r\nAccept: application/vnd.github+json\r\n";
-        if ($token !== '') {
-            $headers .= "Authorization: Bearer {$token}\r\n";
+    case 'save_admin_layout':
+        $layout = trim($_POST['layout'] ?? '');
+        if ($layout === '' || json_decode($layout) === null) {
+            jsonErr('Ungültiges Layout-Format.');
         }
-        $ctx  = stream_context_create(['http' => [
-            'header'  => $headers,
-            'timeout' => 10,
-        ]]);
-        $json = @file_get_contents("https://api.github.com/repos/{$repo}/releases/latest", false, $ctx);
+        db()->prepare(
+            'INSERT INTO tm_user_state (user_id, admin_layout)
+             VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE admin_layout = VALUES(admin_layout), updated_at = NOW()'
+        )->execute([$userId, $layout]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'check_update':
+        $repo  = cfg('github_repo', '');
+        $token = cfg('github_token', '');
+        if ($repo === '') {
+            jsonErr('GitHub Repository nicht konfiguriert. Bitte unter Administration → Konfiguration → System den Wert "GitHub Repository" eintragen (z.B. MartinBuhl/time-manager).');
+        }
+        $url        = "https://api.github.com/repos/{$repo}/releases/latest";
+        $hdrs       = [
+            'User-Agent: TimeManager-Updater/' . APP_VERSION,
+            'Accept: application/vnd.github+json',
+        ];
+        if ($token !== '') $hdrs[] = "Authorization: Bearer {$token}";
+
+        // cURL bevorzugt, file_get_contents als Fallback
+        $json = false;
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_HTTPHEADER     => $hdrs,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $body = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($body !== false && $code === 200) $json = $body;
+        }
+        if ($json === false && ini_get('allow_url_fopen')) {
+            $ctx  = stream_context_create(['http' => [
+                'header'  => implode("\r\n", $hdrs),
+                'timeout' => 10,
+            ]]);
+            $json = @file_get_contents($url, false, $ctx);
+        }
         if ($json === false) {
-            jsonErr('GitHub API nicht erreichbar. Bitte später erneut versuchen.');
+            jsonErr('GitHub API nicht erreichbar. Bitte prüfen: github_repo korrekt gesetzt? Webspace erlaubt ausgehende HTTPS-Verbindungen?');
         }
         $release   = json_decode($json, true);
         $latestTag = ltrim($release['tag_name'] ?? '', 'v');
