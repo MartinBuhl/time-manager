@@ -146,9 +146,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
             $zip->close();
             unlink($zipFile);
 
-            // 4. Dateien kopieren
+            // 4. Dateien kopieren (GitHub-Archive haben einen Unterordner)
             global $PROTECTED;
-            $copied = mergeDir($tempDir, ROOT_DIR, $PROTECTED);
+            $entries = array_values(array_filter(
+                scandir($tempDir),
+                fn($e) => $e !== '.' && $e !== '..'
+            ));
+            $srcDir = (count($entries) === 1 && is_dir($tempDir . '/' . $entries[0]))
+                ? $tempDir . '/' . $entries[0]
+                : $tempDir;
+            $copied = mergeDir($srcDir, ROOT_DIR, $PROTECTED);
             deleteDir($tempDir);
 
             // 5. Migrationen ausführen

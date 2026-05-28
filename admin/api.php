@@ -1225,13 +1225,8 @@ switch ($action) {
         $release   = json_decode($json, true);
         $latestTag = ltrim($release['tag_name'] ?? '', 'v');
         $hasUpdate = version_compare($latestTag, APP_VERSION, '>');
-        $dlUrl     = '';
-        foreach ($release['assets'] ?? [] as $asset) {
-            if (str_ends_with($asset['name'], '.zip')) {
-                $dlUrl = $asset['browser_download_url'];
-                break;
-            }
-        }
+        $tag   = $release['tag_name'] ?? '';
+        $dlUrl = $tag !== '' ? "https://github.com/{$repo}/archive/refs/tags/{$tag}.zip" : '';
         jsonOk([
             'current'      => APP_VERSION,
             'latest'       => $latestTag,
