@@ -109,11 +109,37 @@ function runMigrations(): array
     foreach ($files as $file) {
         $name = basename($file);
         if (in_array($name, $applied, true)) continue;
-        $pdo->exec((string)file_get_contents($file));
+        try {
+            $pdo->exec((string)file_get_contents($file));
+        } catch (PDOException $e) {
+            // „Bereits vorhanden"-Fehler nicht als Abbruch werten – die
+            // Schemaänderung ist offenbar schon eingespielt. Migration wird
+            // trotzdem als ausgeführt vermerkt, damit sie nicht erneut läuft.
+            if (isAlreadyAppliedError($e)) {
+                ulog('    Migration übersprungen (bereits vorhanden): ' . $name
+                     . ' – ' . $e->getMessage());
+            } else {
+                throw $e;
+            }
+        }
         $pdo->prepare('INSERT INTO tm_migrations (filename) VALUES (?)')->execute([$name]);
         $ran[] = $name;
     }
     return $ran;
+}
+
+/**
+ * Erkennt MySQL-/MariaDB-Fehler, die bedeuten, dass eine Schemaänderung
+ * bereits existiert (Duplicate column/key, Table already exists usw.).
+ */
+function isAlreadyAppliedError(PDOException $e): bool
+{
+    // 1050 Table exists, 1060 Duplicate column, 1061 Duplicate key,
+    // 1091 Can't DROP (nicht vorhanden)
+    foreach (['1050', '1060', '1061', '1091'] as $code) {
+        if (str_contains($e->getMessage(), $code)) return true;
+    }
+    return false;
 }
 
 // ----------------------------------------------------------------
