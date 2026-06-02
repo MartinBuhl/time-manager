@@ -7,7 +7,11 @@ if (!$invoiceId) { header('Location: invoices.php'); exit; }
 $stmt = db()->prepare(
     'SELECT i.id, i.invoice_number, i.total_minutes, i.amount_net, i.amount_gross,
             i.pdf_file, i.created_at,
-            c.name AS customer_name, c.id AS customer_id, c.hourly_rate
+            i.invoice_date, i.period_start, i.period_end,
+            i.invoice_mode, i.invoice_text,
+            i.mail_template_html, i.mail_template_plain,
+            i.tax_rate AS stored_tax, i.hourly_rate AS stored_rate,
+            c.name AS customer_name, c.id AS customer_id, c.hourly_rate AS cust_rate
      FROM tm_invoices i
      LEFT JOIN tm_customers c ON c.id = i.customer_id
      WHERE i.id = ? LIMIT 1'
@@ -16,8 +20,16 @@ $stmt->execute([$invoiceId]);
 $invoice = $stmt->fetch();
 if (!$invoice) { header('Location: invoices.php'); exit; }
 
-$rate    = (float)($invoice['hourly_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
-$taxRate = (int)cfg('invoice_tax_rate', '19');
+$rate    = $invoice['stored_rate'] !== null
+    ? (float)$invoice['stored_rate']
+    : (float)($invoice['cust_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
+$taxRate = $invoice['stored_tax'] !== null
+    ? (int)$invoice['stored_tax']
+    : (int)cfg('invoice_tax_rate', '19');
+$invoiceMode       = $invoice['invoice_mode']       ?? 'entries';
+$invoiceText       = $invoice['invoice_text']       ?? '';
+$mailTemplateHtml  = $invoice['mail_template_html']  ?? '';
+$mailTemplatePlain = $invoice['mail_template_plain'] ?? '';
 
 $stmt = db()->prepare(
     'SELECT id, date, activity, comment, duration_minutes, sort_order
@@ -87,7 +99,8 @@ $amountGross  = (float)$invoice['amount_gross'];
 .summary-bar { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--text-muted); }
 .summary-bar strong { color:var(--text); }
 .add-form { background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
-            padding:16px 20px; margin-bottom:20px; }
+            padding:16px 20px; margin-bottom:20px;
+            display:flex; flex-direction:column; align-items:flex-start; }
 .add-form h3 { margin:0 0 12px; font-size:14px; }
 .add-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
 .add-row > div { display:flex; flex-direction:column; gap:4px; }
@@ -105,6 +118,57 @@ $amountGross  = (float)$invoice['amount_gross'];
 .col-h    { width:70px; text-align:right; }
 .col-eur  { width:90px; text-align:right; }
 .col-act  { width:200px; }
+.meta-form { background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
+             padding:16px 20px; margin-bottom:20px; }
+.meta-form h3 { margin:0 0 12px; font-size:14px; }
+.meta-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:8px; }
+.meta-row > div { display:flex; flex-direction:column; gap:4px; }
+.meta-row label { font-size:11px; color:var(--text-muted); font-weight:500; }
+.meta-row textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 0.15s;
+    min-width: 0;
+}
+.meta-row textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+.meta-row .f-date  { width:140px; }
+.meta-row .f-rate  { width:90px; }
+.meta-row .f-tax   { width:70px; }
+.meta-row .f-hours { width:90px; }
+.meta-row .f-net   { width:110px; }
+.meta-row textarea { width:320px; min-height:60px; resize:vertical; }
+.rte-wrap { border:1px solid var(--card-border); border-radius:var(--radius); overflow:hidden; }
+.rte-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,120,212,0.15); }
+.rte-toolbar { display:flex; gap:2px; padding:4px 6px; background:#f5f5f5; flex-wrap:wrap; }
+.rte-btn { border:1px solid transparent; border-radius:3px; background:none; cursor:pointer;
+           padding:2px 7px; font-size:13px; line-height:1.5; }
+.rte-btn:hover { background:#e0eef9; border-color:var(--accent); }
+.rte-body { min-height:90px; padding:8px 10px; font-size:13px; line-height:1.6;
+            outline:none; background:#fff; }
+.meta-form textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: #fff;
+    transition: border-color 0.15s;
+    min-height: 60px;
+    resize: vertical;
+}
+.meta-form textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
 </style>
 </head>
 <body>
@@ -134,6 +198,81 @@ $amountGross  = (float)$invoice['amount_gross'];
             <span>Netto: <strong id="sumNet"><?= fmtEur($amountNet) ?></strong></span>
             <span>Brutto: <strong id="sumGross"><?= fmtEur($amountGross) ?></strong></span>
             <span style="color:var(--text-muted);font-size:12px"><?= number_format($rate, 2, ',', '.') ?> €/h</span>
+        </div>
+
+        <div class="meta-form" id="metaForm">
+            <h3>Rechnungs-Stammdaten</h3>
+            <div class="meta-row">
+                <div>
+                    <label>Rechnungsdatum</label>
+                    <input type="date" id="metaDate" class="f-date"
+                           value="<?= h($invoice['invoice_date'] ?? date('Y-m-d', strtotime($invoice['created_at']))) ?>">
+                </div>
+                <div>
+                    <label>Zeitraum von</label>
+                    <input type="date" id="metaPeriodStart" class="f-date"
+                           value="<?= h($invoice['period_start'] ?? '') ?>">
+                </div>
+                <div>
+                    <label>Zeitraum bis</label>
+                    <input type="date" id="metaPeriodEnd" class="f-date"
+                           value="<?= h($invoice['period_end'] ?? '') ?>">
+                </div>
+                <div>
+                    <label>Stundensatz (€)</label>
+                    <input type="number" id="metaRate" class="f-rate" step="0.01" min="0"
+                           value="<?= number_format($rate, 2, '.', '') ?>">
+                </div>
+                <div>
+                    <label>MwSt. (%)</label>
+                    <input type="number" id="metaTax" class="f-tax" step="1" min="0" max="100"
+                           value="<?= $taxRate ?>">
+                </div>
+            </div>
+            <div class="meta-row">
+                <div>
+                    <label>Rechnungstyp</label>
+                    <select id="metaMode" onchange="toggleTextMode()">
+                        <option value="entries"<?= $invoiceMode === 'entries' ? ' selected' : '' ?>>Einzelne Posten</option>
+                        <option value="text"<?=   $invoiceMode === 'text'    ? ' selected' : '' ?>>Standard Text</option>
+                    </select>
+                </div>
+                <div id="metaTextHoursWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
+                    <label>Stunden (gerundet)</label>
+                    <input type="number" id="metaHours" class="f-hours" step="0.25" min="0"
+                           value="<?= number_format((int)$invoice['total_minutes'] / 60, 2, '.', '') ?>">
+                </div>
+                <div id="metaNetWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
+                    <label>Nettobetrag (€)</label>
+                    <input type="number" id="metaNet" class="f-net" step="0.01" min="0"
+                           value="<?= number_format((float)$invoice['amount_net'], 2, '.', '') ?>">
+                </div>
+            </div>
+            <div id="metaTextWrap" style="display:<?= $invoiceMode === 'text' ? 'block' : 'none' ?>;margin-bottom:8px">
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Standard Text für Rechnung</label>
+                <textarea id="metaText" style="width:100%;box-sizing:border-box"><?= h($invoiceText) ?></textarea>
+            </div>
+            <div style="margin-bottom:8px">
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Mailvorlage Rechnung HTML (Platzhalter: {time}, {work})</label>
+                <div class="rte-wrap">
+                    <div class="rte-toolbar">
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="rteLink(this)">Link</button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                    </div>
+                    <div class="rte-body" id="metaMailHtml" contenteditable="true"><?= $mailTemplateHtml ?></div>
+                </div>
+            </div>
+            <div style="margin-bottom:8px">
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Mailvorlage Rechnung Plain Text</label>
+                <textarea id="metaMailPlain" style="width:100%;box-sizing:border-box;min-height:60px"><?= h($mailTemplatePlain) ?></textarea>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+                <button class="btn btn--primary" id="metaSaveBtn">Stammdaten speichern</button>
+                <span id="metaMsg" style="font-size:12px"></span>
+            </div>
         </div>
 
         <div class="add-form">
@@ -419,6 +558,75 @@ function escHtml(s) {
 function escAttr(s) {
     return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
+
+function rteLink(btn) {
+    const body = btn.closest('.rte-wrap').querySelector('.rte-body');
+    const sel  = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+    const url  = prompt('URL:', 'https://');
+    if (!url) return;
+    body.focus();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    document.execCommand('createLink', false, url);
+}
+
+function toggleTextMode() {
+    const isText = document.getElementById('metaMode').value === 'text';
+    document.getElementById('metaTextWrap').style.display      = isText ? 'block' : 'none';
+    document.getElementById('metaTextHoursWrap').style.display = isText ? 'flex'  : 'none';
+    document.getElementById('metaNetWrap').style.display       = isText ? 'flex'  : 'none';
+}
+
+document.getElementById('metaHours').addEventListener('input', function() {
+    const hours = parseFloat(this.value) || 0;
+    const rate  = parseFloat(document.getElementById('metaRate').value) || 0;
+    document.getElementById('metaNet').value = (hours * rate).toFixed(2);
+});
+
+document.getElementById('metaSaveBtn').addEventListener('click', async function() {
+    const btn = this;
+    const msg = document.getElementById('metaMsg');
+    btn.disabled = true;
+    msg.style.color = '';
+    msg.textContent = 'Wird gespeichert…';
+
+    const mode = document.getElementById('metaMode').value;
+    const params = {
+        invoice_id:          INVOICE_ID,
+        invoice_date:        document.getElementById('metaDate').value,
+        period_start:        document.getElementById('metaPeriodStart').value,
+        period_end:          document.getElementById('metaPeriodEnd').value,
+        invoice_mode:        mode,
+        invoice_text:        document.getElementById('metaText').value,
+        mail_template_html:  document.getElementById('metaMailHtml').innerHTML,
+        mail_template_plain: document.getElementById('metaMailPlain').value,
+        tax_rate:            document.getElementById('metaTax').value,
+        hourly_rate:         document.getElementById('metaRate').value,
+    };
+    if (mode === 'text') {
+        params.total_minutes = Math.round(parseFloat(document.getElementById('metaHours').value) * 60);
+        params.amount_net    = document.getElementById('metaNet').value;
+    }
+
+    const data = await apiCall('update_invoice_meta', params);
+    if (data.success) {
+        msg.style.color = '#27ae60';
+        msg.textContent = '✓ Gespeichert';
+        if (data.data.totals || data.data.amount_net) {
+            const t = data.data;
+            updateSummary({
+                total_minutes: t.total_minutes,
+                amount_net:    t.amount_net,
+                amount_gross:  t.amount_gross,
+            }, rowCount());
+        }
+        setTimeout(() => { btn.disabled = false; msg.textContent = ''; }, 2500);
+    } else {
+        msg.style.color = '#c0392b';
+        msg.textContent = data.error || 'Fehler';
+        btn.disabled = false;
+    }
+});
 </script>
 </body>
 </html>

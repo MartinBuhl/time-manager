@@ -53,14 +53,23 @@ function roundToQH(int $min): float {
 function recalcInvoiceTotals(int $invoiceId): array {
     $pdo = db();
     $inv = $pdo->prepare(
-        'SELECT c.hourly_rate FROM tm_invoices i
-         JOIN tm_customers c ON c.id = i.customer_id WHERE i.id = ? LIMIT 1'
+        'SELECT i.hourly_rate AS stored_rate, i.tax_rate AS stored_tax,
+                c.hourly_rate AS cust_rate
+         FROM tm_invoices i
+         LEFT JOIN tm_customers c ON c.id = i.customer_id
+         WHERE i.id = ? LIMIT 1'
     );
     $inv->execute([$invoiceId]);
     $invRow = $inv->fetch(PDO::FETCH_ASSOC);
     if (!$invRow) { return []; }
 
-    $rate  = (float)($invRow['hourly_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
+    $rate    = $invRow['stored_rate'] !== null
+        ? (float)$invRow['stored_rate']
+        : (float)($invRow['cust_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
+    $taxRate = $invRow['stored_tax'] !== null
+        ? (int)$invRow['stored_tax']
+        : (int)cfg('invoice_tax_rate', '19');
+
     $rows  = $pdo->prepare('SELECT duration_minutes FROM tm_invoice_items WHERE invoice_id = ?');
     $rows->execute([$invoiceId]);
 
@@ -71,7 +80,6 @@ function recalcInvoiceTotals(int $invoiceId): array {
         $totalRoundedH += $h;
     }
     $amountNet     = round($amountNet, 2);
-    $taxRate       = (int)cfg('invoice_tax_rate', '19');
     $amountGross   = round($amountNet * (1 + $taxRate / 100), 2);
     $billedMinutes = (int)round($totalRoundedH * 60);
 
@@ -272,6 +280,21 @@ switch ($action) {
         $taxRate       = (int)cfg('invoice_tax_rate', '19');
         $amountGross   = round($amountNet * (1 + $taxRate / 100), 2);
 
+        $invoiceDate  = date('Y-m-d');
+        $periodStart  = $entries[0]['date'] ?? $invoiceDate;
+        $periodEnd    = $entries[count($entries) - 1]['date'] ?? $invoiceDate;
+        $invoiceMode       = $customer['invoice_mode'] ?? 'entries';
+        $invoiceText       = null;
+        $mailTemplateHtml  = $customer['mail_template_html']  ?? null;
+        $mailTemplatePlain = $customer['mail_template_plain'] ?? null;
+        if ($invoiceMode === 'text') {
+            $rawText      = $customer['invoice_text'] ?? '';
+            $custProjects = json_decode($customer['projects'] ?? '[]', true);
+            $firstProject = (is_array($custProjects) && !empty($custProjects))
+                ? trim($custProjects[0]['name'] ?? '') : '';
+            $invoiceText = str_replace('{project}', $firstProject, $rawText) ?: null;
+        }
+
         $prefix = cfg('invoice_number_prefix', 'RE-');
         $start  = max(1, (int)cfg('invoice_number_start', '1'));
 
@@ -282,22 +305,22 @@ switch ($action) {
 
         $billedMinutes = (int)round($totalRoundedH * 60);
 
-        require_once dirname(__DIR__) . '/includes/InvoiceGenerator.php';
-        $generator = new InvoiceGenerator($customer, $items, $invoiceNumber);
-
-        $pdfFile = null;
-        try {
-            $pdfFile = $generator->generatePdf();
-        } catch (\Throwable $ex) {
-            error_log('Invoice PDF: ' . $ex->getMessage());
-        }
-
         $stmt = db()->prepare(
             'INSERT INTO tm_invoices
-             (customer_id, invoice_number, invoice_seq, total_minutes, amount_net, amount_gross, pdf_file)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+             (customer_id, invoice_date, period_start, period_end, invoice_mode, invoice_text,
+              mail_template_html, mail_template_plain,
+              tax_rate, hourly_rate, invoice_number, invoice_seq, total_minutes,
+              amount_net, amount_gross, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$customerId, $invoiceNumber, $nextSeq, $billedMinutes, $amountNet, $amountGross, $pdfFile]);
+        $stmt->execute([
+            $customerId, $invoiceDate, $periodStart, $periodEnd,
+            $invoiceMode, $invoiceText,
+            $mailTemplateHtml, $mailTemplatePlain,
+            $taxRate, $rate,
+            $invoiceNumber, $nextSeq, $billedMinutes,
+            $amountNet, $amountGross, 'erstellt',
+        ]);
         $invoiceId = (int)db()->lastInsertId();
 
         // Snapshot der Einträge als Rechnungsposten speichern
@@ -324,29 +347,10 @@ switch ($action) {
         $stmt = db()->prepare($updateSql);
         $stmt->execute($updateParams);
 
-        // Mailspool-Eintrag anlegen
-        $recipient = trim((string)$customer['billing_email']);
-        require_once dirname(__DIR__) . '/includes/MailHelper.php';
-        $mailBody  = MailHelper::buildMailBody($customer, $items, $invoiceNumber, $amountGross);
-
-        $stmt = db()->prepare(
-            'INSERT INTO tm_mail_spool
-             (invoice_id, subject, recipient, pdf_file, html_body, text_body, spooled_at)
-             VALUES (?, ?, ?, ?, ?, ?, NOW())'
-        );
-        $stmt->execute([
-            $invoiceId,
-            $mailBody['subject'],
-            $recipient,
-            $pdfFile,
-            $mailBody['html'],
-            $mailBody['plain'],
-        ]);
-
         jsonOk([
             'invoice_number'  => $invoiceNumber,
             'invoice_id'      => $invoiceId,
-            'pdf_file'        => $pdfFile,
+            'pdf_file'        => null,
             'total_min'       => $totalMin,
             'total_rounded_h' => round($totalRoundedH, 4),
             'rate'            => $rate,
@@ -843,7 +847,7 @@ switch ($action) {
         $pdfFile = $generator->generatePdf();
 
         db()->prepare(
-            'UPDATE tm_invoices SET pdf_file=?, total_minutes=?, amount_net=?, amount_gross=? WHERE id=?'
+            'UPDATE tm_invoices SET pdf_file=?, status=\'pdf_erstellt\', total_minutes=?, amount_net=?, amount_gross=? WHERE id=?'
         )->execute([$pdfFile, $totals['total_minutes'], $totals['amount_net'], $totals['amount_gross'], $invoiceId]);
 
         db()->prepare(
@@ -855,6 +859,111 @@ switch ($action) {
             'errors'   => [],
             'totals'   => $totals,
         ]);
+
+    // ----------------------------------------------------------------
+    case 'spool_invoice':
+        @set_time_limit(120);
+        $invoiceId = filter_var($_POST['invoice_id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$invoiceId) { jsonErr('Ungültige Rechnungs-ID.'); }
+
+        $existing = db()->prepare('SELECT id FROM tm_mail_spool WHERE invoice_id = ? LIMIT 1');
+        $existing->execute([$invoiceId]);
+        if ($existing->fetchColumn()) { jsonErr('Mail-Spool-Eintrag existiert bereits.'); }
+
+        // Load invoice with stored meta (use invoice values, not current customer values)
+        $stmt = db()->prepare(
+            'SELECT i.id, i.invoice_number, i.invoice_mode, i.invoice_text,
+                    i.mail_template_html, i.mail_template_plain,
+                    i.hourly_rate, i.amount_gross,
+                    c.id AS customer_id,
+                    c.name, c.billing_name, c.billing_street, c.billing_zip, c.billing_city,
+                    c.billing_email, c.billing_tax_id,
+                    c.contact_first_name, c.contact_last_name, c.contact_on_invoice,
+                    c.projects
+             FROM tm_invoices i
+             JOIN tm_customers c ON c.id = i.customer_id
+             WHERE i.id = ? LIMIT 1'
+        );
+        $stmt->execute([$invoiceId]);
+        $inv = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$inv) { jsonErr('Rechnung nicht gefunden.'); }
+
+        $recipient = trim((string)($inv['billing_email'] ?? ''));
+        if ($recipient === '') { jsonErr('Kunde hat keine E-Mail-Adresse hinterlegt.'); }
+
+        $stmt = db()->prepare(
+            'SELECT date, activity, comment, duration_minutes
+             FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
+        );
+        $stmt->execute([$invoiceId]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($items)) { jsonErr('Keine Rechnungsposten vorhanden. Bitte zuerst die Posten-Seite öffnen.'); }
+
+        // Build customer context using invoice-stored values (not current customer data)
+        $customerCtx = array_merge($inv, [
+            'invoice_mode' => $inv['invoice_mode'],
+            'invoice_text' => $inv['invoice_text'],
+            'hourly_rate'  => $inv['hourly_rate'],
+        ]);
+
+        // Generate PDF
+        $totals  = recalcInvoiceTotals($invoiceId);
+        require_once dirname(__DIR__) . '/includes/InvoiceGenerator.php';
+        $generator = new InvoiceGenerator($customerCtx, $items, $inv['invoice_number']);
+        $pdfFile   = $generator->generatePdf();
+
+        db()->prepare(
+            'UPDATE tm_invoices SET pdf_file=?, status=\'mail_vorbereitet\',
+             total_minutes=?, amount_net=?, amount_gross=? WHERE id=?'
+        )->execute([$pdfFile, $totals['total_minutes'], $totals['amount_net'], $totals['amount_gross'], $invoiceId]);
+
+        // Build mail body using invoice-stored templates
+        $mailCtx = array_merge($customerCtx, [
+            'mail_template_html'  => $inv['mail_template_html'],
+            'mail_template_plain' => $inv['mail_template_plain'],
+        ]);
+        require_once dirname(__DIR__) . '/includes/MailHelper.php';
+        $mailBody = MailHelper::buildMailBody(
+            $mailCtx, $items, $inv['invoice_number'], (float)$totals['amount_gross']
+        );
+
+        db()->prepare(
+            'INSERT INTO tm_mail_spool
+             (invoice_id, subject, recipient, pdf_file, html_body, text_body, spooled_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())'
+        )->execute([
+            $invoiceId,
+            $mailBody['subject'],
+            $recipient,
+            $pdfFile,
+            $mailBody['html'],
+            $mailBody['plain'],
+        ]);
+
+        jsonOk(['pdf_file' => $pdfFile]);
+
+    // ----------------------------------------------------------------
+    case 'spool_invoice_undo':
+        $spoolId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$spoolId) { jsonErr('Ungültige ID.'); }
+
+        $stmt = db()->prepare(
+            'SELECT id, invoice_id, pdf_file, sent_at FROM tm_mail_spool WHERE id = ? LIMIT 1'
+        );
+        $stmt->execute([$spoolId]);
+        $spool = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$spool) { jsonErr('Eintrag nicht gefunden.'); }
+        if ($spool['sent_at']) { jsonErr('Mail wurde bereits versendet — Rückgängig nicht möglich.'); }
+
+        db()->prepare('DELETE FROM tm_mail_spool WHERE id = ?')->execute([$spoolId]);
+
+        $prevStatus = $spool['pdf_file'] ? 'pdf_erstellt' : 'erstellt';
+        if ($spool['invoice_id']) {
+            db()->prepare('UPDATE tm_invoices SET status = ? WHERE id = ?')
+                ->execute([$prevStatus, $spool['invoice_id']]);
+        }
+
+        jsonOk(['prev_status' => $prevStatus]);
 
     // ----------------------------------------------------------------
     case 'reverse_invoice':
@@ -950,6 +1059,76 @@ switch ($action) {
         db()->prepare('DELETE FROM tm_invoice_items WHERE id = ?')->execute([$id]);
 
         jsonOk(['totals' => recalcInvoiceTotals($invoiceId)]);
+
+    // ----------------------------------------------------------------
+    case 'update_invoice_meta':
+        $invoiceId   = filter_var($_POST['invoice_id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$invoiceId) { jsonErr('Ungültige Rechnungs-ID.'); }
+
+        $check = db()->prepare('SELECT id, invoice_mode FROM tm_invoices WHERE id = ? LIMIT 1');
+        $check->execute([$invoiceId]);
+        $existing = $check->fetch(PDO::FETCH_ASSOC);
+        if (!$existing) { jsonErr('Rechnung nicht gefunden.'); }
+
+        $invoiceDateRaw    = trim($_POST['invoice_date'] ?? '');
+        $periodStartRaw    = trim($_POST['period_start'] ?? '');
+        $periodEndRaw      = trim($_POST['period_end']   ?? '');
+        $invoiceMode       = ($_POST['invoice_mode'] ?? '') === 'text' ? 'text' : 'entries';
+        $invoiceText       = trim($_POST['invoice_text'] ?? '') ?: null;
+        $mailTemplateHtml  = isset($_POST['mail_template_html'])  ? (trim($_POST['mail_template_html'])  ?: null) : false;
+        $mailTemplatePlain = isset($_POST['mail_template_plain']) ? (trim($_POST['mail_template_plain']) ?: null) : false;
+        $taxRateVal        = filter_var($_POST['tax_rate'] ?? '', FILTER_VALIDATE_INT);
+        $hourlyRateRaw     = str_replace(',', '.', trim($_POST['hourly_rate'] ?? ''));
+        $hourlyRate        = is_numeric($hourlyRateRaw) ? round((float)$hourlyRateRaw, 2) : null;
+
+        $invoiceDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $invoiceDateRaw) ? $invoiceDateRaw : null;
+        $periodStart = preg_match('/^\d{4}-\d{2}-\d{2}$/', $periodStartRaw) ? $periodStartRaw : null;
+        $periodEnd   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $periodEndRaw)   ? $periodEndRaw   : null;
+        $taxRate     = ($taxRateVal !== false && $taxRateVal >= 0 && $taxRateVal <= 100) ? $taxRateVal : null;
+
+        $fields = [];
+        $values = [];
+        if ($invoiceDate !== null)    { $fields[] = 'invoice_date = ?';  $values[] = $invoiceDate; }
+        if ($periodStart !== null)    { $fields[] = 'period_start = ?';  $values[] = $periodStart; }
+        if ($periodEnd   !== null)    { $fields[] = 'period_end = ?';    $values[] = $periodEnd;   }
+        $fields[] = 'invoice_mode = ?';  $values[] = $invoiceMode;
+        $fields[] = 'invoice_text = ?';  $values[] = $invoiceText;
+        if ($mailTemplateHtml  !== false) { $fields[] = 'mail_template_html = ?';  $values[] = $mailTemplateHtml;  }
+        if ($mailTemplatePlain !== false) { $fields[] = 'mail_template_plain = ?'; $values[] = $mailTemplatePlain; }
+        if ($taxRate !== null)        { $fields[] = 'tax_rate = ?';      $values[] = $taxRate;     }
+        if ($hourlyRate !== null)     { $fields[] = 'hourly_rate = ?';   $values[] = $hourlyRate;  }
+
+        // For text mode: also update total_minutes, amount_net, amount_gross directly if provided
+        if ($invoiceMode === 'text') {
+            $newMinutes = filter_var($_POST['total_minutes'] ?? '', FILTER_VALIDATE_INT);
+            $newNetRaw  = str_replace(',', '.', trim($_POST['amount_net'] ?? ''));
+            $newNet     = is_numeric($newNetRaw) ? round((float)$newNetRaw, 2) : null;
+            $taxForCalc = $taxRate ?? (int)cfg('invoice_tax_rate', '19');
+            if ($newMinutes !== false && $newMinutes > 0) {
+                $fields[] = 'total_minutes = ?'; $values[] = $newMinutes;
+            }
+            if ($newNet !== null) {
+                $fields[] = 'amount_net = ?';   $values[] = $newNet;
+                $fields[] = 'amount_gross = ?'; $values[] = round($newNet * (1 + $taxForCalc / 100), 2);
+            }
+        }
+
+        $values[] = $invoiceId;
+        db()->prepare('UPDATE tm_invoices SET ' . implode(', ', $fields) . ' WHERE id = ?')
+            ->execute($values);
+
+        // For entries mode, recalc from items
+        if ($invoiceMode === 'entries') {
+            recalcInvoiceTotals($invoiceId);
+        }
+
+        $updated = db()->prepare(
+            'SELECT invoice_date, period_start, period_end, invoice_mode, invoice_text,
+                    tax_rate, hourly_rate, total_minutes, amount_net, amount_gross
+             FROM tm_invoices WHERE id = ? LIMIT 1'
+        );
+        $updated->execute([$invoiceId]);
+        jsonOk($updated->fetch(PDO::FETCH_ASSOC));
 
     // ----------------------------------------------------------------
     case 'preview_spool_mail':
@@ -1112,6 +1291,45 @@ switch ($action) {
                            . "\nServer: " . cfg('smtp_host') . ' Port: ' . cfg('smtp_port');
             $mail->send();
             jsonOk(['recipient' => $recipient]);
+        } catch (\Throwable $e) {
+            jsonErr('SMTP-Fehler: ' . $e->getMessage());
+        }
+
+    // ----------------------------------------------------------------
+    case 'send_spool_testmail':
+        $spoolId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$spoolId) { jsonErr('Ungültige ID.'); }
+
+        $stmt = db()->prepare(
+            'SELECT subject, html_body, text_body, pdf_file FROM tm_mail_spool WHERE id = ? LIMIT 1'
+        );
+        $stmt->execute([$spoolId]);
+        $spool = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$spool) { jsonErr('Eintrag nicht gefunden.'); }
+
+        require_once dirname(__DIR__) . '/includes/MailHelper.php';
+        $adminMail = trim(cfg('mail_from'));
+        if ($adminMail === '' || !filter_var($adminMail, FILTER_VALIDATE_EMAIL)) {
+            jsonErr('Admin-E-Mail (Absender-E-Mail unter Konfiguration → System) ist nicht konfiguriert.');
+        }
+
+        try {
+            $mail = MailHelper::createMailer();
+            $mail->addAddress($adminMail);
+            $mail->Subject = '[TESTMAIL] ' . $spool['subject'];
+            $mail->isHTML(true);
+            $mail->Body    = $spool['html_body']  ?? '';
+            $mail->AltBody = $spool['text_body']  ?? '';
+
+            if ($spool['pdf_file']) {
+                $pdfPath = dirname(__DIR__) . '/invoices/pdf/' . $spool['pdf_file'];
+                if (is_file($pdfPath)) {
+                    $mail->addAttachment($pdfPath, basename((string)$spool['pdf_file']));
+                }
+            }
+
+            $mail->send();
+            jsonOk(['recipient' => $adminMail]);
         } catch (\Throwable $e) {
             jsonErr('SMTP-Fehler: ' . $e->getMessage());
         }

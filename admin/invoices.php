@@ -19,7 +19,7 @@ if ($customerFilter > 0) {
 
 $stmt = db()->prepare(
     "SELECT i.id, i.invoice_number, i.invoice_seq, i.total_minutes,
-            i.amount_net, i.amount_gross, i.pdf_file, i.created_at,
+            i.amount_net, i.amount_gross, i.pdf_file, i.created_at, i.status,
             c.name AS customer_name,
             (SELECT COUNT(*) FROM tm_entries e WHERE e.invoice_id = i.id) AS entry_count,
             (SELECT MIN(sent_at) FROM tm_mail_spool m WHERE m.invoice_id = i.id) AS sent_at,
@@ -69,6 +69,10 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 .mail-status-sent    { color: #27ae60; font-size: 12px; }
 .mail-status-pending { color: #e67e22; font-size: 12px; }
 .mail-status-none    { color: var(--text-muted); font-size: 12px; }
+.inv-status { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+.inv-status-erstellt          { background:#e0f2fe; color:#0369a1; }
+.inv-status-pdf_erstellt      { background:#dcfce7; color:#15803d; }
+.inv-status-mail_vorbereitet  { background:#fef9c3; color:#854d0e; }
 </style>
 </head>
 <body>
@@ -121,6 +125,7 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                         <th class="col-dur">Stunden</th>
                         <th class="col-dur">Netto</th>
                         <th class="col-dur">Brutto</th>
+                        <th>Status</th>
                         <th>Mail</th>
                         <th>Dateien</th>
                     </tr>
@@ -136,6 +141,18 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                         <td class="col-dur"><?= fmtEur((float)$inv['amount_net']) ?></td>
                         <td class="col-dur"><?= fmtEur((float)$inv['amount_gross']) ?></td>
                         <td>
+                            <?php
+                                $st = $inv['status'] ?? 'erstellt';
+                                $stLabels = [
+                                    'erstellt'         => 'Erstellt',
+                                    'pdf_erstellt'     => 'PDF erstellt',
+                                    'mail_vorbereitet' => 'Mail vorbereitet',
+                                ];
+                                $stLabel = $stLabels[$st] ?? $st;
+                            ?>
+                            <span class="inv-status inv-status-<?= h($st) ?>"><?= $stLabel ?></span>
+                        </td>
+                        <td>
                             <?php if ($inv['mail_id']): ?>
                                 <?php if ($inv['sent_at']): ?>
                                     <a href="mailspool.php?filter=sent" class="mail-status-sent">Versendet <?= h(fmtDt($inv['sent_at'])) ?></a>
@@ -147,8 +164,10 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                             <?php endif; ?>
                         </td>
                         <td style="white-space:nowrap" id="files-<?= (int)$inv['id'] ?>">
+                            <a href="invoice_view.php?invoice_id=<?= (int)$inv['id'] ?>"
+                               class="btn btn--primary" style="font-size:11px;padding:2px 8px">Vorschau</a>
                             <a href="invoice_items.php?invoice_id=<?= (int)$inv['id'] ?>"
-                               class="btn" style="font-size:11px;padding:2px 8px">Posten</a>
+                               class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px">Posten</a>
                             <?php if ($inv['pdf_file']): ?>
                                 <a href="invoice_download.php?type=pdf&file=<?= urlencode($inv['pdf_file']) ?>"
                                    class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px"
@@ -161,6 +180,14 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                                     title="PDF neu erstellen (alte Datei wird überschrieben)">
                                 Neu erstellen
                             </button>
+                            <?php if (!$inv['mail_id']): ?>
+                            <button type="button" class="btn spool-btn"
+                                    data-id="<?= (int)$inv['id'] ?>"
+                                    data-number="<?= h($inv['invoice_number']) ?>"
+                                    style="font-size:11px;padding:2px 8px;margin-left:4px">
+                                Mail vorbereiten
+                            </button>
+                            <?php endif; ?>
                             <button type="button" class="btn btn--danger reverse-btn"
                                     data-id="<?= (int)$inv['id'] ?>"
                                     data-number="<?= h($inv['invoice_number']) ?>"
@@ -282,6 +309,70 @@ async function handleReverse(ev) {
 
 document.querySelectorAll('.reverse-btn').forEach(function(btn) {
     btn.addEventListener('click', handleReverse);
+});
+
+async function handleSpool(ev) {
+    const btn    = ev.currentTarget;
+    const id     = btn.dataset.id;
+    const number = btn.dataset.number;
+
+    if (!confirm('Rechnung „' + number + '" in den Mail-Spool legen?\nDie Mail kann danach unter Mail-Spool geprüft und versendet werden.')) return;
+
+    btn.disabled    = true;
+    btn.textContent = 'Wird vorbereitet…';
+
+    try {
+        const body = new URLSearchParams({ action: 'spool_invoice', invoice_id: id });
+        const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
+        const data = await res.json();
+
+        if (data.success) {
+            btn.remove();
+            const cell = document.getElementById('files-' + id);
+
+            // Insert PDF link if returned
+            if (data.data && data.data.pdf_file) {
+                const pdfLink = document.createElement('a');
+                pdfLink.href      = 'invoice_download.php?type=pdf&file=' + encodeURIComponent(data.data.pdf_file);
+                pdfLink.className = 'btn';
+                pdfLink.target    = '_blank';
+                pdfLink.rel       = 'noopener';
+                pdfLink.style.cssText = 'font-size:11px;padding:2px 8px;margin-left:4px';
+                pdfLink.textContent   = 'PDF';
+                // Insert before reverse btn
+                const reverseBtn = cell.querySelector('.reverse-btn');
+                cell.insertBefore(pdfLink, reverseBtn);
+            }
+
+            // Add spool link
+            const spoolLink = document.createElement('a');
+            spoolLink.href      = 'mailspool.php';
+            spoolLink.className = 'mail-status-pending';
+            spoolLink.style.cssText = 'font-size:12px;margin-left:6px';
+            spoolLink.textContent   = 'Im Spool';
+            cell.appendChild(spoolLink);
+
+            // Update status badge
+            const row = document.getElementById('row-inv-' + id);
+            const badge = row?.querySelector('.inv-status');
+            if (badge) {
+                badge.className   = 'inv-status inv-status-mail_vorbereitet';
+                badge.textContent = 'Mail vorbereitet';
+            }
+        } else {
+            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            btn.disabled    = false;
+            btn.textContent = 'Mail vorbereiten';
+        }
+    } catch (e) {
+        alert('Serverfehler.');
+        btn.disabled    = false;
+        btn.textContent = 'Mail vorbereiten';
+    }
+}
+
+document.querySelectorAll('.spool-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleSpool);
 });
 </script>
 </body>

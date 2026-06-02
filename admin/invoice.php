@@ -253,6 +253,46 @@ function fmtH(int $min): string {
     font-weight: 700;
     color: #fff;
 }
+.entries-detail .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 3px;
+    color: #888;
+    font-size: 13px;
+    line-height: 1;
+}
+.entries-detail .btn-icon:hover { color: #ddd; background: rgba(255,255,255,0.08); }
+.entries-detail .btn-icon.btn-del:hover { color: #f87171; }
+.entry-edit-row td { padding: 10px 10px 12px !important; background: #1e1e1e; }
+.entry-edit-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.entry-edit-form label { display: block; font-size: 10px; color: #888; margin-bottom: 3px; }
+.entry-edit-form input[type="text"] {
+    background: #2d2d2d;
+    border: 1px solid #444;
+    border-radius: 3px;
+    color: #ddd;
+    padding: 5px 8px;
+    font-size: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.entry-edit-form input[type="text"]:focus { outline: none; border-color: #3b82f6; }
+.entry-edit-form .field { display: flex; flex-direction: column; }
+.entry-edit-form .field-wide { flex: 1; min-width: 160px; }
+.entry-edit-form .field-dt { min-width: 160px; max-width: 200px; }
+.btn-save-entry { background: #2563eb; color: #fff; border: none; border-radius: 4px;
+                  padding: 5px 14px; font-size: 12px; cursor: pointer; }
+.btn-save-entry:hover { background: #1d4ed8; }
+.btn-cancel-entry { background: #374151; color: #ccc; border: none; border-radius: 4px;
+                    padding: 5px 12px; font-size: 12px; cursor: pointer; margin-left: 4px; }
+.btn-cancel-entry:hover { background: #4b5563; }
 @media print {
     @page { size: A4; margin: 0; }
     body { background: #fff !important; }
@@ -414,35 +454,69 @@ function fmtH(int $min): string {
 
     </div>
 
-    <?php if ($invoiceMode === 'text'): ?>
+    <?php if (!empty($entries)): ?>
     <div class="entries-detail">
-        <h3>Enthaltene Arbeitszeit (nicht Teil der Rechnung)</h3>
+        <h3>Arbeitszeit-Einträge<?php if ($invoiceMode === 'text'): ?> <span style="font-weight:400;color:#888;font-size:12px">(nicht Teil der Rechnung)</span><?php endif; ?></h3>
         <table>
             <thead>
                 <tr>
-                    <th>Datum</th>
+                    <th style="white-space:nowrap">Datum</th>
                     <th>Tätigkeit &amp; Kommentar</th>
-                    <th class="right">Min.</th>
+                    <th class="right" style="white-space:nowrap">Std. (gerundet)</th>
+                    <th style="width:56px"></th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($entries as $e): ?>
-                <tr>
+                <tr id="entry-row-<?= (int)$e['id'] ?>">
                     <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($e['start_datetime']))) ?></td>
                     <td>
                         <?= h($e['activity']) ?>
-                        <?php if ($e['comment']): ?>
-                            <br><span class="comment-cell"><?= h($e['comment']) ?></span>
-                        <?php endif; ?>
+                        <?php if ($e['project']): ?><br><span style="color:#6b9cce;font-size:11px"><?= h($e['project']) ?></span><?php endif; ?>
+                        <?php if ($e['comment']): ?><br><span class="comment-cell"><?= h($e['comment']) ?></span><?php endif; ?>
                     </td>
-                    <td class="right"><?= (int)$e['duration_minutes'] ?></td>
+                    <td class="right"><?= fmtH((int)$e['duration_minutes']) ?></td>
+                    <td style="white-space:nowrap;padding-right:6px">
+                        <button class="btn-icon" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)" title="Bearbeiten">✏</button>
+                        <button class="btn-icon btn-del" onclick="trashEntry(<?= (int)$e['id'] ?>)" title="In Papierkorb">🗑</button>
+                    </td>
+                </tr>
+                <tr id="entry-edit-<?= (int)$e['id'] ?>" class="entry-edit-row" style="display:none">
+                    <td colspan="4">
+                        <div class="entry-edit-form">
+                            <div class="field field-dt">
+                                <label>Start (JJJJ-MM-TT HH:MM:SS)</label>
+                                <input type="text" id="estart-<?= (int)$e['id'] ?>" value="<?= h($e['start_datetime']) ?>">
+                            </div>
+                            <div class="field field-dt">
+                                <label>Ende (JJJJ-MM-TT HH:MM:SS)</label>
+                                <input type="text" id="eend-<?= (int)$e['id'] ?>" value="<?= h($e['end_datetime']) ?>">
+                            </div>
+                            <div class="field field-wide">
+                                <label>Tätigkeit</label>
+                                <input type="text" id="eactivity-<?= (int)$e['id'] ?>" value="<?= h($e['activity'] ?? '') ?>">
+                            </div>
+                            <div class="field field-wide">
+                                <label>Kommentar</label>
+                                <input type="text" id="ecomment-<?= (int)$e['id'] ?>" value="<?= h($e['comment'] ?? '') ?>">
+                            </div>
+                            <div class="field" style="justify-content:flex-end">
+                                <label>&nbsp;</label>
+                                <div>
+                                    <button class="btn-save-entry" onclick="saveEntry(<?= (int)$e['id'] ?>, <?= (int)$customerId ?>)">Speichern</button>
+                                    <button class="btn-cancel-entry" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)">Abbrechen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="right">Summe (exakt)</td>
-                    <td class="right"><?= number_format($totalMin / 60, 2, ',', '.') ?></td>
+                    <td colspan="2" class="right">Summe (gerundet)</td>
+                    <td class="right"><?= fmtH($totalMin) ?> h</td>
+                    <td></td>
                 </tr>
             </tfoot>
         </table>
@@ -453,6 +527,44 @@ function fmtH(int $min): string {
 <script>
 const CSRF           = <?= json_encode($_SESSION['csrf_token']) ?>;
 const FILTER_PROJECT = <?= json_encode($filterProject) ?>;
+
+async function apiCall(action, params) {
+    const body = new URLSearchParams({ action, ...params });
+    const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
+    return res.json();
+}
+
+function toggleEntryEdit(id) {
+    const row = document.getElementById('entry-edit-' + id);
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function saveEntry(id, customerId) {
+    const start    = document.getElementById('estart-'    + id).value.trim();
+    const end      = document.getElementById('eend-'      + id).value.trim();
+    const activity = document.getElementById('eactivity-' + id).value.trim();
+    const comment  = document.getElementById('ecomment-'  + id).value.trim();
+    const res = await apiCall('update_entry', {
+        id, customer_id: customerId,
+        start_datetime: start, end_datetime: end,
+        activity, comment
+    });
+    if (res.success) {
+        location.reload();
+    } else {
+        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    }
+}
+
+async function trashEntry(id) {
+    if (!confirm('Diesen Eintrag in den Papierkorb verschieben?')) return;
+    const res = await apiCall('delete_entry', { id });
+    if (res.success) {
+        location.reload();
+    } else {
+        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    }
+}
 
 (function() {
     const billBtn      = document.getElementById('billBtn');

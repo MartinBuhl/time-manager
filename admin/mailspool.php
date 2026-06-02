@@ -192,9 +192,19 @@ function fmtDt($dt) {
                                    target="_blank" rel="noopener">PDF</a>
                             <?php endif; ?>
                         </td>
-                        <td>
+                        <td style="white-space:nowrap">
                             <button type="button" class="btn" style="font-size:11px;padding:2px 8px"
                                     onclick="showMail(<?= (int)$m['id'] ?>)">Ansehen</button>
+                            <button type="button" class="btn testmail-btn"
+                                    data-id="<?= (int)$m['id'] ?>"
+                                    style="font-size:11px;padding:2px 8px;margin-left:4px"
+                                    title="Mail an Admin-Adresse senden">Testmail</button>
+                            <?php if (!$m['sent_at']): ?>
+                            <button type="button" class="btn btn--danger unspool-btn"
+                                    data-id="<?= (int)$m['id'] ?>"
+                                    data-number="<?= h($m['invoice_number'] ?? '') ?>"
+                                    style="font-size:11px;padding:2px 8px;margin-left:4px">Rückgängig</button>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -436,6 +446,67 @@ if (execBtn) {
         execBtn.disabled = false;
     });
 }
+
+document.querySelectorAll('.testmail-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const id       = btn.dataset.id;
+        const original = btn.textContent;
+        btn.disabled    = true;
+        btn.textContent = 'Wird gesendet…';
+
+        try {
+            const body = new URLSearchParams({ action: 'send_spool_testmail', id });
+            const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
+            const data = await res.json();
+
+            if (data.success) {
+                btn.textContent = '✓ Gesendet an ' + data.data.recipient;
+                setTimeout(function() {
+                    btn.disabled    = false;
+                    btn.textContent = original;
+                }, 4000);
+            } else {
+                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                btn.disabled    = false;
+                btn.textContent = original;
+            }
+        } catch(e) {
+            alert('Serverfehler.');
+            btn.disabled    = false;
+            btn.textContent = original;
+        }
+    });
+});
+
+document.querySelectorAll('.unspool-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+        const id     = btn.dataset.id;
+        const number = btn.dataset.number;
+
+        if (!confirm('Mail-Spool-Eintrag für Rechnung „' + number + '" rückgängig machen?\nDer Eintrag wird gelöscht und der Rechnungsstatus zurückgesetzt.')) return;
+
+        btn.disabled    = true;
+        btn.textContent = '…';
+
+        try {
+            const body = new URLSearchParams({ action: 'spool_invoice_undo', id });
+            const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('spool-row-' + id)?.remove();
+            } else {
+                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                btn.disabled    = false;
+                btn.textContent = 'Rückgängig';
+            }
+        } catch(e) {
+            alert('Serverfehler.');
+            btn.disabled    = false;
+            btn.textContent = 'Rückgängig';
+        }
+    });
+});
 </script>
 </body>
 </html>

@@ -48,6 +48,7 @@ input[type="password"],
 input[type="email"],
 input[type="search"],
 input[type="date"],
+input[type="number"],
 select {
     width: 100%;
     padding: 7px 10px;
@@ -65,6 +66,7 @@ input[type="password"]:focus,
 input[type="email"]:focus,
 input[type="search"]:focus,
 input[type="date"]:focus,
+input[type="number"]:focus,
 select:focus {
     outline: none;
     border-color: var(--accent);
