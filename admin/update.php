@@ -120,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
             if (GH_REPO === '') throw new RuntimeException('GitHub-Repository nicht konfiguriert (Administration → Konfiguration → System).');
             if (!$release) throw new RuntimeException('GitHub API nicht erreichbar.');
 
+            // Prefer explicit ZIP asset; fall back to GitHub source archive
             $dlUrl = '';
             foreach ($release['assets'] ?? [] as $asset) {
                 if (str_ends_with($asset['name'], '.zip')) {
@@ -127,7 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
                     break;
                 }
             }
-            if ($dlUrl === '') throw new RuntimeException('Kein ZIP-Asset im Release gefunden.');
+            if ($dlUrl === '') {
+                $tag = $release['tag_name'] ?? '';
+                if ($tag !== '') {
+                    $dlUrl = 'https://github.com/' . GH_REPO . '/archive/refs/tags/' . $tag . '.zip';
+                }
+            }
+            if ($dlUrl === '') throw new RuntimeException('Kein ZIP-Asset und kein Tag im Release gefunden.');
 
             // 2. ZIP herunterladen
             $zipData = @file_get_contents($dlUrl, false, stream_context_create(ghHeaders()));
@@ -196,9 +203,12 @@ if ($result === null) {
 $latestTag  = ltrim($release['tag_name'] ?? '', 'v');
 $hasUpdate  = $latestTag !== '' && version_compare($latestTag, APP_VERSION, '>');
 $upToDate   = $latestTag !== '' && !$hasUpdate;
-$dlUrl      = '';
+$dlUrl = '';
 foreach ($release['assets'] ?? [] as $asset) {
     if (str_ends_with($asset['name'], '.zip')) { $dlUrl = $asset['browser_download_url']; break; }
+}
+if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
+    $dlUrl = 'https://github.com/' . GH_REPO . '/archive/refs/tags/' . $release['tag_name'] . '.zip';
 }
 ?><!DOCTYPE html>
 <html lang="de">
