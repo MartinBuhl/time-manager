@@ -580,13 +580,17 @@ switch ($action) {
         $minutes = (int) round((strtotime($endDt) - strtotime($startDt)) / 60);
         if ($minutes < 1) $minutes = 1;
 
+        // date-Spalte synchron zum Start-Datum halten (sonst driften Vorschau
+        // und Abrechnung auseinander, da diese nach e.date filtert/speichert)
+        $entryDate = substr($startDt, 0, 10);
+
         $stmt = db()->prepare('
             UPDATE tm_entries
-            SET start_datetime = ?, end_datetime = ?, duration_minutes = ?,
+            SET date = ?, start_datetime = ?, end_datetime = ?, duration_minutes = ?,
                 comment = ?, activity = ?, project = ?, customer_id = ?, billed_at = ?
             WHERE id = ? AND deleted_at IS NULL
         ');
-        $stmt->execute([$startDt, $endDt, $minutes, $comment, $activity, $project, $customerId, $billedAt, $id]);
+        $stmt->execute([$entryDate, $startDt, $endDt, $minutes, $comment, $activity, $project, $customerId, $billedAt, $id]);
         jsonOk(['duration_minutes' => $minutes]);
 
     // ----------------------------------------------------------------
