@@ -6,7 +6,7 @@ define('GH_REPO',  cfg('github_repo', ''));
 define('ROOT_DIR', dirname(__DIR__));
 
 // Dateien/Verzeichnisse, die beim Update niemals überschrieben werden
-$PROTECTED = ['config.php', '_installer/installed.lock', 'invoices'];
+$PROTECTED = ['config.php', '_installer', 'invoices'];
 
 function ghHeaders(): array
 {
