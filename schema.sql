@@ -78,6 +78,19 @@ CREATE TABLE IF NOT EXISTS `tm_billing_rules` (
     KEY `idx_lookup`   (`customer_id`, `activity`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `tm_invoice_items` (
+    `id`               INT          NOT NULL AUTO_INCREMENT,
+    `invoice_id`       INT          NOT NULL,
+    `entry_id`         INT                   DEFAULT NULL,
+    `date`             DATE         NOT NULL,
+    `activity`         VARCHAR(255) NOT NULL,
+    `comment`          TEXT                  DEFAULT NULL,
+    `duration_minutes` INT          NOT NULL,
+    `sort_order`       INT          NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_invoice_id` (`invoice_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `tm_invoices` (
     `id`             INT           NOT NULL AUTO_INCREMENT,
     `customer_id`    INT           NOT NULL,
