@@ -4,9 +4,25 @@ require_once __DIR__ . '/auth.php';
 
 define('GH_REPO',  cfg('github_repo', ''));
 define('ROOT_DIR', dirname(__DIR__));
+define('LOG_DIR',  ROOT_DIR . '/log');
 
 // Dateien/Verzeichnisse, die beim Update niemals überschrieben werden
-$PROTECTED = ['config.php', '_installer', 'invoices'];
+$PROTECTED = ['config.php', '_installer', 'invoices', 'log'];
+
+/**
+ * Schreibt eine Zeile in die Update-Logdatei. Pro Update-Lauf wird beim
+ * ersten Aufruf eine eigene Datei (update_JJJJMMTT_HHMMSS.log) angelegt.
+ */
+function ulog(string $msg): void
+{
+    static $file = null;
+    if ($file === null) {
+        if (!is_dir(LOG_DIR)) { @mkdir(LOG_DIR, 0755, true); }
+        $file = LOG_DIR . '/update_' . date('Ymd_His') . '.log';
+    }
+    @file_put_contents($file, '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n",
+                       FILE_APPEND | LOCK_EX);
+}
 
 function ghHeaders(): array
 {
@@ -114,11 +130,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
         set_time_limit(180);
         ignore_user_abort(true);
 
+        ulog('=== Update gestartet (installierte Version: ' . APP_VERSION . ') ===');
+
         try {
             // 1. Release-Info holen
+            ulog('Schritt 1: Release-Informationen von GitHub abrufen…');
             $release = fetchRelease();
             if (GH_REPO === '') throw new RuntimeException('GitHub-Repository nicht konfiguriert (Administration → Konfiguration → System).');
             if (!$release) throw new RuntimeException('GitHub API nicht erreichbar.');
+            ulog('  Release gefunden: ' . ($release['tag_name'] ?? '?') . ' (' . ($release['name'] ?? '') . ')');
 
             // Prefer explicit ZIP asset; fall back to GitHub source archive
             $dlUrl = '';
@@ -132,18 +152,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
                 $tag = $release['tag_name'] ?? '';
                 if ($tag !== '') {
                     $dlUrl = 'https://github.com/' . GH_REPO . '/archive/refs/tags/' . $tag . '.zip';
+                    ulog('  Kein ZIP-Asset vorhanden – nutze Quell-Archiv.');
                 }
             }
             if ($dlUrl === '') throw new RuntimeException('Kein ZIP-Asset und kein Tag im Release gefunden.');
+            ulog('  Download-URL: ' . $dlUrl);
 
             // 2. ZIP herunterladen
+            ulog('Schritt 2: ZIP-Datei herunterladen…');
             $zipData = @file_get_contents($dlUrl, false, stream_context_create(ghHeaders()));
             if ($zipData === false) throw new RuntimeException('ZIP-Download fehlgeschlagen.');
 
             $zipFile = sys_get_temp_dir() . '/tm_update_' . uniqid() . '.zip';
             file_put_contents($zipFile, $zipData);
+            ulog('  ' . number_format(strlen($zipData)) . ' Bytes heruntergeladen → ' . $zipFile);
 
             // 3. Entpacken
+            ulog('Schritt 3: ZIP-Datei entpacken…');
             $zip = new ZipArchive();
             if ($zip->open($zipFile) !== true) throw new RuntimeException('ZIP-Datei konnte nicht geöffnet werden.');
 
@@ -152,8 +177,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
             $zip->extractTo($tempDir);
             $zip->close();
             unlink($zipFile);
+            ulog('  Entpackt nach ' . $tempDir);
 
             // 4. Dateien kopieren (GitHub-Archive haben einen Unterordner)
+            ulog('Schritt 4: Dateien einspielen…');
             global $PROTECTED;
             $entries = array_values(array_filter(
                 scandir($tempDir),
@@ -163,14 +190,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
                 ? $tempDir . '/' . $entries[0]
                 : $tempDir;
             $copied = mergeDir($srcDir, ROOT_DIR, $PROTECTED);
+            ulog('  ' . count($copied) . ' Dateien kopiert (geschützt: ' . implode(', ', $PROTECTED) . ')');
+            foreach ($copied as $rel) { ulog('    + ' . $rel); }
             deleteDir($tempDir);
 
             // 5. Migrationen ausführen
+            ulog('Schritt 5: Datenbankmigrationen prüfen…');
             $migrations = runMigrations();
+            if ($migrations) {
+                foreach ($migrations as $m) { ulog('    Migration ausgeführt: ' . $m); }
+            } else {
+                ulog('    Keine ausstehenden Migrationen.');
+            }
 
             $newVersion = is_readable(ROOT_DIR . '/VERSION')
                 ? trim(file_get_contents(ROOT_DIR . '/VERSION'))
                 : '?';
+            ulog('=== Update erfolgreich abgeschlossen – neue Version: ' . $newVersion . ' ===');
 
             $result = [
                 'ok'         => true,
@@ -179,6 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
                 'migrations' => $migrations,
             ];
         } catch (Throwable $e) {
+            ulog('FEHLER: ' . $e->getMessage());
+            ulog('=== Update abgebrochen ===');
             $result = ['ok' => false, 'msg' => $e->getMessage()];
             if (isset($tempDir) && is_dir($tempDir)) deleteDir($tempDir);
             if (isset($zipFile) && file_exists($zipFile)) unlink($zipFile);

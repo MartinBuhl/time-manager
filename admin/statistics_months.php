@@ -164,9 +164,7 @@ function statsUrl(array $overrides = []): string {
                         <th>Datum</th>
                         <th>Zeit</th>
                         <th class="col-dur">Min</th>
-                        <th>Benutzer</th>
                         <th>Kunde</th>
-                        <th>Projekt</th>
                         <th>Tätigkeit</th>
                         <th>Kommentar</th>
                     </tr>
@@ -181,11 +179,11 @@ function statsUrl(array $overrides = []): string {
                     if ($sort === 'customer' && $currentCustomer !== null && $customerKey !== $currentCustomer):
                 ?>
                     <tr style="background:var(--hover-bg,#f5f5f5);font-weight:600;font-size:12px">
-                        <td colspan="8" style="color:var(--text-muted);padding-left:8px">
+                        <td colspan="6" style="color:var(--text-muted);padding-left:8px">
                             Gesamt <?= h($currentCustomer ?: '—') ?>: <?= h(fmtH($customerMin)) ?>
                         </td>
                     </tr>
-                    <tr style="height:14px"><td colspan="8" style="border:none;padding:0;background:transparent">&nbsp;</td></tr>
+                    <tr style="height:14px"><td colspan="6" style="border:none;padding:0;background:transparent">&nbsp;</td></tr>
                 <?php
                         $customerMin = 0;
                     endif;
@@ -201,15 +199,7 @@ function statsUrl(array $overrides = []): string {
                         <?= fmtTime($e['start_datetime']) ?>–<?= fmtTime($e['end_datetime']) ?>
                     </td>
                     <td class="col-dur"><?= (int)$e['duration_minutes'] ?></td>
-                    <td class="col-user"><?= h($e['username']) ?></td>
                     <td><?= $e['customer_name'] !== '' ? h($e['customer_name']) : '<span style="color:var(--text-muted)">—</span>' ?></td>
-                    <td class="col-project">
-                        <?php if ($e['project']): ?>
-                            <span class="project-tag"><?= h($e['project']) ?></span>
-                        <?php else: ?>
-                            <span style="color:var(--text-muted)">—</span>
-                        <?php endif; ?>
-                    </td>
                     <td><?= h($e['activity']) ?></td>
                     <td style="color:var(--text-muted);font-size:12px">
                         <?= $e['comment'] ? h($e['comment']) : '' ?>
@@ -218,7 +208,7 @@ function statsUrl(array $overrides = []): string {
                 <?php endforeach; ?>
                 <?php if ($sort === 'customer' && $currentCustomer !== null): ?>
                     <tr style="background:var(--hover-bg,#f5f5f5);font-weight:600;font-size:12px">
-                        <td colspan="8" style="color:var(--text-muted);padding-left:8px">
+                        <td colspan="6" style="color:var(--text-muted);padding-left:8px">
                             Gesamt <?= h($currentCustomer ?: '—') ?>: <?= h(fmtH($customerMin)) ?>
                         </td>
                     </tr>

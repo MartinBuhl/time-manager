@@ -7,6 +7,10 @@
 # Installer-Lockdatei – pro Installation verschieden
 /_installer/installed.lock
 
+# Temporäre Dateien (mpdf) und Logs – pro Installation verschieden
+/tmp/
+/log/
+
 # Windows / macOS / IDE
 Thumbs.db
 .DS_Store

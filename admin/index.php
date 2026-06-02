@@ -177,6 +177,10 @@ const CARDS = {
         label: 'Mailspool', href: 'mailspool.php',
         icon: '<path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>',
     },
+    logs: {
+        label: 'Logs', href: 'logs.php',
+        icon: '<path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16z"/>',
+    },
     info: {
         label: 'Info', href: null, onclick: 'openInfoModal()',
         icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>',
@@ -185,7 +189,7 @@ const CARDS = {
 
 const DEFAULT_LAYOUT = {
     top:    ['customers', 'billing', 'invoices', 'entries'],
-    bottom: ['trash', 'users', 'config', 'statistics', 'mailspool', 'info'],
+    bottom: ['trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'info'],
 };
 // ----------------------------------------------------------------
 // Layout laden / speichern

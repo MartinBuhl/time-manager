@@ -225,6 +225,11 @@ switch ($action) {
         @set_time_limit(120);
         $customerId    = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
         $filterProject = trim($_POST['project'] ?? '');
+        $dateFrom      = trim($_POST['date_from'] ?? '');
+        $dateTo        = trim($_POST['date_to'] ?? '');
+        // Nur gültige ISO-Datumswerte (JJJJ-MM-TT) akzeptieren
+        if ($dateFrom !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) { $dateFrom = ''; }
+        if ($dateTo   !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo))   { $dateTo   = ''; }
         if (!$customerId) { jsonErr('Ungültige Kunden-ID.'); }
 
         $stmt = db()->prepare(
@@ -246,6 +251,14 @@ switch ($action) {
         if ($filterProject !== '') {
             $entrySql    .= ' AND e.project = ?';
             $entryParams[] = $filterProject;
+        }
+        if ($dateFrom !== '') {
+            $entrySql    .= ' AND e.date >= ?';
+            $entryParams[] = $dateFrom;
+        }
+        if ($dateTo !== '') {
+            $entrySql    .= ' AND e.date <= ?';
+            $entryParams[] = $dateTo;
         }
         $entrySql .= ' ORDER BY e.date ASC, e.start_datetime ASC';
 
@@ -343,6 +356,14 @@ switch ($action) {
         if ($filterProject !== '') {
             $updateSql    .= ' AND project = ?';
             $updateParams[] = $filterProject;
+        }
+        if ($dateFrom !== '') {
+            $updateSql    .= ' AND date >= ?';
+            $updateParams[] = $dateFrom;
+        }
+        if ($dateTo !== '') {
+            $updateSql    .= ' AND date <= ?';
+            $updateParams[] = $dateTo;
         }
         $stmt = db()->prepare($updateSql);
         $stmt->execute($updateParams);

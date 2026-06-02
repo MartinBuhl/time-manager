@@ -33,7 +33,23 @@ $allProjects = $allProjects->fetchAll(PDO::FETCH_COLUMN);
 
 $filterProject = trim($_GET['project'] ?? '');
 
-// Entries (with optional project filter)
+// Standard-Datumsbereich: ältester unabgerechneter Eintrag … heute
+$minDateStmt = db()->prepare(
+    "SELECT MIN(date) FROM tm_entries
+     WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL"
+);
+$minDateStmt->execute([$customerId]);
+$minDate     = $minDateStmt->fetchColumn();
+$defaultFrom = $minDate ?: date('Y-m-d');
+$defaultTo   = date('Y-m-d');
+
+$dateFrom = trim($_GET['date_from'] ?? '');
+$dateTo   = trim($_GET['date_to'] ?? '');
+if ($dateFrom === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) { $dateFrom = $defaultFrom; }
+if ($dateTo   === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo))   { $dateTo   = $defaultTo; }
+$hasDateFilter = ($dateFrom !== $defaultFrom || $dateTo !== $defaultTo);
+
+// Entries (with optional project + date filter)
 $entrySql    = "SELECT e.id, e.activity, e.project, e.comment,
                        e.start_datetime, e.end_datetime, e.duration_minutes
                 FROM tm_entries e
@@ -43,14 +59,18 @@ if ($filterProject !== '') {
     $entrySql    .= ' AND e.project = ?';
     $entryParams[] = $filterProject;
 }
-$entrySql .= ' ORDER BY e.start_datetime ASC';
+$entrySql    .= ' AND e.date >= ?';
+$entryParams[] = $dateFrom;
+$entrySql    .= ' AND e.date <= ?';
+$entryParams[] = $dateTo;
+$entrySql    .= ' ORDER BY e.start_datetime ASC';
 
 $stmt = db()->prepare($entrySql);
 $stmt->execute($entryParams);
 $entries = $stmt->fetchAll();
 
 // Redirect only when no filter is active and there are truly no entries
-if (empty($entries) && $filterProject === '') {
+if (empty($entries) && $filterProject === '' && !$hasDateFilter) {
     header('Location: billing.php');
     exit;
 }
@@ -314,17 +334,28 @@ function fmtH(int $min): string {
 
     <div class="invoice-actions">
         <a href="billing.php" class="btn">&#8592; Zurück</a>
-        <?php if (count($allProjects) > 0): ?>
-        <form method="get" style="display:flex;align-items:center;gap:6px;margin:0">
+        <form method="get" style="display:flex;align-items:center;gap:8px;margin:0;flex-wrap:wrap">
             <input type="hidden" name="customer_id" value="<?= (int)$customerId ?>">
-            <select name="project" class="form-control" style="min-width:180px"
+            <?php if (count($allProjects) > 0): ?>
+            <select name="project" class="form-control" style="min-width:160px"
                     onchange="this.form.submit()">
                 <option value="">Alle Projekte</option>
                 <?php foreach ($allProjects as $p): ?>
                 <option value="<?= h($p) ?>"<?= $filterProject === $p ? ' selected' : '' ?>><?= h($p) ?></option>
                 <?php endforeach; ?>
             </select>
+            <?php endif; ?>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)">Von
+                <input type="date" name="date_from" value="<?= h($dateFrom) ?>"
+                       class="form-control" style="width:auto" onchange="this.form.submit()">
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)">Bis
+                <input type="date" name="date_to" value="<?= h($dateTo) ?>"
+                       class="form-control" style="width:auto" onchange="this.form.submit()">
+            </label>
         </form>
+        <?php if ($hasDateFilter || $filterProject !== ''): ?>
+        <a href="?customer_id=<?= (int)$customerId ?>" class="btn" style="font-size:12px">Filter zurücksetzen</a>
         <?php endif; ?>
         <button class="btn btn--primary" id="billBtn"
                 data-id="<?= (int)$customerId ?>"
@@ -332,9 +363,12 @@ function fmtH(int $min): string {
         <span id="billMsg" style="font-size:12px; align-self:center"></span>
     </div>
 
-    <?php if (empty($entries) && $filterProject !== ''): ?>
+    <?php if (empty($entries) && ($filterProject !== '' || $hasDateFilter)): ?>
     <div style="padding:20px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;margin-bottom:16px;color:#856404">
-        Keine unabgerechneten Einträge für das Projekt <strong><?= h($filterProject) ?></strong> gefunden.
+        Keine unabgerechneten Einträge
+        <?php if ($filterProject !== ''): ?>für das Projekt <strong><?= h($filterProject) ?></strong><?php endif; ?>
+        im Zeitraum <strong><?= h(date('d.m.Y', strtotime($dateFrom))) ?></strong>
+        bis <strong><?= h(date('d.m.Y', strtotime($dateTo))) ?></strong> gefunden.
     </div>
     <?php endif; ?>
 
@@ -462,7 +496,7 @@ function fmtH(int $min): string {
                 <tr>
                     <th style="white-space:nowrap">Datum</th>
                     <th>Tätigkeit &amp; Kommentar</th>
-                    <th class="right" style="white-space:nowrap">Std. (gerundet)</th>
+                    <th class="right" style="white-space:nowrap">Min.</th>
                     <th style="width:56px"></th>
                 </tr>
             </thead>
@@ -475,7 +509,7 @@ function fmtH(int $min): string {
                         <?php if ($e['project']): ?><br><span style="color:#6b9cce;font-size:11px"><?= h($e['project']) ?></span><?php endif; ?>
                         <?php if ($e['comment']): ?><br><span class="comment-cell"><?= h($e['comment']) ?></span><?php endif; ?>
                     </td>
-                    <td class="right"><?= fmtH((int)$e['duration_minutes']) ?></td>
+                    <td class="right"><?= (int)$e['duration_minutes'] ?></td>
                     <td style="white-space:nowrap;padding-right:6px">
                         <button class="btn-icon" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)" title="Bearbeiten">✏</button>
                         <button class="btn-icon btn-del" onclick="trashEntry(<?= (int)$e['id'] ?>)" title="In Papierkorb">🗑</button>
@@ -514,8 +548,13 @@ function fmtH(int $min): string {
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="right">Summe (gerundet)</td>
-                    <td class="right"><?= fmtH($totalMin) ?> h</td>
+                    <td colspan="2" class="right">Summe</td>
+                    <td class="right"><?= $totalMin ?></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="right">Summe (h):</td>
+                    <td class="right"><?= number_format($totalMin / 60, 2, ',', '.') ?></td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -527,6 +566,8 @@ function fmtH(int $min): string {
 <script>
 const CSRF           = <?= json_encode($_SESSION['csrf_token']) ?>;
 const FILTER_PROJECT = <?= json_encode($filterProject) ?>;
+const DATE_FROM      = <?= json_encode($dateFrom) ?>;
+const DATE_TO        = <?= json_encode($dateTo) ?>;
 
 async function apiCall(action, params) {
     const body = new URLSearchParams({ action, ...params });
@@ -590,6 +631,8 @@ async function trashEntry(id) {
             try {
                 const params = { action: 'mark_billed', customer_id: customerId };
                 if (FILTER_PROJECT !== '') params.project = FILTER_PROJECT;
+                if (DATE_FROM !== '') params.date_from = DATE_FROM;
+                if (DATE_TO !== '') params.date_to = DATE_TO;
                 const body = new URLSearchParams(params);
                 const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
                 const data = await res.json();

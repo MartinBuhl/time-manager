@@ -20,6 +20,20 @@ $stmt = db()->query(
 );
 $customers = $stmt->fetchAll();
 
+// Alle offenen Einträge je Kunde für die Detailansicht vorladen
+$entriesByCustomer = [];
+$entryStmt = db()->query(
+    "SELECT e.customer_id, e.date, e.activity, e.project, e.comment,
+            e.start_datetime, e.end_datetime, e.duration_minutes
+     FROM tm_entries e
+     JOIN tm_customers c ON c.id = e.customer_id
+     WHERE e.billed_at IS NULL AND e.deleted_at IS NULL AND c.billable = 1 AND c.active = 1
+     ORDER BY e.start_datetime ASC"
+);
+foreach ($entryStmt->fetchAll() as $row) {
+    $entriesByCustomer[(int)$row['customer_id']][] = $row;
+}
+
 function fmtH(int $min): string
 {
     return number_format($min / 60, 2, ',', '.') . ' h';
@@ -36,6 +50,33 @@ function fmtEur(float $amount): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Abrechnung – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<style>
+.detail-row > td { background: #f8fafc; }
+.detail-box { padding: 12px 16px 16px; }
+.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.detail-table th {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid #d7dde5;
+    font-weight: 600;
+    color: #475569;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.detail-table td { padding: 6px 10px; border-bottom: 1px solid #e8edf2; vertical-align: top; }
+.detail-table tbody tr:last-child td { border-bottom: none; }
+.detail-table tfoot td {
+    border-top: 2px solid #cbd3dc;
+    border-bottom: none;
+    padding-top: 8px;
+    font-weight: 700;
+    color: #1e293b;
+}
+.detail-table .col-dur { text-align: right; white-space: nowrap; }
+.detail-project { color: #2563eb; font-size: 12px; }
+.detail-comment { color: #6b7280; font-size: 12px; }
+</style>
 </head>
 <body>
 <div class="admin-page">
@@ -92,6 +133,47 @@ function fmtEur(float $amount): string
                             <a href="invoice.php?customer_id=<?= (int)$c['id'] ?>" class="btn">
                                 Prüfen
                             </a>
+                            <button type="button" class="btn" onclick="toggleDetails(<?= (int)$c['id'] ?>)"
+                                    id="detailsBtn-<?= (int)$c['id'] ?>">Details</button>
+                        </td>
+                    </tr>
+                    <tr class="detail-row" id="detailRow-<?= (int)$c['id'] ?>" style="display:none">
+                        <td colspan="6" style="padding:0">
+                            <div class="detail-box">
+                                <?php $detailMin = array_sum(array_map('intval', array_column($entriesByCustomer[(int)$c['id']] ?? [], 'duration_minutes'))); ?>
+                                <table class="detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="white-space:nowrap">Datum</th>
+                                            <th>Tätigkeit &amp; Kommentar</th>
+                                            <th class="col-dur" style="white-space:nowrap">Min.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach (($entriesByCustomer[(int)$c['id']] ?? []) as $e): ?>
+                                        <tr>
+                                            <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($e['start_datetime']))) ?></td>
+                                            <td>
+                                                <?= h($e['activity']) ?>
+                                                <?php if ($e['project']): ?><br><span class="detail-project"><?= h($e['project']) ?></span><?php endif; ?>
+                                                <?php if ($e['comment']): ?><br><span class="detail-comment"><?= h($e['comment']) ?></span><?php endif; ?>
+                                            </td>
+                                            <td class="col-dur"><?= (int)$e['duration_minutes'] ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="2" class="col-dur">Summe (Min.)</td>
+                                            <td class="col-dur"><?= $detailMin ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2" class="col-dur">Summe (h)</td>
+                                            <td class="col-dur"><?= number_format($detailMin / 60, 2, ',', '.') ?></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -134,6 +216,14 @@ function fmtEur(float $amount): string
 
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
+
+function toggleDetails(id) {
+    const row = document.getElementById('detailRow-' + id);
+    const btn = document.getElementById('detailsBtn-' + id);
+    const open = row.style.display === 'none';
+    row.style.display = open ? 'table-row' : 'none';
+    if (btn) btn.textContent = open ? 'Schließen' : 'Details';
+}
 
 function showBill() {
     document.getElementById('listSection').classList.add('hidden');
