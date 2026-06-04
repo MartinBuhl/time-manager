@@ -145,20 +145,20 @@ function fmtEur(float $amount): string
                                     <thead>
                                         <tr>
                                             <th style="white-space:nowrap">Datum</th>
-                                            <th>Tätigkeit &amp; Kommentar</th>
-                                            <th class="col-dur" style="white-space:nowrap">Min.</th>
+                                            <th style="white-space:nowrap">Zeit</th>
+                                            <th class="col-dur" style="white-space:nowrap">Min</th>
+                                            <th>Tätigkeit</th>
+                                            <th>Kommentar</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                     <?php foreach (($entriesByCustomer[(int)$c['id']] ?? []) as $e): ?>
                                         <tr>
                                             <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($e['start_datetime']))) ?></td>
-                                            <td>
-                                                <?= h($e['activity']) ?>
-                                                <?php if ($e['project']): ?><br><span class="detail-project"><?= h($e['project']) ?></span><?php endif; ?>
-                                                <?php if ($e['comment']): ?><br><span class="detail-comment"><?= h($e['comment']) ?></span><?php endif; ?>
-                                            </td>
+                                            <td style="white-space:nowrap"><?= h(substr($e['start_datetime'], 11, 5)) ?>–<?= h(substr($e['end_datetime'], 11, 5)) ?></td>
                                             <td class="col-dur"><?= (int)$e['duration_minutes'] ?></td>
+                                            <td><?= h($e['activity']) ?></td>
+                                            <td class="detail-comment"><?= $e['comment'] ? h($e['comment']) : '' ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                     </tbody>
@@ -166,10 +166,12 @@ function fmtEur(float $amount): string
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (Min.)</td>
                                             <td class="col-dur"><?= $detailMin ?></td>
+                                            <td colspan="2"></td>
                                         </tr>
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (h)</td>
                                             <td class="col-dur"><?= number_format($detailMin / 60, 2, ',', '.') ?></td>
+                                            <td colspan="2"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
