@@ -192,6 +192,7 @@ switch ($action) {
             'site_url', 'mail_from', 'mail_name', 'mail_bcc',
             'mail_signature_html', 'mail_signature_plain',
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_encryption',
+            'imap_save_sent', 'imap_host', 'imap_port', 'imap_encryption', 'imap_sent_folder',
         ];
         $stmt = db()->prepare(
             'UPDATE tm_configuration
@@ -1342,6 +1343,13 @@ switch ($action) {
                 }
 
                 $mail->send();
+
+                // Kopie im IMAP-Sent-Ordner ablegen (best effort, blockiert nicht)
+                try {
+                    MailHelper::saveToImapSent($mail->getSentMIMEMessage());
+                } catch (\Throwable $imapEx) {
+                    error_log('IMAP-Sent: ' . $imapEx->getMessage());
+                }
 
                 $upd = db()->prepare(
                     'UPDATE tm_mail_spool

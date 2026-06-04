@@ -127,6 +127,57 @@ class MailHelper
         return $mailer;
     }
 
+    /**
+     * Legt eine bereits versendete Nachricht (rohe MIME-Daten aus
+     * PHPMailer::getSentMIMEMessage()) per IMAP im Sent-Ordner ab.
+     * Login = SMTP-Benutzer/Passwort. Fehler werden nur geloggt.
+     */
+    public static function saveToImapSent(string $rawMessage): void
+    {
+        if (cfg('imap_save_sent') !== '1') {
+            return;
+        }
+        if (!function_exists('imap_open')) {
+            error_log('IMAP-Sent: PHP-imap-Extension ist nicht installiert/aktiviert.');
+            return;
+        }
+
+        $host = trim(cfg('imap_host'));
+        if ($host === '') {
+            error_log('IMAP-Sent: Kein IMAP-Server konfiguriert.');
+            return;
+        }
+        $folder = trim(cfg('imap_sent_folder')) ?: 'Sent';
+        $port   = (int)(cfg('imap_port') ?: '993');
+        $enc    = strtolower(trim(cfg('imap_encryption', 'ssl')));
+
+        $flags = '/imap';
+        if ($enc === 'ssl') {
+            $flags .= '/ssl';
+        } elseif ($enc === 'tls') {
+            $flags .= '/tls';
+        } else {
+            $flags .= '/notls';
+        }
+
+        $mailbox = '{' . $host . ':' . $port . $flags . '}' . $folder;
+        $user    = cfg('smtp_user');
+        $pass    = cfg('smtp_password');
+
+        $imap = @imap_open($mailbox, $user, $pass, OP_HALFOPEN);
+        if ($imap === false) {
+            error_log('IMAP-Sent: Verbindung fehlgeschlagen: ' . imap_last_error());
+            return;
+        }
+
+        // IMAP erwartet CRLF-Zeilenenden
+        $msg = preg_replace('/\r?\n/', "\r\n", $rawMessage);
+        if (!@imap_append($imap, $mailbox, $msg, "\\Seen")) {
+            error_log('IMAP-Sent: Ablage im Ordner "' . $folder . '" fehlgeschlagen: ' . imap_last_error());
+        }
+        imap_close($imap);
+    }
+
     private static function buildWorkList(array $items, string $format): string
     {
         if (empty($items)) return '';

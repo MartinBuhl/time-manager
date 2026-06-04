@@ -85,6 +85,12 @@ $groups = [
             ['key' => 'smtp_user',       'label' => 'Benutzername',                        'type' => 'text',     'width' => 'half'],
             ['key' => 'smtp_password',   'label' => 'Passwort',                            'type' => 'password', 'width' => 'half'],
             ['key' => 'smtp_encryption', 'label' => 'Verschlüsselung (tls / ssl / none)', 'type' => 'text',     'width' => 'half'],
+            ['key' => 'imap_save_sent',   'label' => 'Versendete Rechnungsmails im IMAP-Sent-Ordner ablegen', 'type' => 'select',
+                'options' => ['0' => 'Nein', '1' => 'Ja']],
+            ['key' => 'imap_host',        'label' => 'IMAP Server (Login = SMTP-Benutzer/Passwort)', 'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_port',        'label' => 'IMAP Port (993 = SSL, 143 = TLS/none)',        'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_encryption',  'label' => 'IMAP Verschlüsselung (ssl / tls / none)',       'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_sent_folder', 'label' => 'Sent-Ordner (z.B. Sent, INBOX.Sent, Gesendet)', 'type' => 'text', 'width' => 'half'],
         ],
     ],
 ];
@@ -215,6 +221,12 @@ $groups = [
                     data-key="<?= h($f['key']) ?>"
                     rows="4"
                     class="cfg-textarea"><?= h($val) ?></textarea>
+                <?php elseif ($type === 'select'): ?>
+                <select id="cfg_<?= h($f['key']) ?>" data-key="<?= h($f['key']) ?>">
+                    <?php foreach (($f['options'] ?? []) as $ov => $ol): ?>
+                    <option value="<?= h((string)$ov) ?>"<?= (string)$val === (string)$ov ? ' selected' : '' ?>><?= h((string)$ol) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <?php else: ?>
                 <input
                     type="<?= h($type) ?>"

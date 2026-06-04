@@ -254,7 +254,12 @@ INSERT IGNORE INTO `tm_configuration`
 ('smtp_port',            '587',                             4,  20),
 ('smtp_user',            '',                                 4,  30),
 ('smtp_password',        '',                                 4,  40),
-('smtp_encryption',      'tls',                             4,  50);
+('smtp_encryption',      'tls',                             4,  50),
+('imap_save_sent',       '0',                                4,  60),
+('imap_host',            '',                                 4,  70),
+('imap_port',            '993',                             4,  80),
+('imap_encryption',      'ssl',                             4,  90),
+('imap_sent_folder',     'Sent',                            4, 100);
 
 CREATE TABLE IF NOT EXISTS `tm_user_state` (
     `user_id`       INT          NOT NULL,
