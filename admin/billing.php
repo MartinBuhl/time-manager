@@ -147,6 +147,7 @@ function fmtEur(float $amount): string
                                             <th style="white-space:nowrap">Datum</th>
                                             <th style="white-space:nowrap">Zeit</th>
                                             <th class="col-dur" style="white-space:nowrap">Min</th>
+                                            <th>Kunde</th>
                                             <th>Tätigkeit</th>
                                             <th>Kommentar</th>
                                         </tr>
@@ -157,6 +158,7 @@ function fmtEur(float $amount): string
                                             <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($e['start_datetime']))) ?></td>
                                             <td style="white-space:nowrap"><?= h(substr($e['start_datetime'], 11, 5)) ?>–<?= h(substr($e['end_datetime'], 11, 5)) ?></td>
                                             <td class="col-dur"><?= (int)$e['duration_minutes'] ?></td>
+                                            <td><?= h($c['name']) ?></td>
                                             <td><?= h($e['activity']) ?></td>
                                             <td class="detail-comment"><?= $e['comment'] ? h($e['comment']) : '' ?></td>
                                         </tr>
@@ -166,12 +168,12 @@ function fmtEur(float $amount): string
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (Min.)</td>
                                             <td class="col-dur"><?= $detailMin ?></td>
-                                            <td colspan="2"></td>
+                                            <td colspan="3"></td>
                                         </tr>
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (h)</td>
                                             <td class="col-dur"><?= number_format($detailMin / 60, 2, ',', '.') ?></td>
-                                            <td colspan="2"></td>
+                                            <td colspan="3"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
