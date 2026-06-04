@@ -464,7 +464,8 @@ async function sendTestMail() {
         const data = await res.json();
         if (data.success) {
             msgEl.style.color = 'var(--success)';
-            msgEl.textContent = 'Testmail versendet an ' + (data.data.recipient || '?');
+            msgEl.textContent = 'Testmail versendet an ' + (data.data.recipient || '?')
+                              + (data.data.imap ? ' — ' + data.data.imap : '');
         } else {
             msgEl.style.color = 'var(--danger)';
             msgEl.textContent = data.error || 'Fehler beim Versenden.';

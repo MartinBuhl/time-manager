@@ -1387,7 +1387,18 @@ switch ($action) {
             $mail->AltBody = 'Die SMTP-Konfiguration funktioniert korrekt.'
                            . "\nServer: " . cfg('smtp_host') . ' Port: ' . cfg('smtp_port');
             $mail->send();
-            jsonOk(['recipient' => $recipient]);
+
+            // IMAP-Sent-Ablage testen
+            if (cfg('imap_save_sent') === '1') {
+                $imapErr = MailHelper::saveToImapSent($mail->getSentMIMEMessage());
+                $imapMsg = $imapErr === ''
+                    ? 'IMAP-Kopie im Sent-Ordner abgelegt.'
+                    : 'IMAP-Sent fehlgeschlagen: ' . $imapErr;
+            } else {
+                $imapMsg = 'IMAP-Sent-Ablage ist deaktiviert (Schalter auf „Ja" stellen).';
+            }
+
+            jsonOk(['recipient' => $recipient, 'imap' => $imapMsg]);
         } catch (\Throwable $e) {
             jsonErr('SMTP-Fehler: ' . $e->getMessage());
         }
