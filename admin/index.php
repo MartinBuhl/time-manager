@@ -181,6 +181,10 @@ const CARDS = {
         label: 'Logs', href: 'logs.php',
         icon: '<path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16z"/>',
     },
+    backup: {
+        label: 'Backup', href: 'backup.php',
+        icon: '<path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>',
+    },
     info: {
         label: 'Info', href: null, onclick: 'openInfoModal()',
         icon: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>',
@@ -189,7 +193,7 @@ const CARDS = {
 
 const DEFAULT_LAYOUT = {
     top:    ['customers', 'billing', 'invoices', 'entries'],
-    bottom: ['trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'info'],
+    bottom: ['trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'backup', 'info'],
 };
 // ----------------------------------------------------------------
 // Layout laden / speichern

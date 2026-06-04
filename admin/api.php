@@ -50,6 +50,39 @@ function roundToQH(int $min): float {
     return (float)((int)round($min / 15) * 15) / 60.0;
 }
 
+/**
+ * Erstellt einen vollständigen SQL-Dump aller Systemtabellen (tm_*) als String.
+ * Reines PHP/PDO – keine Abhängigkeit von mysqldump/exec.
+ */
+function buildSqlDump(PDO $pdo): string {
+    $tables = $pdo->query("SHOW TABLES LIKE 'tm\\_%'")->fetchAll(PDO::FETCH_COLUMN);
+
+    $out  = "-- Time Manager – Datenbank-Backup\n";
+    $out .= '-- Erstellt: ' . date('Y-m-d H:i:s') . "\n\n";
+    $out .= "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n";
+
+    foreach ($tables as $table) {
+        $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_ASSOC);
+        $out .= "-- ----- Tabelle `$table` -----\n";
+        $out .= "DROP TABLE IF EXISTS `$table`;\n";
+        $out .= ($create['Create Table'] ?? '') . ";\n\n";
+
+        $rows = $pdo->query("SELECT * FROM `$table`");
+        $rows->setFetchMode(PDO::FETCH_NUM);
+        foreach ($rows as $row) {
+            $vals = array_map(
+                fn($v) => $v === null ? 'NULL' : $pdo->quote((string)$v),
+                $row
+            );
+            $out .= "INSERT INTO `$table` VALUES (" . implode(', ', $vals) . ");\n";
+        }
+        $out .= "\n";
+    }
+
+    $out .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+    return $out;
+}
+
 function recalcInvoiceTotals(int $invoiceId): array {
     $pdo = db();
     $inv = $pdo->prepare(
@@ -1477,6 +1510,82 @@ switch ($action) {
             'download_url' => $dlUrl,
             'release_name' => $release['name'] ?? "v{$latestTag}",
         ]);
+
+    // ----------------------------------------------------------------
+    case 'create_backup':
+        @set_time_limit(180);
+        $dir = dirname(__DIR__) . '/backups';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            jsonErr('Backup-Verzeichnis konnte nicht angelegt werden.');
+        }
+        // Direktzugriff per Web unterbinden
+        $htaccess = $dir . '/.htaccess';
+        if (!is_file($htaccess)) {
+            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
+        }
+
+        $ts   = date('Y-m-d_His');
+        $sql  = buildSqlDump(db());
+        $name = "tm_backup_$ts.zip";
+        $path = $dir . '/' . $name;
+
+        $zip = new ZipArchive();
+        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            jsonErr('ZIP-Datei konnte nicht erstellt werden.');
+        }
+        $zip->addFromString("tm_backup_$ts.sql", $sql);
+        $zip->close();
+
+        jsonOk([
+            'name'  => $name,
+            'size'  => filesize($path),
+            'mtime' => date('d.m.Y H:i:s', filemtime($path)),
+        ]);
+
+    // ----------------------------------------------------------------
+    case 'mail_backup':
+        $name = basename((string)($_POST['file'] ?? ''));
+        if (!preg_match('/^tm_backup_[\w\-]+\.zip$/', $name)) {
+            jsonErr('Ungültiger Dateiname.');
+        }
+        $path = dirname(__DIR__) . '/backups/' . $name;
+        if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
+
+        require_once dirname(__DIR__) . '/includes/MailHelper.php';
+        // Admin-E-Mail: zuerst Admin-Benutzer, sonst konfigurierte mail_from
+        $adminMail = db()->query(
+            "SELECT email FROM tm_users
+             WHERE role = 'admin' AND email IS NOT NULL AND email <> ''
+             ORDER BY id ASC LIMIT 1"
+        )->fetchColumn();
+        if (!$adminMail) { $adminMail = trim(cfg('mail_from')); }
+        if (!$adminMail || !filter_var($adminMail, FILTER_VALIDATE_EMAIL)) {
+            jsonErr('Keine Admin-E-Mail hinterlegt (Benutzer mit Rolle „admin" oder Konfiguration → System).');
+        }
+
+        try {
+            $mail = MailHelper::createMailer();
+            $mail->addAddress($adminMail);
+            $mail->Subject = 'Time Manager Datenbank-Backup – ' . $name;
+            $mail->Body    = "Anbei das Datenbank-Backup.\n\nDatei: $name\nErstellt: "
+                           . date('d.m.Y H:i:s', filemtime($path));
+            $mail->addAttachment($path, $name);
+            $mail->send();
+            jsonOk(['recipient' => $adminMail]);
+        } catch (\Throwable $e) {
+            jsonErr('SMTP-Fehler: ' . $e->getMessage());
+        }
+
+    // ----------------------------------------------------------------
+    case 'delete_backup':
+        $name = basename((string)($_POST['file'] ?? ''));
+        if (!preg_match('/^tm_backup_[\w\-]+\.zip$/', $name)) {
+            jsonErr('Ungültiger Dateiname.');
+        }
+        $path = dirname(__DIR__) . '/backups/' . $name;
+        if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
+        if (!@unlink($path)) { jsonErr('Backup-Datei konnte nicht gelöscht werden.'); }
+        jsonOk();
 
     // ----------------------------------------------------------------
     default:

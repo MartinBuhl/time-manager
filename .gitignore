@@ -7,13 +7,15 @@
 # Installer-Lockdatei – pro Installation verschieden
 /_installer/installed.lock
 
-# Temporäre Dateien (mpdf) und Logs – pro Installation verschieden
+# Temporäre Dateien (mpdf), Logs und Backups – pro Installation verschieden
 /tmp/
 /log/
+/backups/
 
 # Windows / macOS / IDE
 Thumbs.db
 .DS_Store
 .idea/
 .vscode/
+.claude/
 *.swp

@@ -7,7 +7,7 @@ define('ROOT_DIR', dirname(__DIR__));
 define('LOG_DIR',  ROOT_DIR . '/log');
 
 // Dateien/Verzeichnisse, die beim Update niemals überschrieben werden
-$PROTECTED = ['config.php', '_installer', 'invoices', 'log'];
+$PROTECTED = ['config.php', '_installer', 'invoices', 'log', 'backups'];
 
 /**
  * Schreibt eine Zeile in die Update-Logdatei. Pro Update-Lauf wird beim

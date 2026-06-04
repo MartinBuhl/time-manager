@@ -173,13 +173,6 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                                    class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px"
                                    target="_blank" rel="noopener">PDF</a>
                             <?php endif; ?>
-                            <button type="button" class="btn regen-btn"
-                                    data-id="<?= (int)$inv['id'] ?>"
-                                    data-number="<?= h($inv['invoice_number']) ?>"
-                                    style="font-size:11px;padding:2px 8px;margin-left:4px"
-                                    title="PDF neu erstellen (alte Datei wird überschrieben)">
-                                Neu erstellen
-                            </button>
                             <?php if (!$inv['mail_id']): ?>
                             <button type="button" class="btn spool-btn"
                                     data-id="<?= (int)$inv['id'] ?>"
@@ -208,73 +201,6 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
-
-function escAttr(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-}
-
-async function handleRegen(ev) {
-    const btn    = ev.currentTarget;
-    const id     = btn.dataset.id;
-    const number = btn.dataset.number;
-
-    if (!confirm('Rechnung „' + number + '" neu erstellen?\nDie bestehende PDF-Datei wird überschrieben.')) {
-        return;
-    }
-
-    const original = btn.textContent;
-    btn.disabled    = true;
-    btn.textContent = 'Wird erstellt…';
-
-    try {
-        const body = new URLSearchParams({ action: 'regenerate_invoice', invoice_id: id });
-        const res  = await fetch('api.php', {
-            method:  'POST',
-            headers: { 'X-CSRF-Token': CSRF },
-            body:    body,
-        });
-        const txt = await res.text();
-        let data;
-        try {
-            data = JSON.parse(txt);
-        } catch (parseErr) {
-            console.error('Server response (status ' + res.status + '):', txt);
-            alert('Server lieferte kein JSON (Status ' + res.status + ').\nAnfang der Antwort:\n\n' + txt.substring(0, 500));
-            btn.disabled    = false;
-            btn.textContent = original;
-            return;
-        }
-
-        if (data.success) {
-            const cell = document.getElementById('files-' + id);
-            let html = '';
-            if (data.data.pdf_file) {
-                html += '<a href="invoice_download.php?type=pdf&file=' + encodeURIComponent(data.data.pdf_file) + '" class="btn" style="font-size:11px;padding:2px 8px" target="_blank" rel="noopener">PDF</a>';
-            }
-            html += '<button type="button" class="btn regen-btn" data-id="' + id + '" data-number="' + escAttr(number) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">Neu erstellen</button>';
-            html += '<span style="color:#27ae60;font-size:11px;margin-left:8px">&#10003; neu erstellt</span>';
-            cell.innerHTML = html;
-
-            if (data.data.errors && data.data.errors.length > 0) {
-                cell.innerHTML += '<div style="color:#c0392b;font-size:11px;margin-top:4px">' + data.data.errors.join(', ') + '</div>';
-            }
-
-            cell.querySelector('.regen-btn').addEventListener('click', handleRegen);
-        } else {
-            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
-            btn.disabled    = false;
-            btn.textContent = original;
-        }
-    } catch (e) {
-        alert('Serverfehler.');
-        btn.disabled    = false;
-        btn.textContent = original;
-    }
-}
-
-document.querySelectorAll('.regen-btn').forEach(function(btn) {
-    btn.addEventListener('click', handleRegen);
-});
 
 async function handleReverse(ev) {
     const btn    = ev.currentTarget;
