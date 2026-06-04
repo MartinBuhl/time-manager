@@ -86,7 +86,8 @@ function buildSqlDump(PDO $pdo): string {
 function recalcInvoiceTotals(int $invoiceId): array {
     $pdo = db();
     $inv = $pdo->prepare(
-        'SELECT i.hourly_rate AS stored_rate, i.tax_rate AS stored_tax,
+        'SELECT i.invoice_mode, i.hourly_rate AS stored_rate, i.tax_rate AS stored_tax,
+                i.total_minutes, i.amount_net, i.amount_gross,
                 c.hourly_rate AS cust_rate
          FROM tm_invoices i
          LEFT JOIN tm_customers c ON c.id = i.customer_id
@@ -102,6 +103,20 @@ function recalcInvoiceTotals(int $invoiceId): array {
     $taxRate = $invRow['stored_tax'] !== null
         ? (int)$invRow['stored_tax']
         : (int)cfg('invoice_tax_rate', '19');
+
+    // Text-Modus: Rechnungs-Stammdaten sind Master – NICHT aus Posten neu
+    // berechnen oder überschreiben, sondern die gespeicherten Werte liefern.
+    if (($invRow['invoice_mode'] ?? 'entries') === 'text') {
+        $minutes = (int)$invRow['total_minutes'];
+        return [
+            'total_minutes'   => $minutes,
+            'total_rounded_h' => round($minutes / 60, 2),
+            'amount_net'      => (float)$invRow['amount_net'],
+            'amount_gross'    => (float)$invRow['amount_gross'],
+            'tax_rate'        => $taxRate,
+            'rate'            => $rate,
+        ];
+    }
 
     $rows  = $pdo->prepare('SELECT duration_minutes FROM tm_invoice_items WHERE invoice_id = ?');
     $rows->execute([$invoiceId]);
@@ -125,6 +140,7 @@ function recalcInvoiceTotals(int $invoiceId): array {
         'total_rounded_h' => round($totalRoundedH, 2),
         'amount_net'      => $amountNet,
         'amount_gross'    => $amountGross,
+        'tax_rate'        => $taxRate,
         'rate'            => $rate,
     ];
 }
@@ -878,14 +894,18 @@ switch ($action) {
         $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$invoice) { jsonErr('Rechnung nicht gefunden.'); }
 
+        // Stammdaten der Rechnung (nicht aktuelle Kundendaten) verwenden
         $stmt = db()->prepare(
-            'SELECT id, name, billing_name, billing_street, billing_zip, billing_city,
-                    billing_email, billing_tax_id,
-                    contact_first_name, contact_last_name, contact_on_invoice,
-                    hourly_rate, projects, invoice_mode, invoice_text
-             FROM tm_customers WHERE id = ? LIMIT 1'
+            'SELECT i.invoice_mode, i.invoice_text, i.hourly_rate,
+                    c.name, c.billing_name, c.billing_street, c.billing_zip, c.billing_city,
+                    c.billing_email, c.billing_tax_id,
+                    c.contact_first_name, c.contact_last_name, c.contact_on_invoice,
+                    c.projects
+             FROM tm_invoices i
+             JOIN tm_customers c ON c.id = i.customer_id
+             WHERE i.id = ? LIMIT 1'
         );
-        $stmt->execute([$invoice['customer_id']]);
+        $stmt->execute([$invoiceId]);
         $customer = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$customer) { jsonErr('Kunde nicht gefunden.'); }
 
@@ -898,10 +918,11 @@ switch ($action) {
 
         if (empty($items)) { jsonErr('Keine Rechnungsposten vorhanden. Bitte zuerst die Posten-Seite öffnen.'); }
 
+        // Text-Modus: Stammdaten sind Master – $totals bleibt unverändert
         $totals = recalcInvoiceTotals($invoiceId);
 
         require_once dirname(__DIR__) . '/includes/InvoiceGenerator.php';
-        $generator = new InvoiceGenerator($customer, $items, $invoice['invoice_number']);
+        $generator = new InvoiceGenerator($customer, $items, $invoice['invoice_number'], $totals);
 
         $pdfFile = $generator->generatePdf();
 
@@ -965,10 +986,10 @@ switch ($action) {
             'hourly_rate'  => $inv['hourly_rate'],
         ]);
 
-        // Generate PDF
+        // Generate PDF (Text-Modus: Stammdaten sind Master – $totals bleibt unverändert)
         $totals  = recalcInvoiceTotals($invoiceId);
         require_once dirname(__DIR__) . '/includes/InvoiceGenerator.php';
-        $generator = new InvoiceGenerator($customerCtx, $items, $inv['invoice_number']);
+        $generator = new InvoiceGenerator($customerCtx, $items, $inv['invoice_number'], $totals);
         $pdfFile   = $generator->generatePdf();
 
         db()->prepare(

@@ -14,6 +14,8 @@ class InvoiceGenerator
     private int    $paymentDays;
     private array  $cfg;
     private string $invoiceDir;
+    private int    $totalMinutes;
+    private bool   $isTextMode;
 
     private static function qhRound(int $min): float
     {
@@ -27,7 +29,16 @@ class InvoiceGenerator
             : date('Y-m-d'));
     }
 
-    public function __construct(array $customer, array $entries, string $invoiceNumber)
+    /**
+     * @param array      $customer     Kunden-/Rechnungskontext (inkl. invoice_mode, hourly_rate)
+     * @param array      $entries      Rechnungsposten
+     * @param string     $invoiceNumber
+     * @param array|null $masterTotals Stammdaten-Beträge der Rechnung
+     *                                 (total_minutes, amount_net, amount_gross, tax_rate).
+     *                                 Im Text-Modus sind diese maßgeblich und werden
+     *                                 NICHT aus den Posten neu berechnet.
+     */
+    public function __construct(array $customer, array $entries, string $invoiceNumber, ?array $masterTotals = null)
     {
         $this->customer      = $customer;
         $this->entries       = $entries;
@@ -49,17 +60,39 @@ class InvoiceGenerator
             'account_holder' => cfg('invoice_account_holder', ''),
         ];
 
-        $this->taxRate     = (int)cfg('invoice_tax_rate', '19');
+        // Steuersatz: bevorzugt aus den Stammdaten der Rechnung, sonst Konfiguration
+        $this->taxRate     = isset($masterTotals['tax_rate']) && $masterTotals['tax_rate'] !== null
+            ? (int)$masterTotals['tax_rate']
+            : (int)cfg('invoice_tax_rate', '19');
         $this->paymentDays = (int)cfg('invoice_payment_days', '14');
         $this->rate        = (float)($customer['hourly_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
 
-        $this->amountNet = 0.0;
-        foreach ($entries as $e) {
-            $this->amountNet += self::qhRound((int)$e['duration_minutes']) * $this->rate;
+        $this->isTextMode  = ($customer['invoice_mode'] ?? 'entries') === 'text';
+
+        if ($this->isTextMode && $masterTotals !== null) {
+            // Text-Modus: Rechnungs-Stammdaten sind Master
+            $this->totalMinutes = (int)($masterTotals['total_minutes'] ?? 0);
+            $this->amountNet    = round((float)($masterTotals['amount_net'] ?? 0), 2);
+            if (isset($masterTotals['amount_gross']) && $masterTotals['amount_gross'] !== null) {
+                $this->amountGross = round((float)$masterTotals['amount_gross'], 2);
+                $this->taxAmount   = round($this->amountGross - $this->amountNet, 2);
+            } else {
+                $this->taxAmount   = round($this->amountNet * $this->taxRate / 100, 2);
+                $this->amountGross = round($this->amountNet + $this->taxAmount, 2);
+            }
+        } else {
+            // Einzelposten: Beträge aus den Posten berechnen
+            $this->amountNet    = 0.0;
+            $minutes            = 0;
+            foreach ($entries as $e) {
+                $this->amountNet += self::qhRound((int)$e['duration_minutes']) * $this->rate;
+                $minutes         += (int)$e['duration_minutes'];
+            }
+            $this->amountNet    = round($this->amountNet, 2);
+            $this->totalMinutes = $minutes;
+            $this->taxAmount    = round($this->amountNet * $this->taxRate / 100, 2);
+            $this->amountGross  = round($this->amountNet + $this->taxAmount, 2);
         }
-        $this->amountNet   = round($this->amountNet, 2);
-        $this->taxAmount   = round($this->amountNet * $this->taxRate / 100, 2);
-        $this->amountGross = round($this->amountNet + $this->taxAmount, 2);
     }
 
     // -----------------------------------------------------------------------
@@ -151,23 +184,21 @@ class InvoiceGenerator
 
             $doc->addDocumentTax("S", "VAT", $this->amountNet, $this->taxAmount, (float)$this->taxRate);
 
-            $invoiceMode = ($this->customer['invoice_mode'] ?? 'entries') === 'text' ? 'text' : 'entries';
-            if ($invoiceMode === 'text') {
+            if ($this->isTextMode) {
                 $invoiceText = trim((string)($this->customer['invoice_text'] ?? ''));
                 $projects    = json_decode($this->customer['projects'] ?? '[]', true);
                 $firstProj   = (is_array($projects) && !empty($projects)) ? trim($projects[0]['name'] ?? '') : '';
                 if ($invoiceText !== '' && $firstProj !== '') {
                     $invoiceText = str_replace('{project}', $firstProj, $invoiceText);
                 }
-                $hours = 0.0;
-                foreach ($this->entries as $e) {
-                    $hours += self::qhRound((int)$e['duration_minutes']);
-                }
 
+                // Eine Position als Pauschale: Menge 1 × Netto = Master-Nettobetrag.
+                // So bleibt die XML konsistent, auch wenn Stunden und Betrag in den
+                // Stammdaten unabhängig voneinander gesetzt wurden.
                 $doc->addNewPosition("1");
                 $doc->setDocumentPositionProductDetails($invoiceText !== '' ? $invoiceText : 'Leistung');
-                $doc->setDocumentPositionNetPrice($this->rate);
-                $doc->setDocumentPositionQuantity($hours, "HUR");
+                $doc->setDocumentPositionNetPrice($this->amountNet);
+                $doc->setDocumentPositionQuantity(1.0, "C62");
                 $doc->addDocumentPositionTax("S", "VAT", (float)$this->taxRate);
                 $doc->setDocumentPositionLineSummation($this->amountNet);
             } else {
@@ -236,9 +267,13 @@ class InvoiceGenerator
         $eur = fn(float $v): string  => number_format($v, 2, ',', '.') . ' €';
         $hrs = fn(int $m): string    => number_format(self::qhRound($m), 2, ',', '.');
 
-        // Total hours (rounded per entry)
-        $totalH = 0.0;
-        foreach ($this->entries as $e) { $totalH += self::qhRound((int)$e['duration_minutes']); }
+        // Total hours: im Text-Modus aus den Stammdaten, sonst pro Posten gerundet
+        if ($this->isTextMode) {
+            $totalH = $this->totalMinutes / 60;
+        } else {
+            $totalH = 0.0;
+            foreach ($this->entries as $e) { $totalH += self::qhRound((int)$e['duration_minutes']); }
+        }
 
         ob_start(); ?>
 <!DOCTYPE html>
