@@ -38,7 +38,7 @@ $mimeTypes = [
 
 $disposition = $type === 'pdf' ? 'inline' : 'attachment';
 header('Content-Type: ' . $mimeTypes[$type]);
-header('Content-Disposition: ' . $disposition . '; filename="' . rawurlencode($file) . '"');
+header('Content-Disposition: ' . $disposition . '; filename="' . rawurlencode(basename($file)) . '"');
 header('Content-Length: ' . filesize($realFile));
 header('Cache-Control: private, no-cache');
 readfile($realFile);
