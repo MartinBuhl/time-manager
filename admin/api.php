@@ -1220,9 +1220,11 @@ switch ($action) {
 
         $stmt = db()->prepare(
             'SELECT m.id, m.invoice_id, m.recipient, m.pdf_file,
+                    m.subject AS spool_subject, m.html_body, m.text_body,
                     i.invoice_number, i.amount_gross,
-                    c.name, c.billing_name, c.projects,
-                    c.invoice_mode, c.mail_template_html, c.mail_template_plain
+                    i.invoice_mode, i.invoice_text,
+                    i.mail_template_html, i.mail_template_plain,
+                    c.name, c.billing_name, c.projects
              FROM tm_mail_spool m
              JOIN tm_invoices  i ON i.id = m.invoice_id
              JOIN tm_customers c ON c.id = i.customer_id
@@ -1232,6 +1234,19 @@ switch ($action) {
         $spool = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$spool) { jsonErr('Eintrag nicht gefunden.'); }
 
+        // Bevorzugt den beim "Mail vorbereiten" gespeicherten Text anzeigen
+        // (wurde aus den Rechnungs-Stammdaten gebaut).
+        if (trim((string)$spool['html_body']) !== '' || trim((string)$spool['text_body']) !== '') {
+            jsonOk([
+                'subject'   => $spool['spool_subject'] ?? '',
+                'html'      => $spool['html_body'] ?? '',
+                'plain'     => $spool['text_body'] ?? '',
+                'recipient' => $spool['recipient'],
+            ]);
+        }
+
+        // Fallback (Alt-Einträge ohne gespeicherten Text): aus den
+        // Rechnungs-Stammdaten neu aufbauen – NICHT aus aktuellen Kundendaten.
         $itemStmt = db()->prepare(
             'SELECT date, activity, comment, duration_minutes
              FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC'
@@ -1278,9 +1293,11 @@ switch ($action) {
         foreach ($ids as $spoolId) {
             $stmt = db()->prepare(
                 'SELECT m.id, m.invoice_id, m.recipient, m.pdf_file,
+                        m.subject AS spool_subject, m.html_body, m.text_body,
                         i.invoice_number, i.amount_gross,
-                        c.name, c.billing_name, c.projects,
-                        c.invoice_mode, c.mail_template_html, c.mail_template_plain
+                        i.invoice_mode, i.invoice_text,
+                        i.mail_template_html, i.mail_template_plain,
+                        c.name, c.billing_name, c.projects
                  FROM tm_mail_spool m
                  JOIN tm_invoices  i ON i.id  = m.invoice_id
                  JOIN tm_customers c ON c.id  = i.customer_id
@@ -1307,23 +1324,34 @@ switch ($action) {
             $itemStmt->execute([$spool['invoice_id']]);
             $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $customer = [
-                'name'                => $spool['name'],
-                'billing_name'        => $spool['billing_name'],
-                'projects'            => $spool['projects'],
-                'invoice_mode'        => $spool['invoice_mode'],
-                'mail_template_html'  => $spool['mail_template_html'],
-                'mail_template_plain' => $spool['mail_template_plain'],
-            ];
-
-            try {
+            // Bevorzugt den beim "Mail vorbereiten" gespeicherten Text verwenden
+            // (aus den Rechnungs-Stammdaten). Fallback: aus Rechnungs-Stammdaten
+            // neu bauen – NICHT aus aktuellen Kundendaten.
+            if (trim((string)$spool['html_body']) !== '' || trim((string)$spool['text_body']) !== '') {
+                $mailSubject = (string)($spool['spool_subject'] ?? '');
+                $mailHtml    = (string)($spool['html_body'] ?? '');
+                $mailPlain   = (string)($spool['text_body'] ?? '');
+            } else {
+                $customer = [
+                    'name'                => $spool['name'],
+                    'billing_name'        => $spool['billing_name'],
+                    'projects'            => $spool['projects'],
+                    'invoice_mode'        => $spool['invoice_mode'],
+                    'mail_template_html'  => $spool['mail_template_html'],
+                    'mail_template_plain' => $spool['mail_template_plain'],
+                ];
                 $body = MailHelper::buildMailBody(
                     $customer,
                     $items,
                     $spool['invoice_number'],
                     (float)$spool['amount_gross']
                 );
+                $mailSubject = $body['subject'];
+                $mailHtml    = $body['html'];
+                $mailPlain   = $body['plain'];
+            }
 
+            try {
                 $mail = MailHelper::createMailer();
                 $mail->addAddress($recipient);
                 // Kopie der Rechnungsmail (BCC) gemäß Rechnungsparameter
@@ -1331,10 +1359,10 @@ switch ($action) {
                 if ($invBcc !== '' && filter_var($invBcc, FILTER_VALIDATE_EMAIL)) {
                     $mail->addBCC($invBcc);
                 }
-                $mail->Subject = $body['subject'];
+                $mail->Subject = $mailSubject;
                 $mail->isHTML(true);
-                $mail->Body    = $body['html'];
-                $mail->AltBody = $body['plain'];
+                $mail->Body    = $mailHtml;
+                $mail->AltBody = $mailPlain;
 
                 if ($spool['pdf_file']) {
                     $pdfPath = dirname(__DIR__) . '/invoices/pdf/' . $spool['pdf_file'];
@@ -1360,7 +1388,7 @@ switch ($action) {
                      SET sent_at = NOW(), subject = ?, html_body = ?, text_body = ?
                      WHERE id = ?'
                 );
-                $upd->execute([$body['subject'], $body['html'], $body['plain'], $spoolId]);
+                $upd->execute([$mailSubject, $mailHtml, $mailPlain, $spoolId]);
                 $sent++;
             } catch (\Throwable $e) {
                 $errors[] = "Rechnung {$spool['invoice_number']}: " . $e->getMessage();
