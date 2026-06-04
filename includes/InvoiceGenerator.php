@@ -108,8 +108,8 @@ class InvoiceGenerator
     private function attachZugferd(string $pdfPath): void
     {
         try {
-            $doc = \horstoeko\zugferd\ZugferdDocumentBuilder::CreateNew(
-                \horstoeko\zugferd\codelists\ZugferdProfiles::PROFILE_EN16931
+            $doc = \horstoeko\zugferd\ZugferdDocumentBuilder::createNew(
+                \horstoeko\zugferd\ZugferdProfiles::PROFILE_EN16931
             );
 
             $c = $this->cfg;
@@ -117,28 +117,31 @@ class InvoiceGenerator
 
             $doc->setDocumentInformation($this->invoiceNumber, "380", new \DateTime(), "EUR");
 
-            $doc->addDocumentSeller($c['company']);
-            $doc->addDocumentSellerAddress($c['street'], null, null, $c['zip'], $c['city'], "DE");
+            $doc->setDocumentSeller($c['company']);
+            $doc->setDocumentSellerAddress($c['street'], '', '', $c['zip'], $c['city'], "DE");
             if ($c['tax_id']) {
-                $doc->addDocumentSellerTaxRegistration("VA", $c['tax_id']);
+                $doc->addDocumentSellerVATRegistrationNumber($c['tax_id']);
+            }
+            if ($c['tax_number']) {
+                $doc->addDocumentSellerTaxNumber($c['tax_number']);
             }
             if ($c['email']) {
-                $doc->addDocumentSellerContact(null, null, $c['phone'] ?: null, null, $c['email']);
+                $doc->setDocumentSellerContact(null, null, $c['phone'] ?: null, null, $c['email']);
             }
 
             $buyerName = $this->customer['billing_name'] ?: $this->customer['name'];
-            $doc->addDocumentBuyer($buyerName);
+            $doc->setDocumentBuyer($buyerName);
             if (!empty($this->customer['billing_street'])) {
-                $doc->addDocumentBuyerAddress(
+                $doc->setDocumentBuyerAddress(
                     $this->customer['billing_street'],
-                    null, null,
+                    '', '',
                     $this->customer['billing_zip']  ?? '',
                     $this->customer['billing_city'] ?? '',
                     "DE"
                 );
             }
             if (!empty($this->customer['billing_tax_id'])) {
-                $doc->addDocumentBuyerTaxRegistration("VA", $this->customer['billing_tax_id']);
+                $doc->addDocumentBuyerVATRegistrationNumber($this->customer['billing_tax_id']);
             }
 
             $doc->addDocumentPaymentTerm(
@@ -163,7 +166,7 @@ class InvoiceGenerator
 
                 $doc->addNewPosition("1");
                 $doc->setDocumentPositionProductDetails($invoiceText !== '' ? $invoiceText : 'Leistung');
-                $doc->addDocumentPositionNetPrice($this->rate);
+                $doc->setDocumentPositionNetPrice($this->rate);
                 $doc->setDocumentPositionQuantity($hours, "HUR");
                 $doc->addDocumentPositionTax("S", "VAT", (float)$this->taxRate);
                 $doc->setDocumentPositionLineSummation($this->amountNet);
@@ -176,7 +179,7 @@ class InvoiceGenerator
 
                     $doc->addNewPosition((string)$pos);
                     $doc->setDocumentPositionProductDetails($desc);
-                    $doc->addDocumentPositionNetPrice($this->rate);
+                    $doc->setDocumentPositionNetPrice($this->rate);
                     $doc->setDocumentPositionQuantity($hours, "HUR");
                     $doc->addDocumentPositionTax("S", "VAT", (float)$this->taxRate);
                     $doc->setDocumentPositionLineSummation($lineTotal);

@@ -149,7 +149,7 @@ class MailHelper
         if ($format === 'html') {
             $escaped = array_map(fn($l) => htmlspecialchars($l, ENT_QUOTES, 'UTF-8'), $lines);
             return '<p>' . htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') . '<br>'
-                 . '<span style="font-size:12px">' . implode('<br>', $escaped) . '</span></p>';
+                 . '<span style="font-size:13px">' . implode('<br>', $escaped) . '</span></p>';
         }
         return $heading . "\n" . implode("\n", $lines);
     }
