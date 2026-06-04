@@ -1612,6 +1612,45 @@ switch ($action) {
         }
 
     // ----------------------------------------------------------------
+    case 'list_imap_folders':
+        if (!function_exists('imap_open')) {
+            jsonErr('PHP-imap-Extension ist nicht installiert/aktiviert.');
+        }
+        $host = trim(cfg('imap_host'));
+        if ($host === '') {
+            jsonErr('Kein IMAP-Server konfiguriert. Bitte IMAP-Server, Port und Verschlüsselung eintragen und speichern.');
+        }
+        $port = (int)(cfg('imap_port') ?: '993');
+        $enc  = strtolower(trim(cfg('imap_encryption', 'ssl')));
+        $flags = '/imap';
+        if ($enc === 'ssl')      { $flags .= '/ssl'; }
+        elseif ($enc === 'tls')  { $flags .= '/tls'; }
+        else                     { $flags .= '/notls'; }
+        $ref  = '{' . $host . ':' . $port . $flags . '}';
+
+        $imap = @imap_open($ref, cfg('smtp_user'), cfg('smtp_password'), OP_HALFOPEN);
+        if ($imap === false) {
+            jsonErr('IMAP-Verbindung fehlgeschlagen: ' . imap_last_error());
+        }
+        $list = @imap_list($imap, $ref, '*');
+        imap_close($imap);
+        if ($list === false) {
+            jsonErr('Ordnerliste konnte nicht geladen werden: ' . imap_last_error());
+        }
+
+        $folders = [];
+        foreach ($list as $entry) {
+            $decoded = $entry;
+            if (function_exists('mb_convert_encoding')) {
+                $d = @mb_convert_encoding($entry, 'UTF-8', 'UTF7-IMAP');
+                if (is_string($d) && $d !== '') { $decoded = $d; }
+            }
+            $folders[] = preg_replace('/^\{[^}]*\}/', '', $decoded);
+        }
+        sort($folders);
+        jsonOk(['folders' => $folders]);
+
+    // ----------------------------------------------------------------
     case 'bulk_assign_project':
         $idsRaw  = trim($_POST['ids'] ?? '');
         $project = trim($_POST['project'] ?? '');

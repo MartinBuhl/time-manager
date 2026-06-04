@@ -243,9 +243,13 @@ $groups = [
             <button class="btn btn--primary" onclick="saveGroup(<?= $gid ?>)">Speichern</button>
             <?php if ($gid === 4): ?>
             <button class="btn" type="button" onclick="sendTestMail()">Testmail versenden</button>
+            <button class="btn" type="button" onclick="listImapFolders()">IMAP-Ordner anzeigen</button>
             <?php endif; ?>
             <span class="cfg-msg" id="gmsg-<?= $gid ?>" style="font-size:12px"></span>
         </div>
+        <?php if ($gid === 4): ?>
+        <div id="imapFoldersResult" style="margin-top:10px; font-size:12px"></div>
+        <?php endif; ?>
     </div>
     <?php endforeach; ?>
 
@@ -537,6 +541,48 @@ async function deleteShortcut(id) {
         document.getElementById('sc-row-' + id)?.remove();
     } catch(e) {
         Dialog.alert('Fehler: ' + e.message);
+    }
+}
+
+async function listImapFolders() {
+    const out = document.getElementById('imapFoldersResult');
+    out.textContent = 'Lade Ordner…';
+    try {
+        const res  = await fetch('api.php', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': CSRF },
+            body: new URLSearchParams({ action: 'list_imap_folders' }),
+        });
+        const data = await res.json();
+        out.innerHTML = '';
+        if (!data.success) {
+            const err = document.createElement('span');
+            err.style.color = 'var(--danger)';
+            err.textContent = data.error || 'Fehler';
+            out.appendChild(err);
+            return;
+        }
+        const folders = data.data.folders || [];
+        if (folders.length === 0) {
+            out.textContent = 'Keine Ordner gefunden.';
+            return;
+        }
+        const title = document.createElement('div');
+        title.innerHTML = '<strong>Ordner auf dem Server</strong> (Wert für „Sent-Ordner" übernehmen):';
+        title.style.marginBottom = '4px';
+        out.appendChild(title);
+        folders.forEach(function(name) {
+            const c = document.createElement('code');
+            c.textContent = name;
+            c.style.cssText = 'background:#f0f0f0;padding:1px 6px;border-radius:3px;margin:2px 6px 2px 0;display:inline-block';
+            out.appendChild(c);
+        });
+    } catch(e) {
+        out.innerHTML = '';
+        const err = document.createElement('span');
+        err.style.color = 'var(--danger)';
+        err.textContent = 'Serverfehler.';
+        out.appendChild(err);
     }
 }
 </script>
