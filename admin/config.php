@@ -62,6 +62,7 @@ $groups = [
             ['key' => 'invoice_number_prefix',  'label' => 'Rechnungsnummer Prefix',     'type' => 'text', 'width' => 'half'],
             ['key' => 'invoice_number_start',   'label' => 'Rechnungsnummer Start',      'type' => 'text', 'width' => 'half'],
             ['key' => 'invoice_mail_subject',   'label' => 'E-Mail Betreff für Rechnungen — Platzhalter: {project}, {time}', 'type' => 'text'],
+            ['key' => 'invoice_mail_bcc',       'label' => 'Kopie der Rechnungsmails an (BCC) — wird beim Versand aus dem Mailspool als Kopie zugestellt', 'type' => 'email'],
         ],
     ],
     3 => [

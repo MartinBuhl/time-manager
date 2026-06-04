@@ -162,7 +162,6 @@ function fmtDt($dt) {
                         <th>Rechnung</th>
                         <th>Kunde</th>
                         <th>Empfänger</th>
-                        <th>Betreff</th>
                         <th>PDF</th>
                         <th></th>
                     </tr>
@@ -185,7 +184,6 @@ function fmtDt($dt) {
                         <td><?= h($m['invoice_number'] ?? '') ?></td>
                         <td><?= h($m['customer_name'] ?? '') ?></td>
                         <td><?= h($m['recipient']) ?></td>
-                        <td class="preview-cell" title="<?= h($m['subject']) ?>"><?= h($m['subject']) ?></td>
                         <td>
                             <?php if ($m['pdf_file']): ?>
                                 <a href="invoice_download.php?type=pdf&file=<?= urlencode($m['pdf_file']) ?>"
