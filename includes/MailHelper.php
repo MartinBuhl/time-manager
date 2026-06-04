@@ -127,25 +127,41 @@ class MailHelper
         return $mailer;
     }
 
+    /** Schreibt eine Zeile in log/imap.log (erscheint in der Admin-Logs-Seite). */
+    private static function imapLog(string $msg): void
+    {
+        $dir = dirname(__DIR__) . '/log';
+        if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
+        @file_put_contents(
+            $dir . '/imap.log',
+            '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n",
+            FILE_APPEND | LOCK_EX
+        );
+    }
+
     /**
      * Legt eine bereits versendete Nachricht (rohe MIME-Daten aus
      * PHPMailer::getSentMIMEMessage()) per IMAP im Sent-Ordner ab.
-     * Login = SMTP-Benutzer/Passwort. Fehler werden nur geloggt.
+     * Login = SMTP-Benutzer/Passwort.
+     *
+     * @return string Leerstring bei Erfolg/deaktiviert, sonst Fehlermeldung.
      */
-    public static function saveToImapSent(string $rawMessage): void
+    public static function saveToImapSent(string $rawMessage): string
     {
         if (cfg('imap_save_sent') !== '1') {
-            return;
+            return '';
         }
         if (!function_exists('imap_open')) {
-            error_log('IMAP-Sent: PHP-imap-Extension ist nicht installiert/aktiviert.');
-            return;
+            $m = 'PHP-imap-Extension ist nicht installiert/aktiviert.';
+            self::imapLog('FEHLER: ' . $m);
+            return $m;
         }
 
         $host = trim(cfg('imap_host'));
         if ($host === '') {
-            error_log('IMAP-Sent: Kein IMAP-Server konfiguriert.');
-            return;
+            $m = 'Kein IMAP-Server konfiguriert.';
+            self::imapLog('FEHLER: ' . $m);
+            return $m;
         }
         $folder = trim(cfg('imap_sent_folder')) ?: 'Sent';
         $port   = (int)(cfg('imap_port') ?: '993');
@@ -164,18 +180,31 @@ class MailHelper
         $user    = cfg('smtp_user');
         $pass    = cfg('smtp_password');
 
+        self::imapLog('Verbinde zu ' . $mailbox . ' als ' . $user);
+
+        // imap_errors() leeren, damit alte Meldungen nicht stören
+        if (function_exists('imap_errors')) { @imap_errors(); }
+
         $imap = @imap_open($mailbox, $user, $pass, OP_HALFOPEN);
         if ($imap === false) {
-            error_log('IMAP-Sent: Verbindung fehlgeschlagen: ' . imap_last_error());
-            return;
+            $m = 'Verbindung/Login fehlgeschlagen: ' . (imap_last_error() ?: 'unbekannt');
+            self::imapLog('FEHLER: ' . $m);
+            return $m;
         }
 
         // IMAP erwartet CRLF-Zeilenenden
         $msg = preg_replace('/\r?\n/', "\r\n", $rawMessage);
-        if (!@imap_append($imap, $mailbox, $msg, "\\Seen")) {
-            error_log('IMAP-Sent: Ablage im Ordner "' . $folder . '" fehlgeschlagen: ' . imap_last_error());
-        }
+        $ok  = @imap_append($imap, $mailbox, $msg, "\\Seen");
         imap_close($imap);
+
+        if (!$ok) {
+            $m = 'Ablage im Ordner "' . $folder . '" fehlgeschlagen: ' . (imap_last_error() ?: 'unbekannt');
+            self::imapLog('FEHLER: ' . $m);
+            return $m;
+        }
+
+        self::imapLog('OK: Nachricht im Ordner "' . $folder . '" abgelegt.');
+        return '';
     }
 
     private static function buildWorkList(array $items, string $format): string

@@ -1271,8 +1271,9 @@ switch ($action) {
 
         require_once dirname(__DIR__) . '/includes/MailHelper.php';
 
-        $sent   = 0;
-        $errors = [];
+        $sent     = 0;
+        $errors   = [];
+        $warnings = [];
 
         foreach ($ids as $spoolId) {
             $stmt = db()->prepare(
@@ -1346,9 +1347,12 @@ switch ($action) {
 
                 // Kopie im IMAP-Sent-Ordner ablegen (best effort, blockiert nicht)
                 try {
-                    MailHelper::saveToImapSent($mail->getSentMIMEMessage());
+                    $imapErr = MailHelper::saveToImapSent($mail->getSentMIMEMessage());
+                    if ($imapErr !== '') {
+                        $warnings[] = "Rechnung {$spool['invoice_number']}: versendet, aber IMAP-Sent-Ablage fehlgeschlagen – " . $imapErr;
+                    }
                 } catch (\Throwable $imapEx) {
-                    error_log('IMAP-Sent: ' . $imapEx->getMessage());
+                    $warnings[] = "Rechnung {$spool['invoice_number']}: IMAP-Sent-Fehler – " . $imapEx->getMessage();
                 }
 
                 $upd = db()->prepare(
@@ -1363,7 +1367,7 @@ switch ($action) {
             }
         }
 
-        jsonOk(['sent' => $sent, 'errors' => $errors]);
+        jsonOk(['sent' => $sent, 'errors' => array_merge($errors, $warnings)]);
 
     // ----------------------------------------------------------------
     case 'send_test_mail':
