@@ -3,9 +3,15 @@ require_once __DIR__ . '/auth.php';
 
 // ---- Filter & Pagination params ----------------------------------------
 $search     = trim($_GET['q'] ?? '');
+$exclude    = trim($_GET['exclude'] ?? '');
+$excludeTerms = array_values(array_filter(
+    array_map('trim', explode(',', $exclude)),
+    fn($t) => $t !== ''
+));
 $customerId = filter_var($_GET['customer_id'] ?? '', FILTER_VALIDATE_INT) ?: 0;
 $dateFrom   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date_from'] ?? '') ? $_GET['date_from'] : '';
 $dateTo     = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date_to']   ?? '') ? $_GET['date_to']   : '';
+$status     = in_array($_GET['status'] ?? '', ['billed', 'open'], true) ? $_GET['status'] : '';
 $sort       = ($_GET['sort'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 $perPage    = in_array((int)($_GET['per_page'] ?? 50), [50, 100, 500, 1000])
               ? (int)($_GET['per_page'] ?? 50) : 50;
@@ -15,8 +21,22 @@ $pdo = db();
 
 // ---- Customers for filter select ----------------------------------------
 $customers = $pdo->query(
-    'SELECT id, name FROM tm_customers ORDER BY name ASC'
+    'SELECT id, name, projects FROM tm_customers ORDER BY name ASC'
 )->fetchAll();
+
+// Map customerId -> [Projektnamen] für die Massen-Projektzuweisung
+$customerProjects = [];
+foreach ($customers as $c) {
+    $projs = json_decode($c['projects'] ?? '[]', true);
+    $names = [];
+    if (is_array($projs)) {
+        foreach ($projs as $p) {
+            $n = trim($p['name'] ?? '');
+            if ($n !== '') $names[] = $n;
+        }
+    }
+    $customerProjects[(int)$c['id']] = $names;
+}
 
 // ---- Users for import form ----------------------------------------------
 $importUsers = $pdo->query(
@@ -31,6 +51,10 @@ if ($search !== '') {
     $where[]  = 'e.comment LIKE ?';
     $params[] = '%' . $search . '%';
 }
+foreach ($excludeTerms as $term) {
+    $where[]  = '(e.comment IS NULL OR e.comment NOT LIKE ?)';
+    $params[] = '%' . $term . '%';
+}
 if ($customerId > 0) {
     $where[]  = 'e.customer_id = ?';
     $params[] = $customerId;
@@ -42,6 +66,11 @@ if ($dateFrom !== '') {
 if ($dateTo !== '') {
     $where[]  = 'e.date <= ?';
     $params[] = $dateTo;
+}
+if ($status === 'billed') {
+    $where[] = 'e.billed_at IS NOT NULL';
+} elseif ($status === 'open') {
+    $where[] = 'e.billed_at IS NULL';
 }
 
 $whereStr = 'WHERE ' . implode(' AND ', $where);
@@ -80,9 +109,11 @@ function buildUrl(array $overrides = []): string
 {
     $base = [
         'q'           => $_GET['q']           ?? '',
+        'exclude'     => $_GET['exclude']     ?? '',
         'customer_id' => $_GET['customer_id'] ?? '',
         'date_from'   => $_GET['date_from']   ?? '',
         'date_to'     => $_GET['date_to']     ?? '',
+        'status'      => $_GET['status']       ?? '',
         'sort'        => $_GET['sort']         ?? 'desc',
         'per_page'    => $_GET['per_page']     ?? '50',
         'page'        => $_GET['page']         ?? '1',
@@ -90,9 +121,11 @@ function buildUrl(array $overrides = []): string
     $p = array_merge($base, $overrides);
     // strip empty / default values to keep URLs clean
     if ($p['q']           === '')    unset($p['q']);
+    if ($p['exclude']     === '')    unset($p['exclude']);
     if ($p['customer_id'] === '' || $p['customer_id'] === '0') unset($p['customer_id']);
     if ($p['date_from']   === '')    unset($p['date_from']);
     if ($p['date_to']     === '')    unset($p['date_to']);
+    if ($p['status']      === '')    unset($p['status']);
     if ($p['sort']        === 'desc') unset($p['sort']);
     if ($p['per_page']    === '50')   unset($p['per_page']);
     if ($p['page']        === '1' || $p['page'] === 1) unset($p['page']);
@@ -114,15 +147,43 @@ function fmtDate(string $dt): string
 <style>
 .filter-bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
+    flex-direction: column;
+    gap: 10px;
     margin-bottom: 16px;
 }
-.filter-bar input[type="text"] { flex: 1; min-width: 160px; }
-.filter-bar input[type="date"] { min-width: 140px; width: auto; }
-.filter-bar select              { min-width: 140px; }
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    align-items: flex-end;
+}
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.filter-field > label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.filter-field--search { flex: 1 1 220px; min-width: 180px; }
+.filter-field--search input { width: 100%; }
+.filter-bar input[type="date"] { width: auto; }
+.filter-bar select { min-width: 150px; }
+.filter-dates {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 .filter-sep { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.filter-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
 .pager {
     display: flex;
     align-items: center;
@@ -134,19 +195,35 @@ function fmtDate(string $dt): string
 .pager a, .pager span {
     display: inline-block;
     padding: 4px 10px;
-    border: 1px solid var(--border);
+    border: 1px solid #e2e8f0;
     border-radius: 4px;
     text-decoration: none;
-    color: var(--text);
-    background: var(--bg);
+    color: #334155;
+    background: #f1f5f9;
     line-height: 1.4;
 }
-.pager a:hover      { background: var(--hover-bg, #f0f4f8); }
+.pager a:hover      { background: #e2e8f0; }
 .pager span.current { background: var(--primary, #0078d4); color: #fff; border-color: var(--primary, #0078d4); font-weight: 600; }
-.pager span.dots    { border: none; padding: 4px 4px; color: var(--text-muted); }
+.pager span.dots    { border: none; background: transparent; padding: 4px 4px; color: var(--text-muted); }
 .pager-info         { margin-left: auto; font-size: 12px; color: var(--text-muted); }
 .col-user           { white-space: nowrap; font-size: 12px; color: var(--text-muted); }
 .col-project        { font-size: 11px; }
+.col-check          { width: 28px; text-align: center; }
+.col-check input    { cursor: pointer; }
+.bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+}
+.bulk-bar select { min-width: 170px; }
+.bulk-note { font-size: 12px; color: #b45309; }
 </style>
 </head>
 <body>
@@ -170,46 +247,80 @@ function fmtDate(string $dt): string
 
         <!-- Filter bar -->
         <form method="get" action="entries.php" class="filter-bar">
-            <input type="text"
-                   name="q"
-                   value="<?= h($search) ?>"
-                   placeholder="Kommentar suchen…"
-                   autocomplete="off">
+            <!-- Zeile 1: Kunde, Status, Zeitraum, Sortierung … Pro Seite + Aktionen -->
+            <div class="filter-row">
+                <div class="filter-field">
+                    <label for="f-customer">Kunde</label>
+                    <select id="f-customer" name="customer_id">
+                        <option value="">Alle Kunden</option>
+                        <?php foreach ($customers as $c): ?>
+                        <option value="<?= (int)$c['id'] ?>"
+                            <?= $customerId === (int)$c['id'] ? 'selected' : '' ?>>
+                            <?= h($c['name']) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
 
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <span class="filter-sep">Von</span>
-                <input type="date" name="date_from" value="<?= h($dateFrom) ?>">
-                <span class="filter-sep">Bis</span>
-                <input type="date" name="date_to"   value="<?= h($dateTo) ?>">
+                <div class="filter-field">
+                    <label for="f-status">Status</label>
+                    <select id="f-status" name="status">
+                        <option value="">Alle Status</option>
+                        <option value="open"   <?= $status === 'open'   ? 'selected' : '' ?>>Nicht abgerechnet</option>
+                        <option value="billed" <?= $status === 'billed' ? 'selected' : '' ?>>Abgerechnet</option>
+                    </select>
+                </div>
+
+                <div class="filter-field">
+                    <label>Zeitraum</label>
+                    <div class="filter-dates">
+                        <input type="date" name="date_from" value="<?= h($dateFrom) ?>" aria-label="Von">
+                        <span class="filter-sep">–</span>
+                        <input type="date" name="date_to" value="<?= h($dateTo) ?>" aria-label="Bis">
+                    </div>
+                </div>
+
+                <div class="filter-field">
+                    <label for="f-sort">Sortierung</label>
+                    <select id="f-sort" name="sort">
+                        <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Neueste zuerst</option>
+                        <option value="asc"  <?= $sort === 'asc'  ? 'selected' : '' ?>>Älteste zuerst</option>
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <div class="filter-field">
+                        <label for="f-perpage">Pro Seite</label>
+                        <select id="f-perpage" name="per_page">
+                            <?php foreach ([50, 100, 500, 1000] as $n): ?>
+                            <option value="<?= $n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= $n ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button class="btn btn--primary" type="submit">Filtern</button>
+                    <?php if ($search !== '' || $exclude !== '' || $customerId > 0 || $dateFrom !== '' || $dateTo !== '' || $status !== ''): ?>
+                    <a href="entries.php" class="btn">Zurücksetzen</a>
+                    <?php endif; ?>
+                </div>
             </div>
 
-            <div style="display:flex;gap:8px;flex-wrap:nowrap">
-                <select name="customer_id">
-                    <option value="">Alle Kunden</option>
-                    <?php foreach ($customers as $c): ?>
-                    <option value="<?= (int)$c['id'] ?>"
-                        <?= $customerId === (int)$c['id'] ? 'selected' : '' ?>>
-                        <?= h($c['name']) ?>
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-
-                <select name="sort">
-                    <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Neueste zuerst</option>
-                    <option value="asc"  <?= $sort === 'asc'  ? 'selected' : '' ?>>Älteste zuerst</option>
-                </select>
-
-                <select name="per_page">
-                    <?php foreach ([50, 100, 500, 1000] as $n): ?>
-                    <option value="<?= $n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= $n ?> pro Seite</option>
-                    <?php endforeach; ?>
-                </select>
+            <!-- Zeile 2: Suche + Ausschluss -->
+            <div class="filter-row">
+                <div class="filter-field filter-field--search">
+                    <label for="f-q">Suche (Kommentar)</label>
+                    <input type="text" id="f-q" name="q"
+                           value="<?= h($search) ?>"
+                           placeholder="Kommentar suchen…"
+                           autocomplete="off">
+                </div>
+                <div class="filter-field filter-field--search">
+                    <label for="f-exclude">Ausschließen (Kommentar, kommagetrennt)</label>
+                    <input type="text" id="f-exclude" name="exclude"
+                           value="<?= h($exclude) ?>"
+                           placeholder="z. B. urlaub, intern, pause"
+                           autocomplete="off">
+                </div>
             </div>
-
-            <button class="btn btn--primary" type="submit">Filtern</button>
-            <?php if ($search !== '' || $customerId > 0 || $dateFrom !== '' || $dateTo !== ''): ?>
-            <a href="entries.php" class="btn">Zurücksetzen</a>
-            <?php endif; ?>
         </form>
 
         <!-- Result info -->
@@ -228,6 +339,7 @@ function fmtDate(string $dt): string
             <table class="entries-table">
                 <thead>
                     <tr>
+                        <th class="col-check"><input type="checkbox" id="checkAll" title="Alle auswählen"></th>
                         <th>Datum</th>
                         <th>Zeit</th>
                         <th class="col-dur">Min</th>
@@ -243,6 +355,11 @@ function fmtDate(string $dt): string
                 <tbody>
                 <?php foreach ($entries as $e): ?>
                 <tr class="entry-row" id="row-<?= (int)$e['id'] ?>">
+                    <td class="col-check">
+                        <input type="checkbox" class="row-check"
+                               data-id="<?= (int)$e['id'] ?>"
+                               data-customer-id="<?= (int)$e['customer_id'] ?>">
+                    </td>
                     <td style="white-space:nowrap"><?= fmtDate($e['start_datetime']) ?></td>
                     <td style="white-space:nowrap">
                         <?= fmtTime($e['start_datetime']) ?>–<?= fmtTime($e['end_datetime']) ?>
@@ -299,7 +416,7 @@ function fmtDate(string $dt): string
                     </td>
                 </tr>
                 <tr id="edit-<?= (int)$e['id'] ?>" class="edit-row hidden">
-                    <td colspan="10">
+                    <td colspan="11">
                         <div class="edit-form" style="flex-wrap:wrap;row-gap:6px">
                             <input type="text" class="edit-start"
                                    value="<?= h($e['start_datetime']) ?>"
@@ -342,6 +459,29 @@ function fmtDate(string $dt): string
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Massen-Aktionen für angehakte Einträge -->
+        <div id="bulkBar" class="bulk-bar" style="display:none">
+            <span><strong id="bulkCount">0</strong>&nbsp;ausgewählt</span>
+            <select id="bulkAction">
+                <option value="">— Aktion wählen —</option>
+                <option value="assign_project">Projekt zuweisen</option>
+                <option value="assign_customer">Anderem Kunden zuweisen</option>
+            </select>
+            <span id="bulkProjectWrap" style="display:none;align-items:center;gap:10px">
+                <select id="bulkProject"></select>
+                <span id="bulkProjectNote" class="bulk-note"></span>
+            </span>
+            <span id="bulkCustomerWrap" style="display:none;align-items:center;gap:10px">
+                <select id="bulkCustomer">
+                    <option value="">— Kunde wählen —</option>
+                    <?php foreach ($customers as $c): ?>
+                    <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </span>
+            <button type="button" class="btn btn--primary" id="bulkSaveBtn" style="display:none">Speichern</button>
         </div>
 
         <!-- Pagination -->
@@ -460,6 +600,7 @@ function fmtDate(string $dt): string
 
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
+const CUSTOMER_PROJECTS = <?= json_encode($customerProjects, JSON_UNESCAPED_UNICODE) ?>;
 
 async function api(action, params) {
     const body = new URLSearchParams({ action, ...params });
@@ -651,6 +792,148 @@ async function confirmDelete(id) {
         alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
         cancelDelete(id);
     }
+}
+
+/* ================================================================
+   MASSEN-AKTIONEN (angehakte Einträge)
+   ================================================================ */
+function selectedChecks() {
+    return Array.from(document.querySelectorAll('.row-check:checked'));
+}
+
+function updateBulkBar() {
+    const checked = selectedChecks();
+    const bar     = document.getElementById('bulkBar');
+    document.getElementById('bulkCount').textContent = checked.length;
+    bar.style.display = checked.length > 0 ? 'flex' : 'none';
+
+    // "Alle"-Checkbox-Status angleichen
+    const all = document.querySelectorAll('.row-check');
+    const checkAll = document.getElementById('checkAll');
+    checkAll.checked = all.length > 0 && checked.length === all.length;
+    checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+
+    if (document.getElementById('bulkAction').value === 'assign_project') {
+        populateProjectSelect();
+    }
+}
+
+function populateProjectSelect() {
+    const checked  = selectedChecks();
+    const sel      = document.getElementById('bulkProject');
+    const note     = document.getElementById('bulkProjectNote');
+    const saveBtn  = document.getElementById('bulkSaveBtn');
+    const custIds  = [...new Set(checked.map(cb => cb.dataset.customerId))];
+
+    sel.innerHTML = '';
+    note.textContent = '';
+    saveBtn.style.display = 'none';
+
+    if (checked.length === 0) { sel.style.display = 'none'; return; }
+
+    if (custIds.length > 1) {
+        sel.style.display = 'none';
+        note.textContent  = 'Bitte nur Einträge eines Kunden auswählen.';
+        return;
+    }
+    if (custIds[0] === '0' || custIds[0] === '' || custIds[0] === undefined) {
+        sel.style.display = 'none';
+        note.textContent  = 'Die ausgewählten Einträge haben keinen Kunden.';
+        return;
+    }
+
+    const projects = CUSTOMER_PROJECTS[custIds[0]] || [];
+    if (projects.length === 0) {
+        sel.style.display = 'none';
+        note.textContent  = 'Für diesen Kunden sind keine Projekte hinterlegt.';
+        return;
+    }
+
+    sel.style.display = '';
+    const ph = document.createElement('option');
+    ph.value = ''; ph.textContent = '— Projekt wählen —';
+    sel.appendChild(ph);
+    projects.forEach(function(p) {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = p;
+        sel.appendChild(o);
+    });
+}
+
+// Listener nur registrieren, wenn die Liste (und damit die Elemente) existiert
+if (document.getElementById('bulkBar')) {
+    document.getElementById('checkAll').addEventListener('change', function() {
+        document.querySelectorAll('.row-check').forEach(cb => { cb.checked = this.checked; });
+        updateBulkBar();
+    });
+
+    document.querySelector('.entries-table tbody').addEventListener('change', function(ev) {
+        if (ev.target.classList.contains('row-check')) updateBulkBar();
+    });
+
+    document.getElementById('bulkAction').addEventListener('change', function() {
+        const projWrap = document.getElementById('bulkProjectWrap');
+        const custWrap = document.getElementById('bulkCustomerWrap');
+        const saveBtn  = document.getElementById('bulkSaveBtn');
+        projWrap.style.display = 'none';
+        custWrap.style.display = 'none';
+        saveBtn.style.display  = 'none';
+
+        if (this.value === 'assign_project') {
+            projWrap.style.display = 'inline-flex';
+            populateProjectSelect();
+        } else if (this.value === 'assign_customer') {
+            custWrap.style.display = 'inline-flex';
+            document.getElementById('bulkCustomer').value = '';
+        }
+    });
+
+    document.getElementById('bulkProject').addEventListener('change', function() {
+        document.getElementById('bulkSaveBtn').style.display = this.value ? '' : 'none';
+    });
+
+    document.getElementById('bulkCustomer').addEventListener('change', function() {
+        document.getElementById('bulkSaveBtn').style.display = this.value ? '' : 'none';
+    });
+
+    document.getElementById('bulkSaveBtn').addEventListener('click', async function() {
+        const action = document.getElementById('bulkAction').value;
+        const ids    = selectedChecks().map(cb => cb.dataset.id);
+        if (ids.length === 0) return;
+
+        let apiAction, params, confirmMsg;
+        if (action === 'assign_project') {
+            const project = document.getElementById('bulkProject').value;
+            if (!project) return;
+            apiAction  = 'bulk_assign_project';
+            params     = { ids: ids.join(','), project };
+            confirmMsg = ids.length + ' Eintrag/Einträgen das Projekt „' + project + '" zuweisen?';
+        } else if (action === 'assign_customer') {
+            const sel  = document.getElementById('bulkCustomer');
+            const cid  = sel.value;
+            if (!cid) return;
+            apiAction  = 'bulk_assign_customer';
+            params     = { ids: ids.join(','), customer_id: cid };
+            confirmMsg = ids.length + ' Eintrag/Einträge dem Kunden „'
+                       + sel.options[sel.selectedIndex].text + '" zuweisen?';
+        } else {
+            return;
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        this.disabled = true;
+        const orig = this.textContent;
+        this.textContent = 'Speichere…';
+        const res = await api(apiAction, params);
+        if (res.success) {
+            location.reload();
+        } else {
+            alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            this.disabled = false;
+            this.textContent = orig;
+        }
+    });
 }
 </script>
 </body>

@@ -1577,6 +1577,40 @@ switch ($action) {
         }
 
     // ----------------------------------------------------------------
+    case 'bulk_assign_project':
+        $idsRaw  = trim($_POST['ids'] ?? '');
+        $project = trim($_POST['project'] ?? '');
+        $ids     = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
+        if (empty($ids))     { jsonErr('Keine Einträge ausgewählt.'); }
+        if ($project === '') { jsonErr('Kein Projekt angegeben.'); }
+
+        $ph   = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = db()->prepare(
+            "UPDATE tm_entries SET project = ? WHERE id IN ($ph) AND deleted_at IS NULL"
+        );
+        $stmt->execute(array_merge([$project], $ids));
+        jsonOk(['updated' => $stmt->rowCount()]);
+
+    // ----------------------------------------------------------------
+    case 'bulk_assign_customer':
+        $idsRaw     = trim($_POST['ids'] ?? '');
+        $customerId = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
+        $ids        = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
+        if (empty($ids))  { jsonErr('Keine Einträge ausgewählt.'); }
+        if (!$customerId) { jsonErr('Kein Kunde angegeben.'); }
+
+        $chk = db()->prepare('SELECT 1 FROM tm_customers WHERE id = ? LIMIT 1');
+        $chk->execute([$customerId]);
+        if (!$chk->fetchColumn()) { jsonErr('Kunde nicht gefunden.'); }
+
+        $ph   = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = db()->prepare(
+            "UPDATE tm_entries SET customer_id = ? WHERE id IN ($ph) AND deleted_at IS NULL"
+        );
+        $stmt->execute(array_merge([$customerId], $ids));
+        jsonOk(['updated' => $stmt->rowCount()]);
+
+    // ----------------------------------------------------------------
     case 'delete_backup':
         $name = basename((string)($_POST['file'] ?? ''));
         if (!preg_match('/^tm_backup_[\w\-]+\.zip$/', $name)) {
