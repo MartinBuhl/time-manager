@@ -49,6 +49,7 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rechnungen – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .filter-bar {
     display: flex;
@@ -207,7 +208,7 @@ async function handleReverse(ev) {
     const id     = btn.dataset.id;
     const number = btn.dataset.number;
 
-    if (!confirm('Abrechnung „' + number + '" rückgängig machen?\n\nDie Einträge werden wieder als nicht abgerechnet markiert, die Rechnung und die PDF-Datei werden gelöscht.')) {
+    if (!await Dialog.confirm('Abrechnung „' + number + '" rückgängig machen?\n\nDie Einträge werden wieder als nicht abgerechnet markiert, die Rechnung und die PDF-Datei werden gelöscht.', { danger: true })) {
         return;
     }
 
@@ -222,12 +223,12 @@ async function handleReverse(ev) {
         if (data.success) {
             document.getElementById('row-inv-' + id)?.remove();
         } else {
-            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
             btn.disabled    = false;
             btn.textContent = 'Rückgängig';
         }
     } catch (e) {
-        alert('Serverfehler.');
+        Dialog.alert('Serverfehler.');
         btn.disabled    = false;
         btn.textContent = 'Rückgängig';
     }
@@ -242,7 +243,7 @@ async function handleSpool(ev) {
     const id     = btn.dataset.id;
     const number = btn.dataset.number;
 
-    if (!confirm('Rechnung „' + number + '" in den Mail-Spool legen?\nDie Mail kann danach unter Mail-Spool geprüft und versendet werden.')) return;
+    if (!await Dialog.confirm('Rechnung „' + number + '" in den Mail-Spool legen?\nDie Mail kann danach unter Mail-Spool geprüft und versendet werden.')) return;
 
     btn.disabled    = true;
     btn.textContent = 'Wird vorbereitet…';
@@ -286,12 +287,12 @@ async function handleSpool(ev) {
                 badge.textContent = 'Mail vorbereitet';
             }
         } else {
-            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
             btn.disabled    = false;
             btn.textContent = 'Mail vorbereiten';
         }
     } catch (e) {
-        alert('Serverfehler.');
+        Dialog.alert('Serverfehler.');
         btn.disabled    = false;
         btn.textContent = 'Mail vorbereiten';
     }

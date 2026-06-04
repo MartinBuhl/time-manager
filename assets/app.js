@@ -37,7 +37,7 @@ function startCountdown() {
         updateCountdownDisplay();
         if (countdownValue <= 0) {
             clearInterval(countdownInterval);
-            alert('Zeit läuft noch');
+            Dialog.alert('Zeit läuft noch');
             countdownValue = 1800;
             updateCountdownDisplay();
             startCountdown();
@@ -89,7 +89,7 @@ async function saveEdit(id) {
     if (res.success) {
         location.reload();
     } else {
-        alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
     }
 }
 
@@ -114,7 +114,7 @@ async function confirmDelete(id) {
         if (row)     row.remove();
         if (editRow) editRow.remove();
     } else {
-        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
         cancelDelete(id);
     }
 }
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.success) {
             location.reload();
         } else {
-            alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
             startCountdown();
         }
     });

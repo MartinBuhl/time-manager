@@ -504,6 +504,7 @@ function fmtDate(string $dt): string
 </div><!-- .app -->
 <?php endif; ?>
 
+<script src="assets/dialog.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>

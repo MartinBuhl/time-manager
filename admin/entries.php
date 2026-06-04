@@ -144,6 +144,7 @@ function fmtDate(string $dt): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arbeitszeit – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .filter-bar {
     display: flex;
@@ -636,7 +637,7 @@ async function saveEdit(id) {
     if (res.success) {
         location.reload();
     } else {
-        alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
     }
 }
 
@@ -777,7 +778,7 @@ async function resetBilling(id) {
         const cell = document.getElementById('billed-cell-' + id);
         if (cell) cell.innerHTML = '<span style="color:var(--text-muted)">—</span>';
     } else {
-        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
     }
 }
 
@@ -789,7 +790,7 @@ async function confirmDelete(id) {
         if (row)     row.remove();
         if (editRow) editRow.remove();
     } else {
-        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
         cancelDelete(id);
     }
 }
@@ -920,7 +921,7 @@ if (document.getElementById('bulkBar')) {
             return;
         }
 
-        if (!confirm(confirmMsg)) return;
+        if (!await Dialog.confirm(confirmMsg)) return;
 
         this.disabled = true;
         const orig = this.textContent;
@@ -929,7 +930,7 @@ if (document.getElementById('bulkBar')) {
         if (res.success) {
             location.reload();
         } else {
-            alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
             this.disabled = false;
             this.textContent = orig;
         }

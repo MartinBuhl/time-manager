@@ -94,6 +94,7 @@ $groups = [
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Konfiguration – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .cfg-grid {
     display: grid;
@@ -522,7 +523,7 @@ async function deleteShortcut(id) {
         if (!data.success) throw new Error(data.error || 'Fehler');
         document.getElementById('sc-row-' + id)?.remove();
     } catch(e) {
-        alert('Fehler: ' + e.message);
+        Dialog.alert('Fehler: ' + e.message);
     }
 }
 </script>

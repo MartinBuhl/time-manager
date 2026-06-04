@@ -39,6 +39,7 @@ function fmtDt($dt) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mailspool – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .mail-tabs {
     display: flex;
@@ -354,10 +355,10 @@ if (execBtn) {
         if (ids.length === 0) return;
 
         if (action === 'send') {
-            if (!confirm(ids.length + ' Rechnung(en) jetzt per E-Mail versenden?')) return;
+            if (!await Dialog.confirm(ids.length + ' Rechnung(en) jetzt per E-Mail versenden?')) return;
         }
         if (action === 'reset') {
-            if (!confirm(ids.length + ' Rechnung(en) zurücksetzen, damit sie erneut versendet werden können?')) return;
+            if (!await Dialog.confirm(ids.length + ' Rechnung(en) zurücksetzen, damit sie erneut versendet werden können?')) return;
         }
 
         execBtn.disabled = true;
@@ -466,12 +467,12 @@ document.querySelectorAll('.testmail-btn').forEach(function(btn) {
                     btn.textContent = original;
                 }, 4000);
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
                 btn.disabled    = false;
                 btn.textContent = original;
             }
         } catch(e) {
-            alert('Serverfehler.');
+            Dialog.alert('Serverfehler.');
             btn.disabled    = false;
             btn.textContent = original;
         }
@@ -483,7 +484,7 @@ document.querySelectorAll('.unspool-btn').forEach(function(btn) {
         const id     = btn.dataset.id;
         const number = btn.dataset.number;
 
-        if (!confirm('Mail-Spool-Eintrag für Rechnung „' + number + '" rückgängig machen?\nDer Eintrag wird gelöscht und der Rechnungsstatus zurückgesetzt.')) return;
+        if (!await Dialog.confirm('Mail-Spool-Eintrag für Rechnung „' + number + '" rückgängig machen?\nDer Eintrag wird gelöscht und der Rechnungsstatus zurückgesetzt.', { danger: true })) return;
 
         btn.disabled    = true;
         btn.textContent = '…';
@@ -496,12 +497,12 @@ document.querySelectorAll('.unspool-btn').forEach(function(btn) {
             if (data.success) {
                 document.getElementById('spool-row-' + id)?.remove();
             } else {
-                alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
                 btn.disabled    = false;
                 btn.textContent = 'Rückgängig';
             }
         } catch(e) {
-            alert('Serverfehler.');
+            Dialog.alert('Serverfehler.');
             btn.disabled    = false;
             btn.textContent = 'Rückgängig';
         }

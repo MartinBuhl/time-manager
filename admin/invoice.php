@@ -135,6 +135,7 @@ function fmtH(int $min): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rechnungsvorschau – <?= h($customer['name']) ?></title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .invoice-wrap {
     max-width: 860px;
@@ -593,17 +594,17 @@ async function saveEntry(id, customerId) {
     if (res.success) {
         location.reload();
     } else {
-        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
     }
 }
 
 async function trashEntry(id) {
-    if (!confirm('Diesen Eintrag in den Papierkorb verschieben?')) return;
+    if (!await Dialog.confirm('Diesen Eintrag in den Papierkorb verschieben?', { danger: true })) return;
     const res = await apiCall('delete_entry', { id });
     if (res.success) {
         location.reload();
     } else {
-        alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
     }
 }
 

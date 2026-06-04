@@ -305,6 +305,9 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 .result-ok   { background:#f0fdf4; border:1px solid #bbf7d0; }
 .result-fail { background:#fef2f2; border:1px solid #fecaca; }
 .result-box h3 { font-size:15px; font-weight:700; margin-bottom:10px; }
+.result-ok   h3 { color:#15803d; }
+.result-fail h3 { color:#b91c1c; }
+.result-box p, .result-box li { color:#374151; }
 .spinner { display:inline-block; width:16px; height:16px; border:2px solid #fff;
            border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }

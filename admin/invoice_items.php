@@ -95,6 +95,7 @@ $amountGross  = (float)$invoice['amount_gross'];
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rechnungsposten <?= h($invoice['invoice_number']) ?></title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .summary-bar { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--text-muted); }
 .summary-bar strong { color:var(--text); }
@@ -411,7 +412,7 @@ async function saveItem(id) {
     const comment  = eRow.querySelector('.ei-comment').value.trim();
     const minutes  = parseInt(eRow.querySelector('.ei-min').value, 10);
 
-    if (!date || !activity || !minutes) { alert('Bitte alle Pflichtfelder ausfüllen.'); return; }
+    if (!date || !activity || !minutes) { Dialog.alert('Bitte alle Pflichtfelder ausfüllen.'); return; }
 
     const data = await apiCall('update_invoice_item', {
         id, date, activity, comment, duration_minutes: minutes
@@ -430,19 +431,19 @@ async function saveItem(id) {
         hideEdit(id);
         updateSummary(data.data.totals, rowCount());
     } else {
-        alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
     }
 }
 
 async function deleteItem(id) {
-    if (!confirm('Posten löschen?')) return;
+    if (!await Dialog.confirm('Posten löschen?', { danger: true })) return;
     const data = await apiCall('delete_invoice_item', { id });
     if (data.success) {
         document.getElementById('row-'  + id)?.remove();
         document.getElementById('edit-' + id)?.remove();
         updateSummary(data.data.totals, rowCount());
     } else {
-        alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
     }
 }
 
@@ -546,7 +547,7 @@ document.getElementById('regenBtn').addEventListener('click', async function() {
         }
         setTimeout(() => { btn.disabled = false; btn.textContent = 'PDF neu erstellen'; }, 3000);
     } else {
-        alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
         btn.disabled    = false;
         btn.textContent = 'PDF neu erstellen';
     }

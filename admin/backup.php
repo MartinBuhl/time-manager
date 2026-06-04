@@ -29,6 +29,7 @@ function fmtSize(int $bytes): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backup – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .col-num { white-space: nowrap; }
 .backup-msg { font-size: 13px; margin-left: 8px; }
@@ -161,7 +162,7 @@ document.getElementById('createBtn').addEventListener('click', async function() 
 async function handleMail(ev) {
     const btn  = ev.currentTarget;
     const file = btn.dataset.file;
-    if (!confirm('Backup „' + file + '" an die Admin-Mailadresse senden?')) return;
+    if (!await Dialog.confirm('Backup „' + file + '" an die Admin-Mailadresse senden?')) return;
 
     const orig = btn.textContent;
     btn.disabled = true;
@@ -173,12 +174,12 @@ async function handleMail(ev) {
             btn.textContent = '✓ Gesendet';
             setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 4000);
         } else {
-            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
             btn.textContent = orig;
             btn.disabled = false;
         }
     } catch (e) {
-        alert('Serverfehler.');
+        Dialog.alert('Serverfehler.');
         btn.textContent = orig;
         btn.disabled = false;
     }
@@ -188,7 +189,7 @@ async function handleMail(ev) {
 async function handleDelete(ev) {
     const btn  = ev.currentTarget;
     const file = btn.dataset.file;
-    if (!confirm('Backup „' + file + '" endgültig löschen?')) return;
+    if (!await Dialog.confirm('Backup „' + file + '" endgültig löschen?', { danger: true })) return;
 
     btn.disabled = true;
     try {
@@ -201,11 +202,11 @@ async function handleDelete(ev) {
                 tbody.innerHTML = '<tr id="emptyRow"><td colspan="4" class="empty-message">Noch keine Backups vorhanden.</td></tr>';
             }
         } else {
-            alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
             btn.disabled = false;
         }
     } catch (e) {
-        alert('Serverfehler.');
+        Dialog.alert('Serverfehler.');
         btn.disabled = false;
     }
 }

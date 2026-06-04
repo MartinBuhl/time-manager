@@ -19,6 +19,7 @@ $customers = $stmt->fetchAll();
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kunden – Administration</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/dialog.js"></script>
 <style>
 .project-list { list-style: none; margin: 0 0 10px; padding: 0; }
 .project-list li {
@@ -444,7 +445,7 @@ function rteLink(btn) {
 async function openEdit(cid) {
     editCid = cid;
     const res = await api('get_customer', { id: cid });
-    if (!res.success) { alert('Fehler beim Laden.'); return; }
+    if (!res.success) { Dialog.alert('Fehler beim Laden.'); return; }
     const c = res.data;
 
     document.getElementById('editTitle').textContent         = 'Kunde bearbeiten: ' + c.name;
@@ -687,7 +688,7 @@ async function editSearchEntries() {
 
 async function editConvertEntries(act, cmt) {
     const resEl = document.getElementById('e-search-result');
-    if (!confirm('Wirklich alle gefundenen Einträge als nicht berechenbar markieren?')) return;
+    if (!await Dialog.confirm('Wirklich alle gefundenen Einträge als nicht berechenbar markieren?')) return;
 
     try {
         const data = await api('mark_entries_unbillable', {
