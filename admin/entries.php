@@ -469,6 +469,7 @@ function fmtDate(string $dt): string
                 <option value="">— Aktion wählen —</option>
                 <option value="assign_project">Projekt zuweisen</option>
                 <option value="assign_customer">Anderem Kunden zuweisen</option>
+                <option value="change_billed">Abrechnungs-Status ändern</option>
             </select>
             <span id="bulkProjectWrap" style="display:none;align-items:center;gap:10px">
                 <select id="bulkProject"></select>
@@ -480,6 +481,13 @@ function fmtDate(string $dt): string
                     <?php foreach ($customers as $c): ?>
                     <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
                     <?php endforeach; ?>
+                </select>
+            </span>
+            <span id="bulkBilledWrap" style="display:none;align-items:center;gap:10px">
+                <select id="bulkBilled">
+                    <option value="">— Status wählen —</option>
+                    <option value="open">Nicht abgerechnet</option>
+                    <option value="billed">Abgerechnet</option>
                 </select>
             </span>
             <button type="button" class="btn btn--primary" id="bulkSaveBtn" style="display:none">Speichern</button>
@@ -873,12 +881,14 @@ if (document.getElementById('bulkBar')) {
     });
 
     document.getElementById('bulkAction').addEventListener('change', function() {
-        const projWrap = document.getElementById('bulkProjectWrap');
-        const custWrap = document.getElementById('bulkCustomerWrap');
-        const saveBtn  = document.getElementById('bulkSaveBtn');
-        projWrap.style.display = 'none';
-        custWrap.style.display = 'none';
-        saveBtn.style.display  = 'none';
+        const projWrap   = document.getElementById('bulkProjectWrap');
+        const custWrap   = document.getElementById('bulkCustomerWrap');
+        const billedWrap = document.getElementById('bulkBilledWrap');
+        const saveBtn    = document.getElementById('bulkSaveBtn');
+        projWrap.style.display   = 'none';
+        custWrap.style.display   = 'none';
+        billedWrap.style.display = 'none';
+        saveBtn.style.display    = 'none';
 
         if (this.value === 'assign_project') {
             projWrap.style.display = 'inline-flex';
@@ -886,6 +896,9 @@ if (document.getElementById('bulkBar')) {
         } else if (this.value === 'assign_customer') {
             custWrap.style.display = 'inline-flex';
             document.getElementById('bulkCustomer').value = '';
+        } else if (this.value === 'change_billed') {
+            billedWrap.style.display = 'inline-flex';
+            document.getElementById('bulkBilled').value = '';
         }
     });
 
@@ -894,6 +907,10 @@ if (document.getElementById('bulkBar')) {
     });
 
     document.getElementById('bulkCustomer').addEventListener('change', function() {
+        document.getElementById('bulkSaveBtn').style.display = this.value ? '' : 'none';
+    });
+
+    document.getElementById('bulkBilled').addEventListener('change', function() {
         document.getElementById('bulkSaveBtn').style.display = this.value ? '' : 'none';
     });
 
@@ -917,6 +934,14 @@ if (document.getElementById('bulkBar')) {
             params     = { ids: ids.join(','), customer_id: cid };
             confirmMsg = ids.length + ' Eintrag/Einträge dem Kunden „'
                        + sel.options[sel.selectedIndex].text + '" zuweisen?';
+        } else if (action === 'change_billed') {
+            const sel    = document.getElementById('bulkBilled');
+            const status = sel.value;
+            if (!status) return;
+            apiAction  = 'bulk_set_billed';
+            params     = { ids: ids.join(','), status };
+            confirmMsg = ids.length + ' Eintrag/Einträge auf „'
+                       + sel.options[sel.selectedIndex].text + '" setzen?';
         } else {
             return;
         }

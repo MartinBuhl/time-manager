@@ -1709,6 +1709,27 @@ switch ($action) {
         jsonOk(['updated' => $stmt->rowCount()]);
 
     // ----------------------------------------------------------------
+    case 'bulk_set_billed':
+        $idsRaw = trim($_POST['ids'] ?? '');
+        $status = $_POST['status'] ?? '';
+        $ids    = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
+        if (empty($ids)) { jsonErr('Keine Einträge ausgewählt.'); }
+        if (!in_array($status, ['billed', 'open'], true)) { jsonErr('Ungültiger Status.'); }
+
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        if ($status === 'billed') {
+            $stmt = db()->prepare(
+                "UPDATE tm_entries SET billed_at = NOW() WHERE id IN ($ph) AND deleted_at IS NULL"
+            );
+        } else {
+            $stmt = db()->prepare(
+                "UPDATE tm_entries SET billed_at = NULL WHERE id IN ($ph) AND deleted_at IS NULL"
+            );
+        }
+        $stmt->execute($ids);
+        jsonOk(['updated' => $stmt->rowCount()]);
+
+    // ----------------------------------------------------------------
     case 'bulk_assign_customer':
         $idsRaw     = trim($_POST['ids'] ?? '');
         $customerId = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
