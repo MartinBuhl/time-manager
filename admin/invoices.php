@@ -10,12 +10,16 @@ $customers = db()->query(
      ORDER BY c.name ASC'
 )->fetchAll();
 
-$where  = '';
-$params = [];
+$conditions = [];
+$params     = [];
 if ($customerFilter > 0) {
-    $where  = 'WHERE i.customer_id = ?';
-    $params[] = $customerFilter;
+    $conditions[] = 'i.customer_id = ?';
+    $params[]     = $customerFilter;
 }
+// Im Mailspool archivierte Rechnungen ausblenden
+$conditions[] = 'NOT EXISTS (SELECT 1 FROM tm_mail_spool m
+                             WHERE m.invoice_id = i.id AND m.archived_at IS NOT NULL)';
+$where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 $stmt = db()->prepare(
     "SELECT i.id, i.invoice_number, i.invoice_seq, i.total_minutes,
