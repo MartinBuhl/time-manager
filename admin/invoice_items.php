@@ -64,7 +64,7 @@ if (empty($items)) {
         // Recalculate stored totals
         $an = 0.0; $rh = 0.0;
         foreach ($linked as $le) {
-            $h = round((int)$le['duration_minutes'] / 15) * 0.25;
+            $h = (int)$le['duration_minutes'] / 60;
             $an += $h * $rate; $rh += $h;
         }
         $an = round($an, 2);
@@ -81,7 +81,7 @@ if (empty($items)) {
     }
 }
 
-function fmtH(int $min): string    { return number_format(round($min / 15) * 0.25, 2, ',', '.') . ' h'; }
+function fmtH(int $min): string    { return number_format($min / 60, 2, ',', '.') . ' h'; }
 function fmtEur(float $a): string  { return number_format($a, 2, ',', '.') . ' €'; }
 function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) : ''; }
 
@@ -119,6 +119,7 @@ $amountGross  = (float)$invoice['amount_gross'];
 .col-h    { width:70px; text-align:right; }
 .col-eur  { width:90px; text-align:right; }
 .col-act  { width:200px; }
+.items-foot td { border-top:2px solid #cbd3dc; font-weight:700; color:#1e293b; padding-top:8px; }
 .meta-form { background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
              padding:16px 20px; margin-bottom:20px; }
 .meta-form h3 { margin:0 0 12px; font-size:14px; }
@@ -240,7 +241,7 @@ $amountGross  = (float)$invoice['amount_gross'];
                 </div>
                 <div id="metaTextHoursWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
                     <label>Stunden (gerundet)</label>
-                    <input type="number" id="metaHours" class="f-hours" step="0.25" min="0"
+                    <input type="number" id="metaHours" class="f-hours" step="0.01" min="0"
                            value="<?= number_format((int)$invoice['total_minutes'] / 60, 2, '.', '') ?>">
                 </div>
                 <div id="metaNetWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
@@ -320,7 +321,7 @@ $amountGross  = (float)$invoice['amount_gross'];
                 </thead>
                 <tbody>
                 <?php foreach ($items as $item):
-                    $itemH   = round($item['duration_minutes'] / 15) * 0.25;
+                    $itemH   = (int)$item['duration_minutes'] / 60;
                     $itemEur = round($itemH * $rate, 2);
                 ?>
                     <tr id="row-<?= (int)$item['id'] ?>">
@@ -332,7 +333,7 @@ $amountGross  = (float)$invoice['amount_gross'];
                             <?php endif; ?>
                         </td>
                         <td class="col-min"><?= (int)$item['duration_minutes'] ?></td>
-                        <td class="col-h"><?= number_format($itemH, 2, ',', '.') ?></td>
+                        <td class="col-h"><?= number_format((int)$item['duration_minutes'] / 60, 2, ',', '.') ?></td>
                         <td class="col-eur"><?= fmtEur($itemEur) ?></td>
                         <td style="white-space:nowrap">
                             <button class="btn" onclick="showEdit(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px">Bearb.</button>
@@ -354,6 +355,16 @@ $amountGross  = (float)$invoice['amount_gross'];
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
+                <?php $itemsSumMin = array_sum(array_map(fn($it) => (int)$it['duration_minutes'], $items)); ?>
+                <tfoot>
+                    <tr class="items-foot">
+                        <td colspan="2" style="text-align:right">Summe</td>
+                        <td class="col-min" id="footSumMin"><?= $itemsSumMin ?></td>
+                        <td class="col-h" id="footSumH"><?= number_format($itemsSumMin / 60, 2, ',', '.') ?></td>
+                        <td class="col-eur"></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         <?php endif; ?>
@@ -368,7 +379,7 @@ const RATE       = <?= json_encode($rate) ?>;
 const TAX_RATE   = <?= json_encode($taxRate) ?>;
 
 function fmtH(min) {
-    return (Math.round(min / 15) * 0.25).toFixed(2).replace('.', ',') + ' h';
+    return (min / 60).toFixed(2).replace('.', ',') + ' h';
 }
 function fmtEur(val) {
     return parseFloat(val).toFixed(2).replace('.', ',') + ' €';
@@ -405,6 +416,17 @@ function rowCount() {
     return document.querySelectorAll('#itemsTable tbody tr[id^="row-"]').length;
 }
 
+// Summenzeile (Minuten + Stunden) aus den sichtbaren Posten-Zeilen aktualisieren
+function recalcItemsFooter() {
+    if (!document.getElementById('footSumMin')) return;
+    let sum = 0;
+    document.querySelectorAll('#itemsTable tbody tr[id^="row-"] td.col-min').forEach(function(td) {
+        sum += parseInt(td.textContent, 10) || 0;
+    });
+    document.getElementById('footSumMin').textContent = sum;
+    document.getElementById('footSumH').textContent   = (sum / 60).toFixed(2).replace('.', ',');
+}
+
 async function saveItem(id) {
     const eRow     = document.getElementById('edit-' + id);
     const date     = eRow.querySelector('.ei-date').value;
@@ -419,17 +441,18 @@ async function saveItem(id) {
     });
 
     if (data.success) {
-        const h      = Math.round(minutes / 15) * 0.25;
+        const h      = minutes / 60;
         const amount = Math.round(h * RATE * 100) / 100;
         const vRow   = document.getElementById('row-' + id);
         const cells  = vRow.querySelectorAll('td');
         cells[0].textContent = fmtDate(date);
         cells[1].innerHTML   = escHtml(activity) + (comment ? '<br><small style="color:var(--text-muted)">' + escHtml(comment) + '</small>' : '');
         cells[2].textContent = minutes;
-        cells[3].textContent = h.toFixed(2).replace('.', ',');
+        cells[3].textContent = (minutes / 60).toFixed(2).replace('.', ',');
         cells[4].textContent = fmtEur(amount);
         hideEdit(id);
         updateSummary(data.data.totals, rowCount());
+        recalcItemsFooter();
     } else {
         Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
     }
@@ -442,6 +465,7 @@ async function deleteItem(id) {
         document.getElementById('row-'  + id)?.remove();
         document.getElementById('edit-' + id)?.remove();
         updateSummary(data.data.totals, rowCount());
+        recalcItemsFooter();
     } else {
         Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
     }
@@ -466,7 +490,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
 
     if (data.success) {
         const id     = data.data.id;
-        const h      = Math.round(minutes / 15) * 0.25;
+        const h      = minutes / 60;
         const amount = Math.round(h * RATE * 100) / 100;
 
         const tbody = document.querySelector('#itemsTable tbody') || createTableBody();
@@ -477,7 +501,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
             '<td>' + fmtDate(date) + '</td>' +
             '<td>' + escHtml(activity) + (comment ? '<br><small style="color:var(--text-muted)">' + escHtml(comment) + '</small>' : '') + '</td>' +
             '<td class="col-min">' + minutes + '</td>' +
-            '<td class="col-h">' + h.toFixed(2).replace('.', ',') + '</td>' +
+            '<td class="col-h">' + (minutes / 60).toFixed(2).replace('.', ',') + '</td>' +
             '<td class="col-eur">' + fmtEur(amount) + '</td>' +
             '<td style="white-space:nowrap">' +
               '<button class="btn" onclick="showEdit(' + id + ')" style="font-size:11px;padding:2px 8px">Bearb.</button> ' +
@@ -507,6 +531,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         msg.textContent = '';
 
         updateSummary(data.data.totals, rowCount());
+        recalcItemsFooter();
     } else {
         msg.style.color = '#c0392b';
         msg.textContent = data.error || 'Fehler beim Hinzufügen.';
@@ -525,7 +550,13 @@ function createTableBody() {
         '<thead><tr>' +
         '<th>Datum</th><th>Tätigkeit &amp; Kommentar</th>' +
         '<th class="col-min">Min</th><th class="col-h">Std.</th><th class="col-eur">Betrag</th><th></th>' +
-        '</tr></thead><tbody></tbody></table>';
+        '</tr></thead><tbody></tbody>' +
+        '<tfoot><tr class="items-foot">' +
+        '<td colspan="2" style="text-align:right">Summe</td>' +
+        '<td class="col-min" id="footSumMin">0</td>' +
+        '<td class="col-h" id="footSumH">0,00</td>' +
+        '<td class="col-eur"></td><td></td>' +
+        '</tr></tfoot></table>';
     section.appendChild(wrapper);
     return wrapper.querySelector('tbody');
 }

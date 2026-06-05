@@ -94,7 +94,7 @@ $paymentDays      = (int)cfg('invoice_payment_days', '14');
 $rate      = (float)$customer['hourly_rate'] ?: (float)cfg('invoice_hourly_rate', '85.00');
 $totalMin  = $entries ? array_sum(array_column($entries, 'duration_minutes')) : 0;
 $amountNet = $entries ? round(array_sum(array_map(
-    fn($e) => roundToQuarter((int)$e['duration_minutes']) * $rate,
+    fn($e) => hoursOf((int)$e['duration_minutes']) * $rate,
     $entries
 )), 2) : 0.0;
 $taxAmount   = round($amountNet * $taxRate / 100, 2);
@@ -122,11 +122,12 @@ $invoiceNumber = $invPrefix . $invNextSeq;
 function fmtEur(float $v): string {
     return number_format($v, 2, ',', '.') . ' €';
 }
-function roundToQuarter(int $min): float {
-    return round($min / 60 / 0.25) * 0.25;
+function hoursOf(int $min): float {
+    // Exakte Stunden, keine Rundung
+    return $min / 60;
 }
 function fmtH(int $min): string {
-    return number_format(roundToQuarter($min), 2, ',', '.');
+    return number_format(hoursOf($min), 2, ',', '.');
 }
 ?><!DOCTYPE html>
 <html lang="de">
@@ -443,7 +444,7 @@ function fmtH(int $min): string {
             </thead>
             <tbody>
             <?php foreach ($entries as $e):
-                $hours  = roundToQuarter((int)$e['duration_minutes']);
+                $hours  = hoursOf((int)$e['duration_minutes']);
                 $amount = round($hours * $rate, 2);
             ?>
                 <tr>
@@ -640,14 +641,12 @@ async function trashEntry(id) {
 
                 if (data.success) {
                     const d = data.data;
-                    const raw     = (d.total_min / 60).toFixed(2).replace('.', ',');
-                    const rounded = Number(d.total_rounded_h).toFixed(2).replace('.', ',');
-                    const net     = Number(d.amount_net).toFixed(2).replace('.', ',');
-                    const rate    = Number(d.rate).toFixed(2).replace('.', ',');
+                    const hours = (d.total_min / 60).toFixed(2).replace('.', ',');
+                    const net   = Number(d.amount_net).toFixed(2).replace('.', ',');
+                    const rate  = Number(d.rate).toFixed(2).replace('.', ',');
                     msgEl.style.color = '#27ae60';
                     msgEl.innerHTML = '<strong>' + d.invoice_number + '</strong> erstellt &mdash; '
-                        + raw + ' h (roh) &rarr; '
-                        + rounded + ' h (gerundet) &times; ' + rate + ' &euro; = ' + net + ' &euro;'
+                        + hours + ' h &times; ' + rate + ' &euro; = ' + net + ' &euro;'
                         + ' &mdash; Weiterleitung…';
                     setTimeout(() => { window.location.href = 'invoices.php'; }, 5000);
                 } else {

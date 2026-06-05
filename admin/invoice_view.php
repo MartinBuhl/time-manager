@@ -78,8 +78,8 @@ $storedStart = $invoice['period_start'] ?? null;
 $storedEnd   = $invoice['period_end']   ?? null;
 
 function fmtEur(float $v): string { return number_format($v, 2, ',', '.') . ' €'; }
-function roundToQuarter(int $min): float { return round($min / 60 / 0.25) * 0.25; }
-function fmtH(int $min): string { return number_format(roundToQuarter($min), 2, ',', '.'); }
+function hoursOf(int $min): float { return $min / 60; }
+function fmtH(int $min): string { return number_format(hoursOf($min), 2, ',', '.'); }
 function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) : ''; }
 ?><!DOCTYPE html>
 <html lang="de">
@@ -299,7 +299,7 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
             </thead>
             <tbody>
             <?php foreach ($items as $item):
-                $hours  = roundToQuarter((int)$item['duration_minutes']);
+                $hours  = hoursOf((int)$item['duration_minutes']);
                 $amount = round($hours * $rate, 2);
             ?>
                 <tr>

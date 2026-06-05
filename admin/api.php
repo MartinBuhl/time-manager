@@ -46,8 +46,9 @@ if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $tok
     jsonErr('Ungültiger Sicherheitstoken.', 403);
 }
 
-function roundToQH(int $min): float {
-    return (float)((int)round($min / 15) * 15) / 60.0;
+function minutesToHours(int $min): float {
+    // Exakte Stunden, keine Rundung
+    return $min / 60.0;
 }
 
 /**
@@ -123,7 +124,7 @@ function recalcInvoiceTotals(int $invoiceId): array {
 
     $amountNet = 0.0; $totalRoundedH = 0.0;
     foreach ($rows->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $h = roundToQH((int)$r['duration_minutes']);
+        $h = minutesToHours((int)$r['duration_minutes']);
         $amountNet     += $h * $rate;
         $totalRoundedH += $h;
     }
@@ -336,7 +337,7 @@ switch ($action) {
         $amountNet     = 0.0;
         $totalRoundedH = 0.0;
         foreach ($items as $item) {
-            $h = roundToQH($item['duration_minutes']);
+            $h = minutesToHours($item['duration_minutes']);
             $amountNet     += $h * $rate;
             $totalRoundedH += $h;
         }

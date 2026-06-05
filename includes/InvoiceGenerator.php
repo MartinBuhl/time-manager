@@ -17,9 +17,10 @@ class InvoiceGenerator
     private int    $totalMinutes;
     private bool   $isTextMode;
 
-    private static function qhRound(int $min): float
+    private static function hours(int $min): float
     {
-        return round($min / 15) * 0.25;
+        // Exakte Stunden, keine Rundung
+        return $min / 60.0;
     }
 
     private static function entryDate(array $e): string
@@ -85,7 +86,7 @@ class InvoiceGenerator
             $this->amountNet    = 0.0;
             $minutes            = 0;
             foreach ($entries as $e) {
-                $this->amountNet += self::qhRound((int)$e['duration_minutes']) * $this->rate;
+                $this->amountNet += self::hours((int)$e['duration_minutes']) * $this->rate;
                 $minutes         += (int)$e['duration_minutes'];
             }
             $this->amountNet    = round($this->amountNet, 2);
@@ -204,7 +205,7 @@ class InvoiceGenerator
             } else {
                 $pos = 1;
                 foreach ($this->entries as $e) {
-                    $hours     = self::qhRound((int)$e['duration_minutes']);
+                    $hours     = round(self::hours((int)$e['duration_minutes']), 4);
                     $lineTotal = round($hours * $this->rate, 2);
                     $desc      = $e['activity'] . ($e['comment'] ? ': ' . $e['comment'] : '');
 
@@ -265,14 +266,14 @@ class InvoiceGenerator
 
         $esc = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $eur = fn(float $v): string  => number_format($v, 2, ',', '.') . ' €';
-        $hrs = fn(int $m): string    => number_format(self::qhRound($m), 2, ',', '.');
+        $hrs = fn(int $m): string    => number_format(self::hours($m), 2, ',', '.');
 
         // Total hours: im Text-Modus aus den Stammdaten, sonst pro Posten gerundet
         if ($this->isTextMode) {
             $totalH = $this->totalMinutes / 60;
         } else {
             $totalH = 0.0;
-            foreach ($this->entries as $e) { $totalH += self::qhRound((int)$e['duration_minutes']); }
+            foreach ($this->entries as $e) { $totalH += self::hours((int)$e['duration_minutes']); }
         }
 
         ob_start(); ?>
@@ -381,7 +382,7 @@ table           { border-collapse: collapse; }
 </thead>
 <tbody>
 <?php foreach ($this->entries as $e):
-    $hours  = self::qhRound((int)$e['duration_minutes']);
+    $hours  = self::hours((int)$e['duration_minutes']);
     $amount = round($hours * $rate, 2);
     $rowDate = date('d.m.Y', strtotime(self::entryDate($e)));
 ?>
