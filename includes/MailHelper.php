@@ -216,7 +216,13 @@ class MailHelper
             $pre = '';
             if ($d) {
                 [$y, $mo, $day] = explode('-', $d);
-                $pre = sprintf('%02d.%02d.%s', (int)$day, (int)$mo, $y) . ': ';
+                $pre = sprintf('%02d.%02d.%s', (int)$day, (int)$mo, $y);
+                $start = $item['start_datetime'] ?? '';
+                $end   = $item['end_datetime']   ?? '';
+                if ($start && $end) {
+                    $pre .= ' ' . substr($start, 11, 5) . '-' . substr($end, 11, 5);
+                }
+                $pre .= ': ';
             }
             $min      = (int)($item['duration_minutes'] ?? 0);
             $activity = trim($item['activity'] ?? '');
