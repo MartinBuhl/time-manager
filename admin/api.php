@@ -216,6 +216,7 @@ switch ($action) {
         $billingZip    = trim($_POST['billing_zip']    ?? '');
         $billingCity   = trim($_POST['billing_city']   ?? '');
         $billingEmail  = trim($_POST['billing_email']  ?? '');
+        $billingEmailCcRaw = trim($_POST['billing_email_cc'] ?? '');
         $billingTaxId      = trim($_POST['billing_tax_id']      ?? '');
         $phoneLandline     = trim($_POST['phone_landline']       ?? '');
         $phoneMobile       = trim($_POST['phone_mobile']         ?? '');
@@ -235,6 +236,18 @@ switch ($action) {
             jsonErr('Ungültige E-Mail-Adresse.');
         }
 
+        // Kopie-Empfänger (kommagetrennt) validieren und normalisieren
+        $ccList = array_values(array_filter(
+            array_map('trim', explode(',', $billingEmailCcRaw)),
+            fn($e) => $e !== ''
+        ));
+        foreach ($ccList as $cc) {
+            if (!filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                jsonErr('Ungültige Kopie-E-Mail-Adresse: ' . $cc);
+            }
+        }
+        $billingEmailCc = $ccList ? implode(', ', $ccList) : null;
+
         $hourlyRate = null;
         if ($hourlyRateRaw !== '') {
             $hourlyRate = (float)str_replace(',', '.', $hourlyRateRaw);
@@ -243,7 +256,7 @@ switch ($action) {
 
         $stmt = db()->prepare(
             'UPDATE tm_customers SET name=?, billable=?, billing_name=?, billing_street=?, billing_zip=?,
-             billing_city=?, billing_email=?, billing_tax_id=?,
+             billing_city=?, billing_email=?, billing_email_cc=?, billing_tax_id=?,
              phone_landline=?, phone_mobile=?,
              contact_first_name=?, contact_last_name=?, contact_on_invoice=?,
              hourly_rate=?, invoice_mode=?, invoice_text=?,
@@ -257,6 +270,7 @@ switch ($action) {
             $billingZip    ?: null,
             $billingCity   ?: null,
             $billingEmail  ?: null,
+            $billingEmailCc,
             $billingTaxId  ?: null,
             $phoneLandline ?: null,
             $phoneMobile   ?: null,
@@ -457,7 +471,7 @@ switch ($action) {
         $stmt = db()->prepare(
             'SELECT id, name, active, billable, projects,
                     billing_name, billing_street, billing_zip, billing_city,
-                    billing_email, billing_tax_id,
+                    billing_email, billing_email_cc, billing_tax_id,
                     phone_landline, phone_mobile,
                     contact_first_name, contact_last_name, contact_on_invoice,
                     hourly_rate, invoice_mode, invoice_text,
@@ -1298,7 +1312,7 @@ switch ($action) {
                         i.invoice_number, i.amount_gross,
                         i.invoice_mode, i.invoice_text,
                         i.mail_template_html, i.mail_template_plain,
-                        c.name, c.billing_name, c.projects
+                        c.name, c.billing_name, c.projects, c.billing_email_cc
                  FROM tm_mail_spool m
                  JOIN tm_invoices  i ON i.id  = m.invoice_id
                  JOIN tm_customers c ON c.id  = i.customer_id
@@ -1355,6 +1369,13 @@ switch ($action) {
             try {
                 $mail = MailHelper::createMailer();
                 $mail->addAddress($recipient);
+                // Weitere Kopie-Empfänger des Kunden (kommagetrennt) als CC
+                foreach (explode(',', (string)($spool['billing_email_cc'] ?? '')) as $ccAddr) {
+                    $ccAddr = trim($ccAddr);
+                    if ($ccAddr !== '' && filter_var($ccAddr, FILTER_VALIDATE_EMAIL)) {
+                        $mail->addCC($ccAddr);
+                    }
+                }
                 // Kopie der Rechnungsmail (BCC) gemäß Rechnungsparameter
                 $invBcc = trim(cfg('invoice_mail_bcc'));
                 if ($invBcc !== '' && filter_var($invBcc, FILTER_VALIDATE_EMAIL)) {

@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `tm_customers` (
     `billing_zip`     VARCHAR(20)            DEFAULT NULL,
     `billing_city`    VARCHAR(100)           DEFAULT NULL,
     `billing_email`   VARCHAR(255)           DEFAULT NULL,
+    `billing_email_cc` VARCHAR(500)          DEFAULT NULL,
     `billing_tax_id`        VARCHAR(50)   DEFAULT NULL,
     `phone_landline`        VARCHAR(50)   DEFAULT NULL,
     `phone_mobile`          VARCHAR(50)   DEFAULT NULL,

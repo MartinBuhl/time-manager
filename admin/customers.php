@@ -301,6 +301,7 @@ $customers = $stmt->fetchAll();
             <div><label>PLZ</label><input type="text" id="e-zip" maxlength="20"></div>
             <div><label>Ort</label><input type="text" id="e-city" maxlength="100"></div>
             <div><label>E-Mail (Rechnung)</label><input type="email" id="e-email" maxlength="255"></div>
+            <div class="full"><label>E-Mails Rechnung Kopie Empfänger (kommagetrennt)</label><input type="text" id="e-email-cc" maxlength="500" placeholder="kopie1@example.com, kopie2@example.com"></div>
             <div><label>Steuernummer / USt-IdNr.</label><input type="text" id="e-tax-id" maxlength="50"></div>
             <div><label>Festnetz</label><input type="text" id="e-phone-landline" maxlength="50"></div>
             <div><label>Mobil</label><input type="text" id="e-phone-mobile" maxlength="50"></div>
@@ -455,6 +456,7 @@ async function openEdit(cid) {
     document.getElementById('e-zip').value                   = c.billing_zip         || '';
     document.getElementById('e-city').value                  = c.billing_city        || '';
     document.getElementById('e-email').value                 = c.billing_email       || '';
+    document.getElementById('e-email-cc').value              = c.billing_email_cc    || '';
     document.getElementById('e-tax-id').value                = c.billing_tax_id      || '';
     document.getElementById('e-phone-landline').value        = c.phone_landline      || '';
     document.getElementById('e-phone-mobile').value          = c.phone_mobile        || '';
@@ -720,6 +722,7 @@ async function saveFullCustomer() {
         billing_zip:        document.getElementById('e-zip').value.trim(),
         billing_city:       document.getElementById('e-city').value.trim(),
         billing_email:      document.getElementById('e-email').value.trim(),
+        billing_email_cc:   document.getElementById('e-email-cc').value.trim(),
         billing_tax_id:     document.getElementById('e-tax-id').value.trim(),
         phone_landline:     document.getElementById('e-phone-landline').value.trim(),
         phone_mobile:       document.getElementById('e-phone-mobile').value.trim(),
