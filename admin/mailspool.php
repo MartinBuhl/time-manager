@@ -12,7 +12,7 @@ $stmt = db()->query(
     "SELECT m.id, m.invoice_id, m.subject, m.recipient, m.pdf_file,
             m.html_body, m.text_body,
             m.spooled_at, m.sent_at,
-            i.invoice_number, c.name AS customer_name
+            i.invoice_number, c.name AS customer_name, c.billing_email_cc
      FROM tm_mail_spool m
      LEFT JOIN tm_invoices  i ON i.id = m.invoice_id
      LEFT JOIN tm_customers c ON c.id = i.customer_id
@@ -183,7 +183,12 @@ function fmtDt($dt) {
                         <td style="white-space:nowrap"><?= h(fmtDt($m['sent_at'])) ?></td>
                         <td><?= h($m['invoice_number'] ?? '') ?></td>
                         <td><?= h($m['customer_name'] ?? '') ?></td>
-                        <td><?= h($m['recipient']) ?></td>
+                        <td>
+                            <?= h($m['recipient']) ?>
+                            <?php if (!empty($m['billing_email_cc'])): ?>
+                                <br><span style="color:var(--text-muted);font-size:11px">Kopie: <?= h($m['billing_email_cc']) ?></span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($m['pdf_file']): ?>
                                 <a href="invoice_download.php?type=pdf&file=<?= urlencode($m['pdf_file']) ?>"
