@@ -311,7 +311,7 @@ switch ($action) {
         if (!$customer) { jsonErr('Kunde nicht gefunden.'); }
 
         $entrySql    = "SELECT e.id, e.date, e.start_datetime, e.end_datetime,
-                               e.activity, e.comment, e.duration_minutes
+                               e.activity, e.comment, e.project, e.duration_minutes
                         FROM tm_entries e
                         WHERE e.customer_id = ? AND e.billed_at IS NULL AND e.deleted_at IS NULL";
         $entryParams = [$customerId];
@@ -344,6 +344,7 @@ switch ($action) {
                 'end_datetime'     => $e['end_datetime'],
                 'activity'         => $e['activity'],
                 'comment'          => $e['comment'],
+                'project'          => $e['project'],
                 'duration_minutes' => (int)$e['duration_minutes'],
                 'sort_order'       => $idx + 1,
             ];
@@ -408,14 +409,14 @@ switch ($action) {
         // Snapshot der Einträge als Rechnungsposten speichern
         $itemStmt = db()->prepare(
             'INSERT INTO tm_invoice_items
-             (invoice_id, entry_id, date, start_datetime, end_datetime, activity, comment, duration_minutes, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             (invoice_id, entry_id, date, start_datetime, end_datetime, activity, comment, project, duration_minutes, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         foreach ($items as $item) {
             $itemStmt->execute([
                 $invoiceId, $item['entry_id'], $item['date'],
                 $item['start_datetime'], $item['end_datetime'],
-                $item['activity'], $item['comment'],
+                $item['activity'], $item['comment'], $item['project'],
                 $item['duration_minutes'], $item['sort_order'],
             ]);
         }
@@ -992,7 +993,7 @@ switch ($action) {
         if ($recipient === '') { jsonErr('Kunde hat keine E-Mail-Adresse hinterlegt.'); }
 
         $stmt = db()->prepare(
-            'SELECT date, start_datetime, end_datetime, activity, comment, duration_minutes
+            'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
              FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
         );
         $stmt->execute([$invoiceId]);
@@ -1267,7 +1268,7 @@ switch ($action) {
         // Fallback (Alt-Einträge ohne gespeicherten Text): aus den
         // Rechnungs-Stammdaten neu aufbauen – NICHT aus aktuellen Kundendaten.
         $itemStmt = db()->prepare(
-            'SELECT date, start_datetime, end_datetime, activity, comment, duration_minutes
+            'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
              FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC'
         );
         $itemStmt->execute([$spool['invoice_id']]);
@@ -1337,7 +1338,7 @@ switch ($action) {
             }
 
             $itemStmt = db()->prepare(
-                'SELECT date, start_datetime, end_datetime, activity, comment, duration_minutes
+                'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
                  FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC'
             );
             $itemStmt->execute([$spool['invoice_id']]);

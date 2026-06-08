@@ -226,8 +226,13 @@ class MailHelper
             }
             $min      = (int)($item['duration_minutes'] ?? 0);
             $activity = trim($item['activity'] ?? '');
+            $project  = trim($item['project']  ?? '');
             $comment  = trim($item['comment']  ?? '');
-            $desc     = $activity . ($comment !== '' ? ': ' . $comment : '');
+            $parts    = [];
+            if ($activity !== '') $parts[] = $activity;
+            if ($project  !== '') $parts[] = $project;
+            if ($comment  !== '') $parts[] = $comment;
+            $desc     = implode(': ', $parts);
             $lines[]  = $pre . $desc . ' ' . $min . ' Min.';
         }
 

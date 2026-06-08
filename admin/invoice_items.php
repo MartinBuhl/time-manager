@@ -41,7 +41,7 @@ $items = $stmt->fetchAll();
 // Auto-populate from linked entries if no items exist yet
 if (empty($items)) {
     $eStmt = db()->prepare(
-        'SELECT id, date, start_datetime, end_datetime, activity, comment, duration_minutes
+        'SELECT id, date, start_datetime, end_datetime, activity, comment, project, duration_minutes
          FROM tm_entries WHERE invoice_id = ? AND deleted_at IS NULL
          ORDER BY date ASC, start_datetime ASC'
     );
@@ -51,14 +51,14 @@ if (empty($items)) {
     if (!empty($linked)) {
         $ins = db()->prepare(
             'INSERT INTO tm_invoice_items
-             (invoice_id, entry_id, date, start_datetime, end_datetime, activity, comment, duration_minutes, sort_order)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+             (invoice_id, entry_id, date, start_datetime, end_datetime, activity, comment, project, duration_minutes, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         foreach ($linked as $idx => $le) {
             $ins->execute([
                 $invoiceId, (int)$le['id'], $le['date'],
                 $le['start_datetime'], $le['end_datetime'],
-                $le['activity'], $le['comment'],
+                $le['activity'], $le['comment'], $le['project'],
                 (int)$le['duration_minutes'], $idx + 1,
             ]);
         }

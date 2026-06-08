@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS `tm_invoice_items` (
     `end_datetime`     DATETIME              DEFAULT NULL,
     `activity`         VARCHAR(255) NOT NULL,
     `comment`          TEXT                  DEFAULT NULL,
+    `project`          VARCHAR(255)          DEFAULT NULL,
     `duration_minutes` INT          NOT NULL,
     `sort_order`       INT          NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
