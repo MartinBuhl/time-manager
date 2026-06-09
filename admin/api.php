@@ -313,7 +313,8 @@ switch ($action) {
         $entrySql    = "SELECT e.id, e.date, e.start_datetime, e.end_datetime,
                                e.activity, e.comment, e.project, e.duration_minutes
                         FROM tm_entries e
-                        WHERE e.customer_id = ? AND e.billed_at IS NULL AND e.deleted_at IS NULL";
+                        WHERE e.customer_id = ? AND e.billed_at IS NULL AND e.deleted_at IS NULL
+                          AND e.billable = 1";
         $entryParams = [$customerId];
         if ($filterProject !== '') {
             $entrySql    .= ' AND e.project = ?';
@@ -422,7 +423,8 @@ switch ($action) {
         }
 
         $updateSql    = 'UPDATE tm_entries SET billed_at = NOW(), invoice_id = ?
-                         WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL';
+                         WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL
+                           AND billable = 1';
         $updateParams = [$invoiceId, $customerId];
         if ($filterProject !== '') {
             $updateSql    .= ' AND project = ?';

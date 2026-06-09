@@ -14,11 +14,21 @@ $stmt = db()->query(
             MAX(DATE(e.end_datetime))   as period_end
      FROM tm_entries e
      JOIN tm_customers c ON c.id = e.customer_id
-     WHERE e.billed_at IS NULL AND e.deleted_at IS NULL AND c.billable = 1 AND c.active = 1
-     GROUP BY c.id
-     ORDER BY c.name ASC"
+     WHERE e.billed_at IS NULL AND e.deleted_at IS NULL AND e.billable = 1
+       AND c.billable = 1 AND c.active = 1
+     GROUP BY c.id"
 );
 $customers = $stmt->fetchAll();
+
+// Betrag pro Kunde berechnen und nach Betrag absteigend sortieren
+$globalRate = (float)cfg('invoice_hourly_rate', '85.00');
+foreach ($customers as &$cRow) {
+    $r = (float)$cRow['hourly_rate'] ?: $globalRate;
+    $cRow['rate']       = $r;
+    $cRow['amount_net'] = round((int)$cRow['total_minutes'] / 60 * $r, 2);
+}
+unset($cRow);
+usort($customers, fn($a, $b) => $b['amount_net'] <=> $a['amount_net']);
 
 // Alle offenen Einträge je Kunde für die Detailansicht vorladen
 $entriesByCustomer = [];
@@ -27,7 +37,8 @@ $entryStmt = db()->query(
             e.start_datetime, e.end_datetime, e.duration_minutes
      FROM tm_entries e
      JOIN tm_customers c ON c.id = e.customer_id
-     WHERE e.billed_at IS NULL AND e.deleted_at IS NULL AND c.billable = 1 AND c.active = 1
+     WHERE e.billed_at IS NULL AND e.deleted_at IS NULL AND e.billable = 1
+       AND c.billable = 1 AND c.active = 1
      ORDER BY e.start_datetime ASC"
 );
 foreach ($entryStmt->fetchAll() as $row) {
@@ -110,14 +121,15 @@ function fmtEur(float $amount): string
                         <th>Zeitraum</th>
                         <th>Einträge</th>
                         <th class="col-dur">Stunden</th>
+                        <th class="col-dur">Satz (€/h)</th>
                         <th class="col-dur">Betrag (netto)</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($customers as $c):
-                    $rate      = (float)$c['hourly_rate'] ?: (float)cfg('invoice_hourly_rate', '85.00');
-                    $amountNet = round($c['total_minutes'] / 60 * $rate, 2);
+                    $rate      = (float)$c['rate'];
+                    $amountNet = (float)$c['amount_net'];
                     $period    = date('d.m.Y', strtotime($c['period_start']));
                     if ($c['period_start'] !== $c['period_end']) {
                         $period .= ' – ' . date('d.m.Y', strtotime($c['period_end']));
@@ -128,6 +140,12 @@ function fmtEur(float $amount): string
                         <td class="col-time"><?= h($period) ?></td>
                         <td><?= (int)$c['entry_count'] ?></td>
                         <td class="col-dur"><?= fmtH((int)$c['total_minutes']) ?></td>
+                        <td class="col-dur">
+                            <?= number_format($rate, 2, ',', '.') ?>
+                            <?php if ((float)$c['hourly_rate'] <= 0): ?>
+                                <br><span style="color:var(--text-muted);font-size:10px">Standard</span>
+                            <?php endif; ?>
+                        </td>
                         <td class="col-dur"><?= fmtEur($amountNet) ?></td>
                         <td style="white-space:nowrap">
                             <a href="invoice.php?customer_id=<?= (int)$c['id'] ?>" class="btn">
@@ -138,7 +156,7 @@ function fmtEur(float $amount): string
                         </td>
                     </tr>
                     <tr class="detail-row" id="detailRow-<?= (int)$c['id'] ?>" style="display:none">
-                        <td colspan="6" style="padding:0">
+                        <td colspan="7" style="padding:0">
                             <div class="detail-box">
                                 <?php $detailMin = array_sum(array_map('intval', array_column($entriesByCustomer[(int)$c['id']] ?? [], 'duration_minutes'))); ?>
                                 <table class="detail-table">

@@ -24,7 +24,7 @@ if (!$customer) {
 // Distinct projects for dropdown
 $allProjects = db()->prepare(
     "SELECT DISTINCT project FROM tm_entries
-     WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL
+     WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL AND billable = 1
        AND project IS NOT NULL AND project != ''
      ORDER BY project"
 );
@@ -36,7 +36,7 @@ $filterProject = trim($_GET['project'] ?? '');
 // Standard-Datumsbereich: ältester unabgerechneter Eintrag … heute
 $minDateStmt = db()->prepare(
     "SELECT MIN(date) FROM tm_entries
-     WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL"
+     WHERE customer_id = ? AND billed_at IS NULL AND deleted_at IS NULL AND billable = 1"
 );
 $minDateStmt->execute([$customerId]);
 $minDate     = $minDateStmt->fetchColumn();
@@ -53,7 +53,7 @@ $hasDateFilter = ($dateFrom !== $defaultFrom || $dateTo !== $defaultTo);
 $entrySql    = "SELECT e.id, e.activity, e.project, e.comment,
                        e.start_datetime, e.end_datetime, e.duration_minutes
                 FROM tm_entries e
-                WHERE e.customer_id = ? AND e.billed_at IS NULL AND e.deleted_at IS NULL";
+                WHERE e.customer_id = ? AND e.billed_at IS NULL AND e.deleted_at IS NULL AND e.billable = 1";
 $entryParams = [$customerId];
 if ($filterProject !== '') {
     $entrySql    .= ' AND e.project = ?';
