@@ -212,18 +212,19 @@ class MailHelper
         if (empty($items)) return '';
         $lines = [];
         foreach ($items as $item) {
-            $d   = $item['date'] ?? '';
-            $pre = '';
+            $datePart = '';
+            $d = $item['date'] ?? '';
             if ($d) {
                 [$y, $mo, $day] = explode('-', $d);
-                $pre = sprintf('%02d.%02d.%s', (int)$day, (int)$mo, $y);
-                $start = $item['start_datetime'] ?? '';
-                $end   = $item['end_datetime']   ?? '';
-                if ($start && $end) {
-                    $pre .= ' ' . substr($start, 11, 5) . '-' . substr($end, 11, 5);
-                }
-                $pre .= ': ';
+                $datePart = sprintf('%02d.%02d.%s', (int)$day, (int)$mo, $y);
             }
+            $timePart = '';
+            $start = $item['start_datetime'] ?? '';
+            $end   = $item['end_datetime']   ?? '';
+            if ($start && $end) {
+                $timePart = substr($start, 11, 5) . '-' . substr($end, 11, 5);
+            }
+
             $min      = (int)($item['duration_minutes'] ?? 0);
             $activity = trim($item['activity'] ?? '');
             $project  = trim($item['project']  ?? '');
@@ -233,14 +234,16 @@ class MailHelper
             if ($project  !== '') $parts[] = $project;
             if ($comment  !== '') $parts[] = $comment;
             $desc     = implode(': ', $parts);
-            $lines[]  = $pre . $desc . ' ' . $min . ' Min.';
+
+            // Datum TAB Zeiten TAB Minuten TAB Tätigkeit: Projekt: Kommentar
+            $lines[]  = $datePart . "\t" . $timePart . "\t" . $min . "\t" . $desc;
         }
 
         $heading = 'Hier die Liste der Arbeiten:';
         if ($format === 'html') {
             $escaped = array_map(fn($l) => htmlspecialchars($l, ENT_QUOTES, 'UTF-8'), $lines);
-            return '<p>' . htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') . '<br>'
-                 . '<span style="font-size:13px">' . implode('<br>', $escaped) . '</span></p>';
+            return '<p>' . htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') . '</p>'
+                 . '<div style="font-size:13px; white-space:pre-wrap">' . implode("\n", $escaped) . '</div>';
         }
         return $heading . "\n" . implode("\n", $lines);
     }
