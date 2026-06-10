@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS `tm_users` (
     `email`      VARCHAR(255)                           DEFAULT NULL,
     `password`   VARCHAR(255)                           NOT NULL,
     `role`       ENUM('admin','mitarbeiter','kunde')    NOT NULL DEFAULT 'mitarbeiter',
+    `admin_layout` TEXT                                 DEFAULT NULL,
     `created_at` DATETIME                               NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_username` (`username`),

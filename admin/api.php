@@ -1560,10 +1560,8 @@ switch ($action) {
             jsonErr('Ungültiges Layout-Format.');
         }
         db()->prepare(
-            'INSERT INTO tm_user_state (user_id, admin_layout)
-             VALUES (?, ?)
-             ON DUPLICATE KEY UPDATE admin_layout = VALUES(admin_layout), updated_at = NOW()'
-        )->execute([$userId, $layout]);
+            'UPDATE tm_users SET admin_layout = ? WHERE id = ?'
+        )->execute([$layout, $userId]);
         jsonOk();
 
     // ----------------------------------------------------------------

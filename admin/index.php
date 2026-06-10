@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 
-$layoutRow = db()->prepare('SELECT admin_layout FROM tm_user_state WHERE user_id = ? LIMIT 1');
+$layoutRow = db()->prepare('SELECT admin_layout FROM tm_users WHERE id = ? LIMIT 1');
 $layoutRow->execute([$adminUserId]);
 $savedLayout = $layoutRow->fetchColumn() ?: null;
 ?><!DOCTYPE html>
