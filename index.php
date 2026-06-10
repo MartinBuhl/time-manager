@@ -338,7 +338,7 @@ function fmtDate(string $dt): string
         <?php else: ?>
 
         <div class="table-wrapper">
-            <table class="entries-table">
+            <table class="entries-table today-entries">
                 <thead>
                     <tr>
                         <th class="col-time">Zeit</th>
@@ -355,6 +355,10 @@ function fmtDate(string $dt): string
                     <tr id="row-<?= $e['id'] ?>" class="entry-row">
                         <td class="col-time">
                             <?= fmtTime($e['start_datetime']) ?>–<?= fmtTime($e['end_datetime']) ?>
+                            <span class="tm-meta">
+                                <span class="tm-min"><?= (int)$e['duration_minutes'] ?> Min.</span>
+                                <span class="tm-cust"><?= $e['customer_name'] !== '' ? h($e['customer_name']) : '—' ?></span>
+                            </span>
                         </td>
                         <td class="col-dur"><?= $e['duration_minutes'] ?></td>
                         <td class="col-customer">

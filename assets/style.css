@@ -528,6 +528,27 @@ select:focus {
 .col-dur      { white-space: nowrap; text-align: right; }
 .col-actions  { width: 30px; text-align: center; }
 
+/* Mobil (Standard): in der heutigen Liste Min + Kunde in die erste Spalte,
+   eigene Spalten ausblenden. Ab 576px normale Spalten. */
+.today-entries .tm-meta {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    white-space: normal;
+}
+.today-entries .tm-meta .tm-min  { font-weight: 600; }
+.today-entries .tm-meta .tm-cust::before { content: " · "; }
+.today-entries .col-dur,
+.today-entries .col-customer { display: none; }
+
+@media (min-width: 576px) {
+    .today-entries .tm-meta { display: none; }
+    .today-entries .col-dur      { display: table-cell; }
+    .today-entries .col-customer { display: table-cell; }
+}
+
 .comment { color: var(--text-muted); }
 
 .project-tag {
