@@ -9,6 +9,7 @@ $excludeTerms = array_values(array_filter(
     fn($t) => $t !== ''
 ));
 $customerId = filter_var($_GET['customer_id'] ?? '', FILTER_VALIDATE_INT) ?: 0;
+$filterProject = trim($_GET['project'] ?? '');
 $dateFrom   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date_from'] ?? '') ? $_GET['date_from'] : '';
 $dateTo     = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date_to']   ?? '') ? $_GET['date_to']   : '';
 $status     = in_array($_GET['status'] ?? '', ['billed', 'open'], true) ? $_GET['status'] : '';
@@ -38,6 +39,16 @@ foreach ($customers as $c) {
     $customerProjects[(int)$c['id']] = $names;
 }
 
+// Tatsächlich in den Einträgen vorkommende Projekte je Kunde (für das Filter-Dropdown)
+$entryProjects = [];
+foreach ($pdo->query(
+    "SELECT DISTINCT customer_id, project FROM tm_entries
+     WHERE deleted_at IS NULL AND project IS NOT NULL AND project <> ''
+     ORDER BY project"
+)->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $entryProjects[(int)$row['customer_id']][] = $row['project'];
+}
+
 // ---- Users for import form ----------------------------------------------
 $importUsers = $pdo->query(
     "SELECT id, username FROM tm_users WHERE role != 'kunde' ORDER BY username ASC"
@@ -58,6 +69,10 @@ foreach ($excludeTerms as $term) {
 if ($customerId > 0) {
     $where[]  = 'e.customer_id = ?';
     $params[] = $customerId;
+}
+if ($filterProject !== '') {
+    $where[]  = 'e.project = ?';
+    $params[] = $filterProject;
 }
 if ($dateFrom !== '') {
     $where[]  = 'e.date >= ?';
@@ -111,6 +126,7 @@ function buildUrl(array $overrides = []): string
         'q'           => $_GET['q']           ?? '',
         'exclude'     => $_GET['exclude']     ?? '',
         'customer_id' => $_GET['customer_id'] ?? '',
+        'project'     => $_GET['project']     ?? '',
         'date_from'   => $_GET['date_from']   ?? '',
         'date_to'     => $_GET['date_to']     ?? '',
         'status'      => $_GET['status']       ?? '',
@@ -123,6 +139,7 @@ function buildUrl(array $overrides = []): string
     if ($p['q']           === '')    unset($p['q']);
     if ($p['exclude']     === '')    unset($p['exclude']);
     if ($p['customer_id'] === '' || $p['customer_id'] === '0') unset($p['customer_id']);
+    if ($p['project']     === '')    unset($p['project']);
     if ($p['date_from']   === '')    unset($p['date_from']);
     if ($p['date_to']     === '')    unset($p['date_to']);
     if ($p['status']      === '')    unset($p['status']);
@@ -264,6 +281,16 @@ function fmtDate(string $dt): string
                 </div>
 
                 <div class="filter-field">
+                    <label for="f-project">Projekt</label>
+                    <select id="f-project" name="project">
+                        <option value="">Alle Projekte</option>
+                        <?php if ($customerId > 0): foreach (($entryProjects[$customerId] ?? []) as $p): ?>
+                        <option value="<?= h($p) ?>"<?= $filterProject === $p ? ' selected' : '' ?>><?= h($p) ?></option>
+                        <?php endforeach; endif; ?>
+                    </select>
+                </div>
+
+                <div class="filter-field">
                     <label for="f-status">Status</label>
                     <select id="f-status" name="status">
                         <option value="">Alle Status</option>
@@ -299,7 +326,7 @@ function fmtDate(string $dt): string
                         </select>
                     </div>
                     <button class="btn btn--primary" type="submit">Filtern</button>
-                    <?php if ($search !== '' || $exclude !== '' || $customerId > 0 || $dateFrom !== '' || $dateTo !== '' || $status !== ''): ?>
+                    <?php if ($search !== '' || $exclude !== '' || $customerId > 0 || $filterProject !== '' || $dateFrom !== '' || $dateTo !== '' || $status !== ''): ?>
                     <a href="entries.php" class="btn">Zurücksetzen</a>
                     <?php endif; ?>
                 </div>
@@ -610,6 +637,25 @@ function fmtDate(string $dt): string
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 const CUSTOMER_PROJECTS = <?= json_encode($customerProjects, JSON_UNESCAPED_UNICODE) ?>;
+const ENTRY_PROJECTS    = <?= json_encode($entryProjects, JSON_UNESCAPED_UNICODE) ?>;
+
+// Projekt-Filter abhängig vom gewählten Kunden aktualisieren
+(function() {
+    const custSel = document.getElementById('f-customer');
+    const projSel = document.getElementById('f-project');
+    if (!custSel || !projSel) return;
+    custSel.addEventListener('change', function() {
+        const projects = ENTRY_PROJECTS[this.value] || [];
+        const current  = projSel.value;
+        projSel.innerHTML = '<option value="">Alle Projekte</option>';
+        projects.forEach(function(p) {
+            const o = document.createElement('option');
+            o.value = p; o.textContent = p;
+            if (p === current) o.selected = true;
+            projSel.appendChild(o);
+        });
+    });
+})();
 
 async function api(action, params) {
     const body = new URLSearchParams({ action, ...params });
