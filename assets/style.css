@@ -206,6 +206,8 @@ select:focus {
     max-width: 860px;
     margin: 0 auto;
     padding: 12px;
+    /* Im Standalone-Modus (PWA) Abstand zur Statusleiste/Notch */
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
     zoom: var(--app-zoom, 1);
 }
 
