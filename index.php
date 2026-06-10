@@ -146,8 +146,16 @@ function fmtDate(string $dt): string
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Time Manager</title>
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Time Manager">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="stylesheet" href="assets/style.css">
     <script>(function(){
         var z=localStorage.getItem('tm_zoom');
