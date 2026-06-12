@@ -191,6 +191,18 @@ $groups = [
 
     <div id="globalMsg"></div>
 
+    <div class="admin-section">
+        <h2>Darstellung</h2>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Design</span>
+            <div class="theme-choice" id="adminThemeChoice">
+                <button type="button" class="theme-btn" data-theme-choice="light">Hell</button>
+                <button type="button" class="theme-btn" data-theme-choice="dark">Dunkel</button>
+            </div>
+            <span style="font-size:12px;color:var(--text-muted)">Gilt für App und Administration.</span>
+        </div>
+    </div>
+
     <?php foreach ($groups as $gid => $group): ?>
     <div class="admin-section" id="cfg-group-section-<?= $gid ?>">
         <h2><?= h($group['title']) ?></h2>
@@ -353,6 +365,24 @@ $groups = [
 
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
+
+// Design-Schalter (hell/dunkel) – Einstellung wird mit der App geteilt
+(function(){
+    const choice = document.getElementById('adminThemeChoice');
+    if (!choice) return;
+    function apply(t){
+        t = (t === 'light') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        localStorage.setItem('tm_theme', t);
+        choice.querySelectorAll('.theme-btn').forEach(function(b){
+            b.classList.toggle('active', b.dataset.themeChoice === t);
+        });
+    }
+    apply(localStorage.getItem('tm_theme') || 'dark');
+    choice.querySelectorAll('.theme-btn').forEach(function(b){
+        b.addEventListener('click', function(){ apply(b.dataset.themeChoice); });
+    });
+})();
 
 function rteLink(btn) {
     const body = btn.closest('.rte-wrap').querySelector('.rte-body');
