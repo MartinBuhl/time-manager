@@ -280,6 +280,7 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>System-Update – Time Manager</title>
+<script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
 .update-card { background:#fff; border:1px solid var(--card-border); border-radius:var(--radius);

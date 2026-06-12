@@ -9,6 +9,7 @@
     --card-border: #e0e0e0;
     --text:        #222222;
     --text-muted:  #777777;
+    --hover-bg:    #f5f5f5;
     --accent:      #0078d4;
     --accent-dark: #005a9e;
     --danger:      #c0392b;
@@ -18,7 +19,7 @@
     --font:        -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
-/* App-Designs (nur index.php setzt data-theme; Admin nutzt :root) */
+/* Designs (App + Admin setzen data-theme) */
 [data-theme="dark"] {
     color-scheme: dark;
     --bg:          #000000;   /* Schwarz */
@@ -28,6 +29,7 @@
     --card-border: #333333;
     --text:        #f3f4f6;
     --text-muted:  #a1a1aa;
+    --hover-bg:    #1d1d1f;
 }
 [data-theme="light"] {
     --bg:         #e9edf2;
@@ -56,6 +58,13 @@
 [data-theme="dark"] .theme-btn         { background: #242424; color: var(--text); }
 [data-theme="dark"] .theme-btn.active  { background: var(--accent); color: #fff; }
 [data-theme="dark"] .project-tag       { background: #1e2a52; color: #b9c6ff; }
+/* Admin im Dunkel-Design */
+[data-theme="dark"] .admin-card:hover  { background: #20232a; box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+[data-theme="dark"] .admin-zone.drag-over { background: #11203a; }
+[data-theme="dark"] .rte-body          { background: #1f1f1f; color: var(--text); }
+[data-theme="dark"] .rte-toolbar       { background: #242424; border-color: #333; }
+[data-theme="dark"] .rte-btn           { background: #2a2a2a; color: var(--text); border-color: #333; }
+[data-theme="dark"] code               { background: #242424; color: #e5e7eb; }
 
 /* -------------------------------------------------------
    Reset & Base

@@ -10,6 +10,7 @@ $savedLayout = $layoutRow->fetchColumn() ?: null;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Administration – Time Manager</title>
+<script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
 .admin-zone {
@@ -88,7 +89,13 @@ button.admin-card:active { cursor: grabbing; }
 
     <div class="admin-header">
         <h1>Administration</h1>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <div style="display:flex;align-items:center;gap:10px">
+            <div class="theme-choice" id="adminThemeChoice">
+                <button type="button" class="theme-btn" data-theme-choice="light">Hell</button>
+                <button type="button" class="theme-btn" data-theme-choice="dark">Dunkel</button>
+            </div>
+            <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        </div>
     </div>
 
     <div style="padding: 0 0 24px">
@@ -136,6 +143,24 @@ button.admin-card:active { cursor: grabbing; }
 <script>
 const CSRF        = <?= json_encode($_SESSION['csrf_token']) ?>;
 const SAVED_LAYOUT = <?= $savedLayout ?? 'null' ?>;
+
+// Design-Schalter (hell/dunkel) – wird auch in der App genutzt
+(function(){
+    const choice = document.getElementById('adminThemeChoice');
+    if (!choice) return;
+    function apply(t){
+        t = (t === 'light') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        localStorage.setItem('tm_theme', t);
+        choice.querySelectorAll('.theme-btn').forEach(function(b){
+            b.classList.toggle('active', b.dataset.themeChoice === t);
+        });
+    }
+    apply(localStorage.getItem('tm_theme') || 'dark');
+    choice.querySelectorAll('.theme-btn').forEach(function(b){
+        b.addEventListener('click', function(){ apply(b.dataset.themeChoice); });
+    });
+})();
 
 // ----------------------------------------------------------------
 // Kartendefinitionen
