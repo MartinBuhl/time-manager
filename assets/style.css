@@ -20,15 +20,42 @@
 
 /* App-Designs (nur index.php setzt data-theme; Admin nutzt :root) */
 [data-theme="dark"] {
-    --bg:         #374151;   /* Grau statt Schwarz */
-    --body-text:  #f3f4f6;
-    --body-muted: #c2cad6;
+    color-scheme: dark;
+    --bg:          #000000;   /* Schwarz */
+    --body-text:   #f3f4f6;   /* Weiß */
+    --body-muted:  #b8bfca;
+    --card-bg:     #161616;   /* dunkle Karten */
+    --card-border: #333333;
+    --text:        #f3f4f6;
+    --text-muted:  #a1a1aa;
 }
 [data-theme="light"] {
     --bg:         #e9edf2;
     --body-text:  #1f2937;
     --body-muted: #5b6573;
 }
+
+/* Dunkel-Design: fest verdrahtete helle Flächen anpassen (nur App) */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select            { background: #1f1f1f; color: var(--text); }
+[data-theme="dark"] .btn              { background: #242424; color: var(--text); }
+[data-theme="dark"] .btn:hover        { background: #303030; }
+[data-theme="dark"] .btn--danger:hover{ background: #3a1f1f; }
+[data-theme="dark"] .btn--primary,
+[data-theme="dark"] .btn--primary:hover { color: #fff; }
+[data-theme="dark"] .entries-table td { border-bottom-color: #2a2a2a; }
+[data-theme="dark"] .entry-row:hover td { background: #1d1d1f; }
+[data-theme="dark"] .edit-row td       { background: #1a1a1a; }
+[data-theme="dark"] .tracker-selects select:disabled { background: #1a1a1a; color: var(--text-muted); }
+[data-theme="dark"] .theme-btn         { background: #242424; color: var(--text); }
+[data-theme="dark"] .theme-btn.active  { background: var(--accent); color: #fff; }
+[data-theme="dark"] .project-tag       { background: #1e2a52; color: #b9c6ff; }
 
 /* -------------------------------------------------------
    Reset & Base
