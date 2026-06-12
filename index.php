@@ -391,7 +391,7 @@ function fmtDate(string $dt): string
                                 <span class="project-tag"><?= h($e['project']) ?></span>
                             <?php endif; ?>
                             <?php if ($e['comment'] !== '' && $e['comment'] !== null): ?>
-                                <span class="comment">: <?= h($e['comment']) ?></span>
+                                <span class="comment"><?= h($e['comment']) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="col-actions">

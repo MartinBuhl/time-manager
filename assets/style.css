@@ -619,11 +619,21 @@ select:focus {
 .today-entries .tm-meta .tm-cust::before { content: " · "; }
 .today-entries .col-dur,
 .today-entries .col-customer { display: none; }
+/* Mobil: Tätigkeit, Projekt und Kommentar untereinander */
+.today-entries .col-activity .project-tag,
+.today-entries .col-activity .comment {
+    display: block;
+    margin-left: 0;
+    margin-top: 2px;
+}
 
 @media (min-width: 576px) {
     .today-entries .tm-meta { display: none; }
     .today-entries .col-dur      { display: table-cell; }
     .today-entries .col-customer { display: table-cell; }
+    .today-entries .col-activity .project-tag { display: inline-block; margin-left: 6px; margin-top: 0; }
+    .today-entries .col-activity .comment     { display: inline; margin-top: 0; }
+    .today-entries .col-activity .comment::before { content: ": "; }
 }
 
 .comment { color: var(--text-muted); }
