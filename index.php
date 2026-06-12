@@ -158,6 +158,8 @@ function fmtDate(string $dt): string
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="stylesheet" href="assets/style.css">
     <script>(function(){
+        var t=localStorage.getItem('tm_theme')||'dark';
+        document.documentElement.setAttribute('data-theme',t);
         var z=localStorage.getItem('tm_zoom');
         if(z)document.documentElement.style.setProperty('--app-zoom',z/100);
         if(!new URLSearchParams(location.search).has('date')){
@@ -223,6 +225,32 @@ function fmtDate(string $dt): string
     ?>;
 </script>
 
+<!-- ---- EINSTELLUNGEN (eigene Ansicht) -------------------- -->
+<div id="settingsView" class="settings-view hidden">
+    <div class="settings-inner">
+        <div class="settings-topbar">
+            <strong>Einstellungen</strong>
+            <button type="button" class="btn" id="settingsClose">Fertig</button>
+        </div>
+        <div class="settings-item">
+            <span class="settings-item-label">Schriftgröße</span>
+            <div class="settings-item-control">
+                <input type="range" id="fontSizeSlider" min="90" max="150" step="1" value="100">
+                <span id="fontSizeValue" class="settings-val">100%</span>
+            </div>
+        </div>
+        <div class="settings-item">
+            <span class="settings-item-label">Design</span>
+            <div class="settings-item-control">
+                <div class="theme-choice" id="themeChoice">
+                    <button type="button" class="theme-btn" data-theme-choice="light">Hell</button>
+                    <button type="button" class="theme-btn" data-theme-choice="dark">Dunkel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="app">
 
     <!-- ---- TRACKER -------------------------------------------- -->
@@ -241,13 +269,6 @@ function fmtDate(string $dt): string
                     <button type="button" class="btn-icon btn-settings" id="btnSettings" title="Einstellungen">
                         <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm73.3-48C253 51.7 224.8 32 192 32s-61 19.7-73.3 48L32 80C14.3 80 0 94.3 0 112s14.3 32 32 32l86.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 144c17.7 0 32-14.3 32-32s-14.3-32-32-32L265.3 80z"/></svg>
                     </button>
-                    <div id="settingsPanel" class="settings-panel hidden">
-                        <div class="settings-row">
-                            <span class="settings-label">Schriftgröße</span>
-                            <input type="range" id="fontSizeSlider" min="90" max="150" step="1" value="100">
-                            <span id="fontSizeValue" class="settings-val">100%</span>
-                        </div>
-                    </div>
                 </div>
                 <button type="button" class="btn-icon btn-reload" onclick="location.reload()" title="Neu laden">
                     <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2S461.9 48.1 455 55l-41.6 41.6c-87.6-86.5-228.7-86.2-315.8 1C51.6 143.9 32 198.9 32 256c0 114.9 93.1 208 208 208c55.4 0 105.9-21.4 143.5-56.2c11.1-10.4 11.7-27.8 1.3-38.9s-27.8-11.7-38.9-1.3C317.8 396.3 288.4 408 256 408c-83.9 0-152-68.1-152-152c0-42.4 17.3-80.9 45.2-108.8c59.1-59.1 154.7-59.1 213.8 0l-41.6 41.6c-6.9 6.9-8.9 17.2-5.2 26.2S327.3 232 337 232h126.5z"/></svg>

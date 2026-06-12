@@ -468,39 +468,57 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCountdownDisplay();
     }
 
-    /* ---- Settings panel ---- */
-    const btnSettings   = document.getElementById('btnSettings');
-    const settingsPanel = document.getElementById('settingsPanel');
+    /* ---- Settings view ---- */
+    const btnSettings    = document.getElementById('btnSettings');
+    const settingsView   = document.getElementById('settingsView');
+    const settingsClose  = document.getElementById('settingsClose');
     const fontSizeSlider = document.getElementById('fontSizeSlider');
-    const fontSizeLbl   = document.getElementById('fontSizeValue');
-    const appEl         = document.querySelector('.app');
+    const fontSizeLbl    = document.getElementById('fontSizeValue');
+    const themeChoice    = document.getElementById('themeChoice');
 
     function applyZoom(pct) {
         document.documentElement.style.setProperty('--app-zoom', pct / 100);
-        if (fontSizeLbl)    fontSizeLbl.textContent   = pct + '%';
-        if (fontSizeSlider) fontSizeSlider.value       = pct;
+        if (fontSizeLbl)    fontSizeLbl.textContent = pct + '%';
+        if (fontSizeSlider) fontSizeSlider.value    = pct;
         localStorage.setItem('tm_zoom', pct);
     }
 
     const savedZoom = localStorage.getItem('tm_zoom');
     if (savedZoom) applyZoom(Number(savedZoom));
 
-    btnSettings.addEventListener('click', (e) => {
-        e.stopPropagation();
-        settingsPanel.classList.toggle('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!settingsPanel.classList.contains('hidden') &&
-            !settingsPanel.contains(e.target) &&
-            e.target !== btnSettings) {
-            settingsPanel.classList.add('hidden');
+    function applyTheme(theme) {
+        theme = (theme === 'light') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('tm_theme', theme);
+        if (themeChoice) {
+            themeChoice.querySelectorAll('.theme-btn').forEach((b) => {
+                b.classList.toggle('active', b.dataset.themeChoice === theme);
+            });
         }
-    });
+    }
+    applyTheme(localStorage.getItem('tm_theme') || 'dark');
 
-    fontSizeSlider.addEventListener('input', () => {
-        applyZoom(Number(fontSizeSlider.value));
-    });
+    if (themeChoice) {
+        themeChoice.querySelectorAll('.theme-btn').forEach((b) => {
+            b.addEventListener('click', () => applyTheme(b.dataset.themeChoice));
+        });
+    }
+
+    if (btnSettings && settingsView) {
+        btnSettings.addEventListener('click', () => settingsView.classList.remove('hidden'));
+    }
+    if (settingsClose && settingsView) {
+        settingsClose.addEventListener('click', () => settingsView.classList.add('hidden'));
+    }
+    if (settingsView) {
+        settingsView.addEventListener('click', (e) => {
+            if (e.target === settingsView) settingsView.classList.add('hidden');
+        });
+    }
+
+    if (fontSizeSlider) {
+        fontSizeSlider.addEventListener('input', () => applyZoom(Number(fontSizeSlider.value)));
+    }
 
     /* ---- Monthly overview ---- */
     const monthCustomer    = document.getElementById('monthCustomer');
