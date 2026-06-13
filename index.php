@@ -334,13 +334,14 @@ function fmtDate(string $dt): string
 
         <div class="entries-header">
             <span class="entries-header-title">
-                <span id="dateLabel" onclick="document.getElementById('datePicker').showPicker()"
-                      style="cursor:pointer;border-bottom:1px dashed currentColor"
-                      title="Anderen Tag wählen">
+                <span id="dateLabel"
+                      style="position:relative;display:inline-block;cursor:pointer;border-bottom:1px dashed currentColor"
+                      title="Anderen Tag wählen"
+                      onclick="var p=document.getElementById('datePicker'); if(p.showPicker){try{p.showPicker();}catch(e){}}">
                     <?= $isToday ? 'Heute' : 'Einträge' ?>: <?= date('d.m.Y', strtotime($viewDate)) ?>
+                    <input type="date" id="datePicker" value="<?= h($viewDate) ?>"
+                           style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0">
                 </span>
-                <input type="date" id="datePicker" value="<?= h($viewDate) ?>"
-                       style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
                 <span class="entries-meta">
                     &ndash; <?= count($todayEntries) ?> Einträge,
                     <?= round($todayMinutes / 60, 2) ?>&nbsp;h
