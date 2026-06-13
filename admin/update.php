@@ -281,7 +281,7 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>System-Update – Time Manager</title>
 <script src="../assets/theme-init.js"></script>
-<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <style>
 .update-card { background:#fff; border:1px solid var(--card-border); border-radius:var(--radius);
                padding:28px 32px; max-width:640px; margin:0 auto 24px; }

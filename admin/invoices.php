@@ -53,7 +53,7 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rechnungen – Administration</title>
 <script src="../assets/theme-init.js"></script>
-<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <script src="../assets/dialog.js"></script>
 <style>
 .filter-bar {

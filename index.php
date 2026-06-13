@@ -156,7 +156,7 @@ function fmtDate(string $dt): string
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Time Manager">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/style.css?v=<?= APP_VERSION ?>">
     <script>(function(){
         var t=localStorage.getItem('tm_theme')||'dark';
         document.documentElement.setAttribute('data-theme',t);
@@ -538,6 +538,6 @@ function fmtDate(string $dt): string
 <?php endif; ?>
 
 <script src="assets/dialog.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>
