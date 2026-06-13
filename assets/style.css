@@ -23,12 +23,12 @@
 [data-theme="dark"] {
     color-scheme: dark;
     --bg:          #000000;   /* Schwarz */
-    --body-text:   #f3f4f6;   /* Weiß */
-    --body-muted:  #b8bfca;
+    --body-text:   #ffffff;   /* Weiß */
+    --body-muted:  #ffffff;   /* im Dunkel-Design ebenfalls weiß */
     --card-bg:     #161616;   /* dunkle Karten */
     --card-border: #333333;
-    --text:        #f3f4f6;
-    --text-muted:  #a1a1aa;
+    --text:        #ffffff;
+    --text-muted:  #ffffff;
     --hover-bg:    #1d1d1f;
 }
 [data-theme="light"] {
