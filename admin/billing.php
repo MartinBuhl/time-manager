@@ -63,31 +63,31 @@ function fmtEur(float $amount): string
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <style>
-.detail-row > td { background: #f8fafc; }
+.detail-row > td { background: var(--hover-bg); }
 .detail-box { padding: 12px 16px 16px; }
-.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.detail-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text); }
 .detail-table th {
     text-align: left;
     padding: 6px 10px;
-    border-bottom: 1px solid #d7dde5;
+    border-bottom: 1px solid var(--card-border);
     font-weight: 600;
-    color: #475569;
+    color: var(--text-muted);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
 }
-.detail-table td { padding: 6px 10px; border-bottom: 1px solid #e8edf2; vertical-align: top; }
+.detail-table td { padding: 6px 10px; border-bottom: 1px solid var(--card-border); vertical-align: top; }
 .detail-table tbody tr:last-child td { border-bottom: none; }
 .detail-table tfoot td {
-    border-top: 2px solid #cbd3dc;
+    border-top: 2px solid var(--card-border);
     border-bottom: none;
     padding-top: 8px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text);
 }
 .detail-table .col-dur { text-align: right; white-space: nowrap; }
-.detail-project { color: #2563eb; font-size: 12px; }
-.detail-comment { color: #6b7280; font-size: 12px; }
+.detail-project { color: #3b82f6; font-size: 12px; }
+.detail-comment { color: var(--text-muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -167,6 +167,7 @@ function fmtEur(float $amount): string
                                             <th style="white-space:nowrap">Zeit</th>
                                             <th class="col-dur" style="white-space:nowrap">Min</th>
                                             <th>Kunde</th>
+                                            <th>Projekt</th>
                                             <th>Tätigkeit</th>
                                             <th>Kommentar</th>
                                         </tr>
@@ -178,6 +179,7 @@ function fmtEur(float $amount): string
                                             <td style="white-space:nowrap"><?= h(substr($e['start_datetime'], 11, 5)) ?>–<?= h(substr($e['end_datetime'], 11, 5)) ?></td>
                                             <td class="col-dur"><?= (int)$e['duration_minutes'] ?></td>
                                             <td><?= h($c['name']) ?></td>
+                                            <td class="detail-project"><?= $e['project'] ? h($e['project']) : '' ?></td>
                                             <td><?= h($e['activity']) ?></td>
                                             <td class="detail-comment"><?= $e['comment'] ? h($e['comment']) : '' ?></td>
                                         </tr>
@@ -187,12 +189,12 @@ function fmtEur(float $amount): string
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (Min.)</td>
                                             <td class="col-dur"><?= $detailMin ?></td>
-                                            <td colspan="3"></td>
+                                            <td colspan="4"></td>
                                         </tr>
                                         <tr>
                                             <td colspan="2" class="col-dur">Summe (h)</td>
                                             <td class="col-dur"><?= number_format($detailMin / 60, 2, ',', '.') ?></td>
-                                            <td colspan="3"></td>
+                                            <td colspan="4"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
