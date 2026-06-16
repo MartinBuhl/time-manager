@@ -641,15 +641,7 @@ async function trashEntry(id) {
                 const data = await res.json();
 
                 if (data.success) {
-                    const d = data.data;
-                    const hours = (d.total_min / 60).toFixed(2).replace('.', ',');
-                    const net   = Number(d.amount_net).toFixed(2).replace('.', ',');
-                    const rate  = Number(d.rate).toFixed(2).replace('.', ',');
-                    msgEl.style.color = '#27ae60';
-                    msgEl.innerHTML = '<strong>' + d.invoice_number + '</strong> erstellt &mdash; '
-                        + hours + ' h &times; ' + rate + ' &euro; = ' + net + ' &euro;'
-                        + ' &mdash; Weiterleitung…';
-                    setTimeout(() => { window.location.href = 'invoices.php'; }, 5000);
+                    window.location.href = 'invoices.php';
                 } else {
                     msgEl.style.color = '#c0392b';
                     msgEl.innerHTML   = data.error || 'Fehler beim Abrechnen.';
