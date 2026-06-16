@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth.php';
 
 $customerFilter = filter_var($_GET['customer_id'] ?? '', FILTER_VALIDATE_INT) ?: 0;
+$view = (($_GET['view'] ?? 'active') === 'archive') ? 'archive' : 'active';
 
 $customers = db()->query(
     'SELECT DISTINCT c.id, c.name
@@ -10,16 +11,32 @@ $customers = db()->query(
      ORDER BY c.name ASC'
 )->fetchAll();
 
-$conditions = [];
-$params     = [];
+// Eine Rechnung gilt als archiviert, sobald ein Mailspool-Eintrag archiviert wurde
+$archivedExpr = 'EXISTS (SELECT 1 FROM tm_mail_spool m
+                         WHERE m.invoice_id = i.id AND m.archived_at IS NOT NULL)';
+
+$baseConditions = [];
+$params         = [];
 if ($customerFilter > 0) {
-    $conditions[] = 'i.customer_id = ?';
-    $params[]     = $customerFilter;
+    $baseConditions[] = 'i.customer_id = ?';
+    $params[]         = $customerFilter;
 }
-// Im Mailspool archivierte Rechnungen ausblenden
-$conditions[] = 'NOT EXISTS (SELECT 1 FROM tm_mail_spool m
-                             WHERE m.invoice_id = i.id AND m.archived_at IS NOT NULL)';
-$where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+// Reiter Aktiv blendet archivierte Rechnungen aus, Reiter Archiv zeigt nur diese
+$conditions   = $baseConditions;
+$conditions[] = $view === 'archive' ? $archivedExpr : 'NOT ' . $archivedExpr;
+$where        = 'WHERE ' . implode(' AND ', $conditions);
+
+// Zähler für beide Reiter (Kundenfilter berücksichtigt)
+$baseWhere  = $baseConditions ? 'WHERE ' . implode(' AND ', $baseConditions) : '';
+$countStmt  = db()->prepare(
+    "SELECT
+        COALESCE(SUM($archivedExpr), 0)     AS archive_cnt,
+        COALESCE(SUM(NOT $archivedExpr), 0) AS active_cnt
+     FROM tm_invoices i $baseWhere"
+);
+$countStmt->execute($params);
+$tabCounts = $countStmt->fetch();
 
 $stmt = db()->prepare(
     "SELECT i.id, i.invoice_number, i.invoice_seq, i.total_minutes,
@@ -56,6 +73,25 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <script src="../assets/dialog.js"></script>
 <style>
+.inv-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+}
+.inv-tabs a {
+    padding: 6px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--card-bg);
+    font-size: 13px;
+}
+.inv-tabs a.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
 .filter-bar {
     display: flex;
     flex-wrap: wrap;
@@ -96,7 +132,20 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 
     <div class="admin-section">
 
+        <?php $custQ = $customerFilter > 0 ? '&customer_id=' . $customerFilter : ''; ?>
+        <div class="inv-tabs">
+            <a href="invoices.php<?= $customerFilter > 0 ? '?customer_id=' . $customerFilter : '' ?>"
+               class="<?= $view === 'active' ? 'active' : '' ?>">
+                Aktiv (<?= (int)$tabCounts['active_cnt'] ?>)
+            </a>
+            <a href="invoices.php?view=archive<?= $custQ ?>"
+               class="<?= $view === 'archive' ? 'active' : '' ?>">
+                Archiv (<?= (int)$tabCounts['archive_cnt'] ?>)
+            </a>
+        </div>
+
         <form method="get" action="invoices.php" class="filter-bar">
+            <input type="hidden" name="view" value="<?= h($view) ?>">
             <select name="customer_id">
                 <option value="">Alle Kunden</option>
                 <?php foreach ($customers as $c): ?>
@@ -107,7 +156,7 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
             </select>
             <button type="submit" class="btn btn--primary">Filtern</button>
             <?php if ($customerFilter > 0): ?>
-            <a href="invoices.php" class="btn">Zurücksetzen</a>
+            <a href="invoices.php<?= $view === 'archive' ? '?view=archive' : '' ?>" class="btn">Zurücksetzen</a>
             <?php endif; ?>
         </form>
 
@@ -118,7 +167,9 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
         </div>
 
         <?php if (empty($invoices)): ?>
-            <p class="empty-message">Keine Rechnungen vorhanden.</p>
+            <p class="empty-message">
+                <?= $view === 'archive' ? 'Keine archivierten Rechnungen vorhanden.' : 'Keine Rechnungen vorhanden.' ?>
+            </p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
