@@ -87,6 +87,7 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rechnung <?= h($invoice['invoice_number']) ?> – Vorschau</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <style>
