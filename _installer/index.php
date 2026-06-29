@@ -265,6 +265,34 @@ function defaultConfigSql(): string
     ('smtp_encryption',        'tls',                              4,  50)";
 }
 
+/**
+ * Spielt nach dem Anlegen der Basis-Tabellen alle vorhandenen
+ * _migrations/*.sql ein, damit eine Neuinstallation dasselbe vollständige
+ * Schema wie eine aktualisierte Installation hat. Bereits im Basis-Schema
+ * enthaltene Änderungen (z. B. doppelte Spalte) werden toleriert. Jede
+ * Migration wird in tm_migrations vermerkt, damit ein späteres System-Update
+ * sie nicht erneut ausführt.
+ */
+function runInstallerMigrations(PDO $pdo): void
+{
+    $files = glob(dirname(__DIR__) . '/_migrations/*.sql') ?: [];
+    sort($files);
+    $ins = $pdo->prepare('INSERT IGNORE INTO `tm_migrations` (`filename`) VALUES (?)');
+    foreach ($files as $file) {
+        try {
+            $pdo->exec((string)file_get_contents($file));
+        } catch (PDOException $e) {
+            // 1050 Table exists, 1060 Duplicate column, 1061 Duplicate key,
+            // 1062 Duplicate entry, 1091 Can't DROP – Änderung schon vorhanden.
+            $code = (int)($e->errorInfo[1] ?? 0);
+            if (!in_array($code, [1050, 1060, 1061, 1062, 1091], true)) {
+                throw $e;
+            }
+        }
+        $ins->execute([basename($file)]);
+    }
+}
+
 function makeConfig(string $host, string $name, string $user, string $pass): string
 {
     $h = var_export($host, true);
@@ -397,6 +425,7 @@ if ($posted) {
 
                     foreach (tableSql() as $sql) { $pdo->exec($sql); }
                     $pdo->exec(defaultConfigSql());
+                    runInstallerMigrations($pdo);
 
                     $hash = password_hash($adminPass1, PASSWORD_DEFAULT);
                     $pdo->prepare(

@@ -1,4 +1,6 @@
 <?php
+require_once dirname(__DIR__) . '/includes/error_log.php';
+
 if (!file_exists(dirname(__DIR__) . '/_installer/installed.lock')) {
     header('Location: ../_installer/');
     exit;
