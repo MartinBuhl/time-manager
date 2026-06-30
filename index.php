@@ -325,7 +325,14 @@ function fmtDate(string $dt): string
                 Stop &amp; Speichern
             </button>
             <span class="start-label">
-                Start:&nbsp;<span id="startTime">--:--:--</span>
+                Start:&nbsp;<span id="startTimeWrap"
+                      style="position:relative;display:inline-block;cursor:pointer;border-bottom:1px dashed currentColor"
+                      title="Startzeit ändern"
+                      onclick="var p=document.getElementById('startTimePicker'); if(p.showPicker){try{p.showPicker();}catch(e){}}">
+                    <span id="startTime">--:--:--</span>
+                    <input type="time" id="startTimePicker"
+                           style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0">
+                </span>
             </span>
         </div>
 

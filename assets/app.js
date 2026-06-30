@@ -264,11 +264,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const projectDisplay   = document.getElementById('projectDisplay');
     const activityDisplay  = document.getElementById('activityDisplay');
     const startTimeEl      = document.getElementById('startTime');
+    const startTimePicker  = document.getElementById('startTimePicker');
 
     function updateRunningDisplay() {
         customerDisplay.textContent = selectedCustomerName;
         projectDisplay.textContent  = selectedProject;
         activityDisplay.textContent = selectedActivity;
+    }
+
+    /* Startzeit anzeigen + Zeitwähler synchron halten (Format HH:MM:SS) */
+    function setStartTime(timeStr) {
+        trackingStartTime = timeStr;
+        startTimeEl.textContent = timeStr || '--:--:--';
+        if (startTimePicker) startTimePicker.value = timeStr ? timeStr.slice(0, 5) : '';
+    }
+
+    /* Countdown anhand der aktuellen Startzeit neu berechnen */
+    function recomputeCountdownFromStart() {
+        if (!trackingStartTime) return;
+        const [h, m, sec] = trackingStartTime.split(':').map(Number);
+        const savedDate = new Date();
+        savedDate.setHours(h, m, sec || 0, 0);
+        const elapsed = Math.floor((new Date() - savedDate) / 1000);
+        countdownValue = Math.max(0, 1800 - elapsed);
+        clearInterval(countdownInterval);
+        updateCountdownDisplay();
+        if (countdownValue > 0) startCountdown();
+    }
+
+    /* Startzeit per Zeitwähler ändern */
+    if (startTimePicker) {
+        startTimePicker.addEventListener('change', async () => {
+            if (!startTimePicker.value || !selectedActivity) return;
+            setStartTime(startTimePicker.value + ':00');
+
+            await api('save_start_state', {
+                customer_id:   selectedCustomerId || '',
+                customer_name: selectedCustomerName,
+                activity:      selectedActivity,
+                project:       selectedProject,
+                start_time:    trackingStartTime,
+            });
+
+            recomputeCountdownFromStart();
+        });
     }
 
     if (!selectCustomer) return;
@@ -361,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lockSelect(selectActivity);
 
         updateRunningDisplay();
-        startTimeEl.textContent = trackingStartTime;
+        setStartTime(trackingStartTime);
 
         stopBtn.disabled   = true;
         inputComment.value = '';
@@ -447,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lockSelect(selectActivity);
 
         updateRunningDisplay();
-        startTimeEl.textContent = trackingStartTime;
+        setStartTime(trackingStartTime);
 
         if (trackingStartTime) {
             const [h, m, sec] = trackingStartTime.split(':').map(Number);
