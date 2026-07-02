@@ -62,7 +62,7 @@ if ($loggedIn) {
     $stmt = $pdo->prepare('
         SELECT COALESCE(SUM(duration_minutes), 0) AS total
         FROM tm_entries
-        WHERE user_id = ? AND date BETWEEN ? AND ?
+        WHERE user_id = ? AND date BETWEEN ? AND ? AND deleted_at IS NULL
     ');
     $stmt->execute([$userId, date('Y-m-01'), date('Y-m-t')]);
     $totalMin = (int) $stmt->fetchColumn();
