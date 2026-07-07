@@ -65,6 +65,14 @@ function hideEdit(id) {
     document.getElementById('edit-' + id).classList.add('hidden');
 }
 
+/* Ende-Feld eines Eintrags auf die aktuelle Zeit setzen */
+function setEndNow(id) {
+    const editRow = document.getElementById('edit-' + id);
+    if (!editRow) return;
+    const input = editRow.querySelector('.edit-end');
+    if (input) input.value = nowDate() + ' ' + nowTime();
+}
+
 async function saveEdit(id) {
     const editRow    = document.getElementById('edit-' + id);
     const date       = editRow.querySelector('.edit-date').value;

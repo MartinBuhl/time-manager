@@ -377,13 +377,7 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 
             <?php elseif ($hasUpdate): ?>
                 <span class="badge badge-update">↑ Update verfügbar: v<?= h($latestTag) ?></span>
-                <p style="font-size:13px;color:#6b7280;margin:12px 0 20px">
-                    Das Update überschreibt alle Programmdateien außer
-                    <code>config.php</code>, <code>_installer/installed.lock</code> und dem
-                    <code>invoices/</code>-Verzeichnis. Anschließend werden ausstehende
-                    Datenbankmigrationen automatisch ausgeführt.
-                </p>
-                <form method="post" id="updateForm">
+                <form method="post" id="updateForm" style="margin-top:20px">
                     <input type="hidden" name="action"     value="perform">
                     <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
                     <button type="submit" class="btn-update" id="updateBtn">

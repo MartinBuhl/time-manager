@@ -450,6 +450,12 @@ function fmtDate(string $dt): string
                                        class="edit-end"
                                        value="<?= h($e['end_datetime']) ?>"
                                        placeholder="Ende: YYYY-MM-DD HH:MM:SS">
+                                <button type="button"
+                                        class="btn"
+                                        onclick="setEndNow(<?= $e['id'] ?>)"
+                                        title="Aktuelle Zeit als Ende einsetzen">
+                                    Jetzt
+                                </button>
                                 <select class="edit-customer">
                                     <option value="">— Kein Kunde —</option>
                                     <?php foreach ($customers as $c): ?>
