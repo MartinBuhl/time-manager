@@ -16,6 +16,96 @@ async function api(action, data = {}) {
     return res.json();
 }
 
+/* API-Aufruf mit Datei-Upload (multipart) */
+async function apiForm(action, formData) {
+    formData.append('action', action);
+    const res = await fetch('api.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': window.CSRF_TOKEN || '' },
+        body: formData,
+    });
+    return res.json();
+}
+
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/* ------------------------------------------------------------------
+   Aufträge – Detailansicht (per onclick global erreichbar)
+------------------------------------------------------------------ */
+let currentOrderId = null;
+
+function fmtCreated(dt) {
+    if (!dt) return '';
+    const [datePart, timePart] = dt.split(' ');
+    const [y, m, d] = datePart.split('-');
+    return d + '.' + m + '.' + y + (timePart ? ' ' + timePart.slice(0, 5) : '');
+}
+
+function renderOrderFiles(files) {
+    const wrap = document.getElementById('orderViewFiles');
+    if (!files || !files.length) {
+        wrap.innerHTML = '<span class="order-hint">Keine Dateien.</span>';
+        return;
+    }
+    wrap.innerHTML = files.map(f =>
+        '<div class="order-file-item">'
+        + '<a href="order_file.php?id=' + f.id + '" target="_blank" rel="noopener">'
+        + escHtml(f.original_name) + '</a>'
+        + '<button type="button" class="order-file-del" title="Datei löschen" '
+        + 'onclick="deleteOrderFile(' + f.id + ')">&times;</button>'
+        + '</div>'
+    ).join('');
+}
+
+async function openOrder(id) {
+    const res = await api('get_order', { id });
+    if (!res.success) { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); return; }
+    const o = res.data;
+    currentOrderId = o.id;
+
+    document.getElementById('orderViewTitle').textContent = o.customer_name || 'Auftrag';
+    document.getElementById('orderViewMeta').textContent  = 'Erfasst: ' + fmtCreated(o.created_at);
+    document.getElementById('orderViewBody').innerHTML     = o.body || '';
+    renderOrderFiles(o.files || []);
+
+    const msg = document.getElementById('orderViewMsg');
+    msg.textContent = '';
+    msg.className   = 'order-msg';
+    const nf = document.getElementById('orderViewNewFiles');
+    if (nf) nf.value = '';
+
+    document.getElementById('orderView').classList.remove('hidden');
+}
+
+function closeOrderView() {
+    document.getElementById('orderView').classList.add('hidden');
+    currentOrderId = null;
+}
+
+async function deleteOrderFile(fileId) {
+    if (!await Dialog.confirm('Diese Datei löschen?', { danger: true })) return;
+    const res = await api('delete_order_file', { id: fileId });
+    if (res.success && currentOrderId) {
+        openOrder(currentOrderId);
+    } else if (!res.success) {
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    }
+}
+
+/* „Bearbeitet" – Auftrag heute als bearbeitet markieren (bis morgen ausblenden) */
+async function markWorked(ev, id) {
+    ev.stopPropagation();
+    const res = await api('mark_order_worked', { id });
+    if (res.success) location.reload();
+    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+}
+
 /* ------------------------------------------------------------------
    Countdown
 ------------------------------------------------------------------ */
@@ -567,78 +657,93 @@ document.addEventListener('DOMContentLoaded', () => {
         fontSizeSlider.addEventListener('input', () => applyZoom(Number(fontSizeSlider.value)));
     }
 
-    /* ---- Monthly overview ---- */
-    const monthCustomer    = document.getElementById('monthCustomer');
-    const monthProjectSel  = document.getElementById('monthProject');
-    const monthEntriesWrap = document.getElementById('monthEntriesWrap');
-    const monthTbody       = document.getElementById('monthEntriesTbody');
-    const monthTotalEl     = document.getElementById('monthTotal');
+    /* ---- Aufträge: erfassen ---- */
+    const orderCustomer   = document.getElementById('orderCustomer');
+    const orderBody       = document.getElementById('orderBody');
+    const orderFilesInput = document.getElementById('orderFiles');
+    const orderSaveBtn    = document.getElementById('orderSaveBtn');
+    const orderMsg        = document.getElementById('orderMsg');
 
-    function escHtml(s) {
-        return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
+    if (orderSaveBtn) {
+        orderSaveBtn.addEventListener('click', async () => {
+            const customerId = orderCustomer.value;
+            const bodyText   = orderBody.textContent.trim();
+            orderMsg.className = 'order-msg';
 
-    async function loadMonthEntries() {
-        const cid     = monthCustomer.value;
-        const project = monthProjectSel.classList.contains('hidden') ? '' : monthProjectSel.value;
-        if (!cid) return;
+            if (!customerId) {
+                orderMsg.textContent = 'Bitte einen Kunden wählen.';
+                orderMsg.classList.add('err');
+                return;
+            }
+            if (!bodyText && orderFilesInput.files.length === 0) {
+                orderMsg.textContent = 'Bitte Text eingeben oder eine Datei anhängen.';
+                orderMsg.classList.add('err');
+                return;
+            }
 
-        const res = await api('get_monthly_entries', { customer_id: cid, project });
-        if (!res.success) return;
+            orderSaveBtn.disabled = true;
+            orderMsg.textContent  = 'Speichern …';
 
-        const entries = res.data || [];
-        monthTbody.innerHTML = '';
-        let totalMin = 0;
+            const fd = new FormData();
+            fd.append('customer_id', customerId);
+            fd.append('body', orderBody.innerHTML);
+            for (const f of orderFilesInput.files) fd.append('files[]', f);
 
-        entries.forEach(e => {
-            const [y, mo, d] = e.date.split('-');
-            const dateStr = d + '.' + mo + '.' + y;
-            let desc = escHtml(e.activity || '');
-            if (e.project) desc += ' <span class="project-tag">' + escHtml(e.project) + '</span>';
-            if (e.comment) desc += '<span class="comment">: ' + escHtml(e.comment) + '</span>';
-            const tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + escHtml(dateStr) + '</td><td>' + desc + '</td><td class="col-dur">' + e.duration_minutes + '</td>';
-            monthTbody.appendChild(tr);
-            totalMin += Number(e.duration_minutes);
+            const res = await apiForm('create_order', fd);
+            if (res.success) {
+                location.reload();
+            } else {
+                orderSaveBtn.disabled = false;
+                orderMsg.textContent  = res.error || 'Fehler beim Speichern.';
+                orderMsg.classList.add('err');
+            }
         });
-
-        monthTotalEl.textContent = (totalMin / 60).toFixed(2) + ' h';
-        monthEntriesWrap.classList.toggle('hidden', entries.length === 0);
     }
 
-    monthCustomer.addEventListener('change', () => {
-        const cid      = monthCustomer.value;
-        const projects = (window.CUSTOMER_PROJECTS || {})[cid] || [];
+    /* ---- Aufträge: Detailansicht ---- */
+    const orderViewClose    = document.getElementById('orderViewClose');
+    const orderSaveEditBtn  = document.getElementById('orderSaveEditBtn');
+    const orderCompleteBtn  = document.getElementById('orderCompleteBtn');
+    const orderViewBody     = document.getElementById('orderViewBody');
+    const orderViewNewFiles = document.getElementById('orderViewNewFiles');
+    const orderViewMsg      = document.getElementById('orderViewMsg');
 
-        monthProjectSel.innerHTML = '<option value="">-- Projekt wählen --</option>';
-        monthEntriesWrap.classList.add('hidden');
+    if (orderViewClose) orderViewClose.addEventListener('click', closeOrderView);
 
-        if (!cid) {
-            monthProjectSel.classList.add('hidden');
-            return;
-        }
+    if (orderSaveEditBtn) {
+        orderSaveEditBtn.addEventListener('click', async () => {
+            if (!currentOrderId) return;
+            orderSaveEditBtn.disabled = true;
+            orderViewMsg.className   = 'order-msg';
+            orderViewMsg.textContent = 'Speichern …';
 
-        if (projects.length > 1) {
-            projects.forEach(p => {
-                const o = document.createElement('option');
-                o.value       = p.name;
-                o.textContent = p.name;
-                monthProjectSel.appendChild(o);
-            });
-            monthProjectSel.classList.remove('hidden');
-        } else {
-            monthProjectSel.classList.add('hidden');
-            loadMonthEntries();
-        }
-    });
+            const fd = new FormData();
+            fd.append('id', currentOrderId);
+            fd.append('body', orderViewBody.innerHTML);
+            for (const f of orderViewNewFiles.files) fd.append('files[]', f);
 
-    monthProjectSel.addEventListener('change', () => {
-        if (monthProjectSel.value) loadMonthEntries();
-    });
+            const res = await apiForm('update_order', fd);
+            orderSaveEditBtn.disabled = false;
+            if (res.success) {
+                await openOrder(currentOrderId); // Dateiliste/Feld auffrischen
+                orderViewMsg.textContent = 'Gespeichert.';
+                orderViewMsg.classList.add('ok');
+            } else {
+                orderViewMsg.textContent = res.error || 'Fehler beim Speichern.';
+                orderViewMsg.classList.add('err');
+            }
+        });
+    }
+
+    if (orderCompleteBtn) {
+        orderCompleteBtn.addEventListener('click', async () => {
+            if (!currentOrderId) return;
+            if (!await Dialog.confirm('Auftrag als erledigt markieren?')) return;
+            const res = await api('complete_order', { id: currentOrderId });
+            if (res.success) location.reload();
+            else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        });
+    }
 
     /* ---- Projekt-Select bei Kundenwechsel im Edit-Formular aktualisieren ---- */
     document.addEventListener('change', (e) => {

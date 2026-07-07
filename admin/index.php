@@ -159,6 +159,10 @@ const CARDS = {
         label: 'Arbeitszeit', href: 'entries.php',
         icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>',
     },
+    orders: {
+        label: 'Aufträge', href: 'orders.php',
+        icon: '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>',
+    },
     trash: {
         label: 'Papierkorb', href: 'trash.php',
         icon: '<path d="M15 4V3H9v1H4v2h1v13c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6h1V4h-5zm2 15H7V6h10v13z"/>',
@@ -194,7 +198,7 @@ const CARDS = {
 };
 
 const DEFAULT_LAYOUT = {
-    top:    ['customers', 'billing', 'invoices', 'entries'],
+    top:    ['customers', 'billing', 'invoices', 'entries', 'orders'],
     bottom: ['trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'backup', 'info'],
 };
 // ----------------------------------------------------------------

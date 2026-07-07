@@ -42,6 +42,7 @@ require_once __DIR__ . '/includes/activities.php';
 ------------------------------------------------------------------ */
 $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
+$processingOrders = [];
 $customers    = [];
 $userState    = null;
 $todayMinutes = 0;
@@ -124,6 +125,29 @@ if ($loggedIn) {
     if ($row && $row['activity'] !== null) {
         $userState = $row;
     }
+
+    /* Bearbeitungsliste: je Kunde der aelteste offene Auftrag,
+       insgesamt aeltester zuerst */
+    $processingOrders = [];
+    try {
+        $processingOrders = $pdo->query("
+            SELECT o.id, o.customer_id, o.created_at,
+                   COALESCE(c.name, '') AS customer_name
+            FROM tm_orders o
+            LEFT JOIN tm_customers c ON c.id = o.customer_id
+            WHERE o.status = 'offen' AND o.deleted_at IS NULL
+              AND (o.last_worked_date IS NULL OR o.last_worked_date < CURDATE())
+              AND o.id = (
+                  SELECT o2.id FROM tm_orders o2
+                  WHERE o2.customer_id = o.customer_id AND o2.status = 'offen'
+                    AND o2.deleted_at IS NULL
+                    AND (o2.last_worked_date IS NULL OR o2.last_worked_date < CURDATE())
+                  ORDER BY o2.created_at ASC, o2.id ASC
+                  LIMIT 1
+              )
+            ORDER BY o.created_at ASC, o.id ASC
+        ")->fetchAll();
+    } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 }
 
 /* ------------------------------------------------------------------
@@ -508,49 +532,118 @@ function fmtDate(string $dt): string
         <?php endif; ?>
     </section>
 
-    <!-- ---- MONTHLY OVERVIEW ---------------------------------- -->
-    <section class="month-section">
+    <!-- ---- AUFTRÄGE ------------------------------------------ -->
+    <section class="orders-section">
 
         <div class="entries-header">
-            <span class="entries-header-title">Monatsübersicht</span>
+            <span class="entries-header-title">Auftrag erfassen</span>
         </div>
 
-        <div class="month-controls">
-            <select id="monthCustomer">
+        <div class="order-form">
+            <select id="orderCustomer">
                 <option value="">-- Kunde wählen --</option>
                 <?php foreach ($customers as $c): ?>
-                <option value="<?= $c['id'] ?>"><?= h($c['name']) ?></option>
+                <option value="<?= $c['id'] ?>" data-name="<?= h($c['name']) ?>"><?= h($c['name']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <select id="monthProject" class="hidden">
-                <option value="">-- Projekt wählen --</option>
-            </select>
+
+            <div class="rte-wrap">
+                <div class="rte-toolbar">
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                </div>
+                <div class="rte-body" id="orderBody" contenteditable="true"
+                     data-placeholder="Mail/WhatsApp-Text hier einfügen oder schreiben …"></div>
+            </div>
+
+            <div class="order-upload">
+                <input type="file" id="orderFiles" multiple
+                       accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
+                <span class="order-hint">Bilder, PDF, Office – max. 25&nbsp;MB pro Datei</span>
+            </div>
+
+            <div class="order-form-actions">
+                <button type="button" class="btn btn--primary" id="orderSaveBtn">Auftrag speichern</button>
+                <span id="orderMsg" class="order-msg"></span>
+            </div>
         </div>
 
-        <div id="monthEntriesWrap" class="hidden">
-            <div class="table-wrapper">
-                <table class="entries-table">
-                    <thead>
-                        <tr>
-                            <th>Datum</th>
-                            <th>Tätigkeit / Kommentar</th>
-                            <th class="col-dur">Min</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monthEntriesTbody"></tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="2" class="month-sum-label">Gesamt:</td>
-                            <td id="monthTotal" class="col-dur month-sum-value"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+        <div class="entries-header" style="margin-top:24px">
+            <span class="entries-header-title">Bearbeitungsliste</span>
+            <span class="entries-meta">&ndash; ältester Auftrag je Kunde zuerst</span>
+        </div>
+
+        <?php if (empty($processingOrders)): ?>
+            <p class="empty-message" id="ordersEmpty">Keine offenen Aufträge.</p>
+        <?php endif; ?>
+        <div class="table-wrapper">
+            <table class="entries-table orders-table"<?= empty($processingOrders) ? ' style="display:none"' : '' ?> id="ordersTable">
+                <thead>
+                    <tr>
+                        <th>Kunde</th>
+                        <th>Erfasst</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTbody">
+                <?php foreach ($processingOrders as $o): ?>
+                    <tr class="entry-row order-row" data-id="<?= (int)$o['id'] ?>"
+                        onclick="openOrder(<?= (int)$o['id'] ?>)">
+                        <td><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></td>
+                        <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($o['created_at']))) ?></td>
+                        <td style="text-align:right;white-space:nowrap">
+                            <button type="button" class="btn" onclick="markWorked(event, <?= (int)$o['id'] ?>)"
+                                    title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
+                            <span style="color:var(--text-muted);margin-left:6px">›</span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
 
     </section>
 
 </div><!-- .app -->
+
+<!-- ---- AUFTRAG-DETAIL ------------------------------------ -->
+<div id="orderView" class="settings-view hidden">
+    <div class="settings-inner">
+        <div class="settings-topbar">
+            <strong id="orderViewTitle">Auftrag</strong>
+            <button type="button" class="btn" id="orderViewClose">Schließen</button>
+        </div>
+        <div class="order-view-meta" id="orderViewMeta"></div>
+
+        <div class="rte-wrap" style="margin-top:10px">
+            <div class="rte-toolbar">
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+            </div>
+            <div class="rte-body" id="orderViewBody" contenteditable="true"></div>
+        </div>
+
+        <div class="order-view-files" id="orderViewFiles"></div>
+
+        <div class="order-upload" style="margin-top:10px">
+            <input type="file" id="orderViewNewFiles" multiple
+                   accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
+            <span class="order-hint">weitere Dateien anhängen</span>
+        </div>
+
+        <div class="order-view-actions">
+            <button type="button" class="btn btn--primary" id="orderSaveEditBtn">Speichern</button>
+            <button type="button" class="btn" id="orderCompleteBtn">Erledigt</button>
+            <span id="orderViewMsg" class="order-msg"></span>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
 
 <script src="assets/dialog.js"></script>

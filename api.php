@@ -56,6 +56,8 @@ function datetimePattern(): string
     return '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
 }
 
+require_once __DIR__ . '/includes/orders.php';
+
 $action = $_POST['action'] ?? '';
 
 switch ($action) {
@@ -321,6 +323,121 @@ switch ($action) {
         $stmt = db()->prepare($sql);
         $stmt->execute($params);
         jsonOk($stmt->fetchAll());
+
+    // ----------------------------------------------------------------
+    case 'create_order':
+        requireAuth();
+        verifyCsrf();
+
+        $customerId = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$customerId) jsonErr('Bitte einen Kunden wählen.');
+
+        $body = trim($_POST['body'] ?? '');
+        $body = (string) preg_replace('#<script\b[^>]*>.*?</script>#is', '', $body);
+
+        if ($body === '' && empty($_FILES['files']['name'][0])) {
+            jsonErr('Bitte Text eingeben oder eine Datei anhängen.');
+        }
+
+        $pdo = db();
+        $pdo->prepare('INSERT INTO tm_orders (user_id, customer_id, body) VALUES (?, ?, ?)')
+            ->execute([$_SESSION['user_id'], $customerId, $body]);
+        $orderId = (int) $pdo->lastInsertId();
+
+        $err = saveOrderFiles($orderId);
+        if ($err !== '') jsonErr($err);
+
+        jsonOk(['id' => $orderId]);
+
+    // ----------------------------------------------------------------
+    case 'get_order':
+        requireAuth();
+        verifyCsrf();
+
+        $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
+
+        $stmt = db()->prepare(
+            'SELECT o.id, o.customer_id, o.body, o.status, o.created_at,
+                    COALESCE(c.name, \'\') AS customer_name
+             FROM tm_orders o
+             LEFT JOIN tm_customers c ON c.id = o.customer_id
+             WHERE o.id = ? LIMIT 1'
+        );
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        if (!$order) jsonErr('Auftrag nicht gefunden.', 404);
+
+        $fstmt = db()->prepare(
+            'SELECT id, original_name FROM tm_order_files WHERE order_id = ? ORDER BY id'
+        );
+        $fstmt->execute([$orderId]);
+        $order['files'] = $fstmt->fetchAll();
+
+        jsonOk($order);
+
+    // ----------------------------------------------------------------
+    case 'update_order':
+        requireAuth();
+        verifyCsrf();
+
+        $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
+
+        $exists = db()->prepare('SELECT id FROM tm_orders WHERE id = ?');
+        $exists->execute([$orderId]);
+        if (!$exists->fetchColumn()) jsonErr('Auftrag nicht gefunden.', 404);
+
+        $body = trim($_POST['body'] ?? '');
+        $body = (string) preg_replace('#<script\b[^>]*>.*?</script>#is', '', $body);
+        db()->prepare('UPDATE tm_orders SET body = ? WHERE id = ?')->execute([$body, $orderId]);
+
+        $err = saveOrderFiles($orderId);
+        if ($err !== '') jsonErr($err);
+
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'complete_order':
+        requireAuth();
+        verifyCsrf();
+
+        $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
+
+        db()->prepare("UPDATE tm_orders SET status = 'erledigt', completed_at = NOW() WHERE id = ?")
+            ->execute([$orderId]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'mark_order_worked':
+        requireAuth();
+        verifyCsrf();
+
+        $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
+
+        db()->prepare('UPDATE tm_orders SET last_worked_date = CURDATE() WHERE id = ?')
+            ->execute([$orderId]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'delete_order_file':
+        requireAuth();
+        verifyCsrf();
+
+        $fileId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$fileId) jsonErr('Ungültige Datei-ID.');
+
+        $stmt = db()->prepare('SELECT stored_name FROM tm_order_files WHERE id = ?');
+        $stmt->execute([$fileId]);
+        $stored = $stmt->fetchColumn();
+        if ($stored !== false) {
+            $path = ordersDir() . '/' . basename((string) $stored);
+            if (is_file($path)) @unlink($path);
+            db()->prepare('DELETE FROM tm_order_files WHERE id = ?')->execute([$fileId]);
+        }
+        jsonOk();
 
     // ----------------------------------------------------------------
     default:

@@ -12,6 +12,9 @@
 /log/
 /backups/
 
+# Hochgeladene Auftrags-Dateien – pro Installation verschieden
+/orders/
+
 # Windows / macOS / IDE
 Thumbs.db
 .DS_Store

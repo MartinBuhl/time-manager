@@ -13,6 +13,18 @@ $stmt = db()->query(
 );
 $entries = $stmt->fetchAll();
 
+$deletedOrders = [];
+try {
+    $deletedOrders = db()->query(
+        "SELECT o.id, o.created_at, o.deleted_at,
+                COALESCE(c.name, '') AS customer_name
+         FROM tm_orders o
+         LEFT JOIN tm_customers c ON c.id = o.customer_id
+         WHERE o.deleted_at IS NOT NULL
+         ORDER BY o.deleted_at DESC"
+    )->fetchAll();
+} catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
+
 function fmtDur(int $min): string
 {
     return sprintf('%d:%02d h', intdiv($min, 60), $min % 60);
@@ -87,8 +99,42 @@ function fmtDur(int $min): string
         </div>
     </div>
 
+    <div class="admin-section">
+        <h2>Gelöschte Aufträge</h2>
+        <div id="trashOrderMsg"></div>
+        <div class="table-wrapper">
+            <table class="entries-table" id="trashOrdersTable">
+                <thead>
+                    <tr>
+                        <th>Kunde</th>
+                        <th>Erfasst</th>
+                        <th>Gelöscht am</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($deletedOrders as $o): ?>
+                    <tr id="otrow-<?= (int)$o['id'] ?>">
+                        <td><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></td>
+                        <td class="col-time"><?= h(date('d.m.Y H:i', strtotime($o['created_at']))) ?></td>
+                        <td class="col-time"><?= h(date('d.m.Y H:i', strtotime($o['deleted_at']))) ?></td>
+                        <td style="white-space:nowrap;text-align:right">
+                            <button class="btn" onclick="restoreOrder(<?= (int)$o['id'] ?>)">Wiederherstellen</button>
+                            <button class="btn btn--danger" onclick="purgeOrder(<?= (int)$o['id'] ?>)">Endgültig löschen</button>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($deletedOrders)): ?>
+                    <tr id="emptyOrderRow"><td colspan="4" class="empty-message">Keine gelöschten Aufträge.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
+<script src="../assets/dialog.js"></script>
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 
@@ -117,6 +163,54 @@ async function restoreEntry(id) {
         } else {
             msgEl.className = 'admin-msg admin-msg--err';
             msgEl.textContent = data.error || 'Fehler beim Wiederherstellen.';
+        }
+    } catch (e) {
+        msgEl.className = 'admin-msg admin-msg--err';
+        msgEl.textContent = 'Serverfehler. Bitte erneut versuchen.';
+    }
+}
+
+async function orderAction(action, id) {
+    const res = await fetch('api.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: new URLSearchParams({ action, id }),
+    });
+    return res.json();
+}
+
+async function restoreOrder(id) {
+    const msgEl = document.getElementById('trashOrderMsg');
+    try {
+        const data = await orderAction('restore_order', id);
+        if (data.success) {
+            const row = document.getElementById('otrow-' + id);
+            if (row) row.remove();
+            msgEl.className = 'admin-msg admin-msg--ok';
+            msgEl.textContent = 'Auftrag wurde wiederhergestellt.';
+        } else {
+            msgEl.className = 'admin-msg admin-msg--err';
+            msgEl.textContent = data.error || 'Fehler beim Wiederherstellen.';
+        }
+    } catch (e) {
+        msgEl.className = 'admin-msg admin-msg--err';
+        msgEl.textContent = 'Serverfehler. Bitte erneut versuchen.';
+    }
+}
+
+async function purgeOrder(id) {
+    const msgEl = document.getElementById('trashOrderMsg');
+    if (!await Dialog.confirm('Auftrag mit allen Dateien endgültig löschen? Das kann nicht rückgängig gemacht werden.', { danger: true })) return;
+    try {
+        const data = await orderAction('purge_order', id);
+        if (data.success) {
+            const row = document.getElementById('otrow-' + id);
+            if (row) row.remove();
+            msgEl.className = 'admin-msg admin-msg--ok';
+            msgEl.textContent = 'Auftrag wurde endgültig gelöscht.';
+        } else {
+            msgEl.className = 'admin-msg admin-msg--err';
+            msgEl.textContent = data.error || 'Fehler beim Löschen.';
         }
     } catch (e) {
         msgEl.className = 'admin-msg admin-msg--err';

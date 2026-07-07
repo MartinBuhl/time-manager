@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/orders.php';
 
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
@@ -790,6 +791,29 @@ switch ($action) {
             'UPDATE tm_entries SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL'
         );
         $stmt->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'delete_order':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_orders SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL')
+            ->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'restore_order':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_orders SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL')
+            ->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'purge_order':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        purgeOrder($id);
         jsonOk();
 
     // ----------------------------------------------------------------
