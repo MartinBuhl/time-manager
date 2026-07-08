@@ -54,7 +54,7 @@ function fmtDt($dt) {
     border-radius: 4px;
     text-decoration: none;
     color: var(--text);
-    background: #fff;
+    background: var(--card-bg);
     font-size: 13px;
 }
 .mail-tabs a.active {
@@ -114,8 +114,9 @@ function fmtDt($dt) {
     border-radius: var(--radius);
     margin-top: 12px;
     font-size: 13px;
+    color: #333;
 }
-.bulk-bar select { width: auto; }
+.bulk-bar select { width: auto; background: #fff; color: #1f2937; }
 .html-preview-frame {
     width: 100%;
     height: 300px;

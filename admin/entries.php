@@ -241,8 +241,9 @@ function fmtDate(string $dt): string
     border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-size: 13px;
+    color: #333;
 }
-.bulk-bar select { min-width: 170px; }
+.bulk-bar select { min-width: 170px; background: #fff; color: #1f2937; }
 .bulk-note { font-size: 12px; color: #b45309; }
 </style>
 </head>

@@ -84,7 +84,9 @@ $customers = $stmt->fetchAll();
     border-radius: var(--radius);
     margin-top: 12px;
     font-size: 13px;
+    color: #333;
 }
+.bulk-bar select { background: #fff; color: #1f2937; }
 .bulk-normal, .bulk-confirm { display: flex; align-items: center; gap: 10px; }
 .rule-list { list-style: none; margin: 0 0 10px; padding: 0; }
 .rule-list li {
