@@ -38,64 +38,89 @@ function escHtml(s) {
 /* ------------------------------------------------------------------
    Aufträge – Detailansicht (per onclick global erreichbar)
 ------------------------------------------------------------------ */
-let currentOrderId = null;
-
-function fmtCreated(dt) {
-    if (!dt) return '';
-    const [datePart, timePart] = dt.split(' ');
-    const [y, m, d] = datePart.split('-');
-    return d + '.' + m + '.' + y + (timePart ? ' ' + timePart.slice(0, 5) : '');
-}
-
-function renderOrderFiles(files) {
-    const wrap = document.getElementById('orderViewFiles');
-    if (!files || !files.length) {
-        wrap.innerHTML = '<span class="order-hint">Keine Dateien.</span>';
-        return;
-    }
-    wrap.innerHTML = files.map(f =>
+function orderFileListHtml(orderId, files) {
+    if (!files || !files.length) return '<span class="order-hint">Keine Dateien.</span>';
+    return files.map(f =>
         '<div class="order-file-item">'
         + '<a href="order_file.php?id=' + f.id + '" target="_blank" rel="noopener">'
         + escHtml(f.original_name) + '</a>'
         + '<button type="button" class="order-file-del" title="Datei löschen" '
-        + 'onclick="deleteOrderFile(' + f.id + ')">&times;</button>'
+        + 'onclick="deleteOrderFile(' + orderId + ',' + f.id + ')">&times;</button>'
         + '</div>'
     ).join('');
 }
 
-async function openOrder(id) {
+/* Auftrag inline aufklappen und Inhalt (Text + Dateien) laden */
+async function showOrderEdit(id) {
+    const editRow = document.getElementById('oedit-' + id);
+    if (!editRow) return;
+    editRow.classList.remove('hidden');
     const res = await api('get_order', { id });
     if (!res.success) { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); return; }
     const o = res.data;
-    currentOrderId = o.id;
-
-    document.getElementById('orderViewTitle').textContent = o.customer_name || 'Auftrag';
-    document.getElementById('orderViewMeta').textContent  = 'Erfasst: ' + fmtCreated(o.created_at);
-    document.getElementById('orderViewBody').innerHTML     = o.body || '';
-    renderOrderFiles(o.files || []);
-
-    const msg = document.getElementById('orderViewMsg');
-    msg.textContent = '';
-    msg.className   = 'order-msg';
-    const nf = document.getElementById('orderViewNewFiles');
-    if (nf) nf.value = '';
-
-    document.getElementById('orderView').classList.remove('hidden');
+    document.getElementById('oeditBody-' + id).innerHTML  = o.body || '';
+    document.getElementById('oeditFiles-' + id).innerHTML = orderFileListHtml(id, o.files || []);
+    const nf = document.getElementById('oeditNewFiles-' + id); if (nf) nf.value = '';
+    const msg = document.getElementById('oeditMsg-' + id); if (msg) { msg.textContent = ''; msg.className = 'order-msg'; }
 }
 
-function closeOrderView() {
-    document.getElementById('orderView').classList.add('hidden');
-    currentOrderId = null;
+function hideOrderEdit(id) {
+    const r = document.getElementById('oedit-' + id);
+    if (r) r.classList.add('hidden');
 }
 
-async function deleteOrderFile(fileId) {
+async function deleteOrderFile(orderId, fileId) {
     if (!await Dialog.confirm('Diese Datei löschen?', { danger: true })) return;
     const res = await api('delete_order_file', { id: fileId });
-    if (res.success && currentOrderId) {
-        openOrder(currentOrderId);
-    } else if (!res.success) {
+    if (res.success) {
+        const g = await api('get_order', { id: orderId });
+        if (g.success) document.getElementById('oeditFiles-' + orderId).innerHTML = orderFileListHtml(orderId, g.data.files || []);
+    } else {
         Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
     }
+}
+
+async function saveOrderInline(id) {
+    const msg = document.getElementById('oeditMsg-' + id);
+    msg.className = 'order-msg'; msg.textContent = 'Speichern …';
+
+    const fd = new FormData();
+    fd.append('id', id);
+    fd.append('body', document.getElementById('oeditBody-' + id).innerHTML);
+    const nf = document.getElementById('oeditNewFiles-' + id);
+    for (const f of nf.files) fd.append('files[]', f);
+
+    const res = await apiForm('update_order', fd);
+    if (res.success) {
+        nf.value = '';
+        const g = await api('get_order', { id });
+        if (g.success) document.getElementById('oeditFiles-' + id).innerHTML = orderFileListHtml(id, g.data.files || []);
+        msg.textContent = 'Gespeichert.'; msg.classList.add('ok');
+    } else {
+        msg.textContent = res.error || 'Fehler beim Speichern.'; msg.classList.add('err');
+    }
+}
+
+async function completeOrderInline(id) {
+    if (!await Dialog.confirm('Auftrag als erledigt markieren?')) return;
+    const res = await api('complete_order', { id });
+    if (res.success) location.reload();
+    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+}
+
+/* Zwei-Schritt-Löschen (wie bei Arbeitszeit) */
+function showOrderDeleteConfirm(id) {
+    document.getElementById('oactions-' + id).classList.add('hidden');
+    document.getElementById('oactions-confirm-' + id).classList.remove('hidden');
+}
+function cancelOrderDelete(id) {
+    document.getElementById('oactions-confirm-' + id).classList.add('hidden');
+    document.getElementById('oactions-' + id).classList.remove('hidden');
+}
+async function confirmOrderDelete(id) {
+    const res = await api('delete_order', { id });
+    if (res.success) location.reload();
+    else { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); cancelOrderDelete(id); }
 }
 
 /* „Bearbeitet" – Auftrag heute als bearbeitet markieren (bis morgen ausblenden) */
@@ -704,51 +729,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 orderMsg.textContent  = res.error || 'Fehler beim Speichern.';
                 orderMsg.classList.add('err');
             }
-        });
-    }
-
-    /* ---- Aufträge: Detailansicht ---- */
-    const orderViewClose    = document.getElementById('orderViewClose');
-    const orderSaveEditBtn  = document.getElementById('orderSaveEditBtn');
-    const orderCompleteBtn  = document.getElementById('orderCompleteBtn');
-    const orderViewBody     = document.getElementById('orderViewBody');
-    const orderViewNewFiles = document.getElementById('orderViewNewFiles');
-    const orderViewMsg      = document.getElementById('orderViewMsg');
-
-    if (orderViewClose) orderViewClose.addEventListener('click', closeOrderView);
-
-    if (orderSaveEditBtn) {
-        orderSaveEditBtn.addEventListener('click', async () => {
-            if (!currentOrderId) return;
-            orderSaveEditBtn.disabled = true;
-            orderViewMsg.className   = 'order-msg';
-            orderViewMsg.textContent = 'Speichern …';
-
-            const fd = new FormData();
-            fd.append('id', currentOrderId);
-            fd.append('body', orderViewBody.innerHTML);
-            for (const f of orderViewNewFiles.files) fd.append('files[]', f);
-
-            const res = await apiForm('update_order', fd);
-            orderSaveEditBtn.disabled = false;
-            if (res.success) {
-                await openOrder(currentOrderId); // Dateiliste/Feld auffrischen
-                orderViewMsg.textContent = 'Gespeichert.';
-                orderViewMsg.classList.add('ok');
-            } else {
-                orderViewMsg.textContent = res.error || 'Fehler beim Speichern.';
-                orderViewMsg.classList.add('err');
-            }
-        });
-    }
-
-    if (orderCompleteBtn) {
-        orderCompleteBtn.addEventListener('click', async () => {
-            if (!currentOrderId) return;
-            if (!await Dialog.confirm('Auftrag als erledigt markieren?')) return;
-            const res = await api('complete_order', { id: currentOrderId });
-            if (res.success) location.reload();
-            else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
         });
     }
 

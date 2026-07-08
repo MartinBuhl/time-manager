@@ -422,6 +422,18 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    case 'delete_order':
+        requireAuth();
+        verifyCsrf();
+
+        $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
+
+        db()->prepare('UPDATE tm_orders SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL')
+            ->execute([$orderId]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
     case 'delete_order_file':
         requireAuth();
         verifyCsrf();

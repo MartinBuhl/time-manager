@@ -536,7 +536,7 @@ function fmtDate(string $dt): string
     <section class="orders-section">
 
         <div class="entries-header">
-            <span class="entries-header-title">Auftrag erfassen</span>
+            <span class="entries-header-title">Aufträge</span>
         </div>
 
         <div class="order-form">
@@ -573,14 +573,18 @@ function fmtDate(string $dt): string
             </div>
         </div>
 
-        <div class="entries-header" style="margin-top:24px">
-            <span class="entries-header-title">Bearbeitungsliste</span>
-            <span class="entries-meta">&ndash; ältester Auftrag je Kunde zuerst</span>
-        </div>
+        <div style="margin-top:24px"></div>
 
         <?php if (empty($processingOrders)): ?>
             <p class="empty-message" id="ordersEmpty">Keine offenen Aufträge.</p>
         <?php endif; ?>
+<?php
+$icoPencil = '<svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z"/></svg>';
+$icoTrash  = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>';
+$icoCheck  = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true"><path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg>';
+$icoX      = '<svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>';
+$ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv';
+?>
         <div class="table-wrapper">
             <table class="entries-table orders-table"<?= empty($processingOrders) ? ' style="display:none"' : '' ?> id="ordersTable">
                 <thead>
@@ -591,15 +595,51 @@ function fmtDate(string $dt): string
                     </tr>
                 </thead>
                 <tbody id="ordersTbody">
-                <?php foreach ($processingOrders as $o): ?>
-                    <tr class="entry-row order-row" data-id="<?= (int)$o['id'] ?>"
-                        onclick="openOrder(<?= (int)$o['id'] ?>)">
+                <?php foreach ($processingOrders as $o): $oid = (int)$o['id']; ?>
+                    <tr class="entry-row" id="orow-<?= $oid ?>" data-id="<?= $oid ?>">
                         <td><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></td>
                         <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($o['created_at']))) ?></td>
                         <td style="text-align:right;white-space:nowrap">
-                            <button type="button" class="btn" onclick="markWorked(event, <?= (int)$o['id'] ?>)"
-                                    title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
-                            <span style="color:var(--text-muted);margin-left:6px">›</span>
+                            <div style="display:inline-flex;gap:6px;align-items:center">
+                                <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
+                                        title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
+                                <span class="actions-normal" id="oactions-<?= $oid ?>">
+                                    <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $oid ?>)" title="Bearbeiten"><?= $icoPencil ?></button>
+                                    <button type="button" class="btn-icon btn-icon--danger" onclick="showOrderDeleteConfirm(<?= $oid ?>)" title="Löschen"><?= $icoTrash ?></button>
+                                </span>
+                                <span class="actions-confirm hidden" id="oactions-confirm-<?= $oid ?>">
+                                    <button type="button" class="btn-icon btn-icon--confirm" onclick="confirmOrderDelete(<?= $oid ?>)" title="Löschen bestätigen"><?= $icoCheck ?></button>
+                                    <button type="button" class="btn-icon" onclick="cancelOrderDelete(<?= $oid ?>)" title="Abbrechen"><?= $icoX ?></button>
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr id="oedit-<?= $oid ?>" class="edit-row hidden">
+                        <td colspan="3">
+                            <div style="display:flex;flex-direction:column;gap:10px;padding:4px 2px">
+                                <div class="rte-wrap">
+                                    <div class="rte-toolbar">
+                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
+                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                                    </div>
+                                    <div class="rte-body" id="oeditBody-<?= $oid ?>" contenteditable="true"></div>
+                                </div>
+                                <div class="order-view-files" id="oeditFiles-<?= $oid ?>"></div>
+                                <div class="order-upload">
+                                    <input type="file" id="oeditNewFiles-<?= $oid ?>" multiple accept="<?= $ordAccept ?>">
+                                    <span class="order-hint">weitere Dateien anhängen</span>
+                                </div>
+                                <div class="order-view-actions">
+                                    <button type="button" class="btn btn--primary" onclick="saveOrderInline(<?= $oid ?>)">Speichern</button>
+                                    <button type="button" class="btn" onclick="completeOrderInline(<?= $oid ?>)"
+                                            style="background:#27ae60;color:#fff;border-color:#27ae60">Erledigt</button>
+                                    <button type="button" class="btn" onclick="hideOrderEdit(<?= $oid ?>)">Schließen</button>
+                                    <span class="order-msg" id="oeditMsg-<?= $oid ?>"></span>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -610,42 +650,6 @@ function fmtDate(string $dt): string
     </section>
 
 </div><!-- .app -->
-
-<!-- ---- AUFTRAG-DETAIL ------------------------------------ -->
-<div id="orderView" class="settings-view hidden">
-    <div class="settings-inner">
-        <div class="settings-topbar">
-            <strong id="orderViewTitle">Auftrag</strong>
-            <button type="button" class="btn" id="orderViewClose">Schließen</button>
-        </div>
-        <div class="order-view-meta" id="orderViewMeta"></div>
-
-        <div class="rte-wrap" style="margin-top:10px">
-            <div class="rte-toolbar">
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
-            </div>
-            <div class="rte-body" id="orderViewBody" contenteditable="true"></div>
-        </div>
-
-        <div class="order-view-files" id="orderViewFiles"></div>
-
-        <div class="order-upload" style="margin-top:10px">
-            <input type="file" id="orderViewNewFiles" multiple
-                   accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
-            <span class="order-hint">weitere Dateien anhängen</span>
-        </div>
-
-        <div class="order-view-actions">
-            <button type="button" class="btn btn--primary" id="orderSaveEditBtn">Speichern</button>
-            <button type="button" class="btn" id="orderCompleteBtn">Erledigt</button>
-            <span id="orderViewMsg" class="order-msg"></span>
-        </div>
-    </div>
-</div>
 <?php endif; ?>
 
 <script src="assets/dialog.js"></script>
