@@ -468,6 +468,17 @@ select:focus {
 .order-msg.err { color: #c0392b; }
 .order-msg.ok  { color: #27ae60; }
 .order-row { cursor: pointer; }
+.ord-cust .ord-date { display: block; font-size: 11px; color: var(--text-muted); }
+.ord-cust .ord-name { display: block; }
+@media (max-width: 575px) {
+    .orders-table .ord-cust { width: 80px; }
+    .orders-table .ord-cust .ord-date,
+    .orders-table .ord-cust .ord-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
 .order-view-meta { font-size: 12px; color: var(--text-muted); }
 .order-view-files { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .order-file-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
@@ -663,7 +674,6 @@ select:focus {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
-    min-width: 420px;
 }
 
 .entries-table th {

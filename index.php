@@ -589,16 +589,17 @@ $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.
             <table class="entries-table orders-table"<?= empty($processingOrders) ? ' style="display:none"' : '' ?> id="ordersTable">
                 <thead>
                     <tr>
-                        <th>Kunde</th>
-                        <th>Erfasst</th>
+                        <th class="ord-cust">Kunde</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="ordersTbody">
                 <?php foreach ($processingOrders as $o): $oid = (int)$o['id']; ?>
                     <tr class="entry-row" id="orow-<?= $oid ?>" data-id="<?= $oid ?>">
-                        <td><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></td>
-                        <td style="white-space:nowrap"><?= h(date('d.m.Y', strtotime($o['created_at']))) ?></td>
+                        <td class="ord-cust">
+                            <span class="ord-date"><?= h(date('d.m.', strtotime($o['created_at']))) ?></span>
+                            <span class="ord-name"><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></span>
+                        </td>
                         <td style="text-align:right;white-space:nowrap">
                             <div style="display:inline-flex;gap:6px;align-items:center">
                                 <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
@@ -615,7 +616,7 @@ $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.
                         </td>
                     </tr>
                     <tr id="oedit-<?= $oid ?>" class="edit-row hidden">
-                        <td colspan="3">
+                        <td colspan="2">
                             <div style="display:flex;flex-direction:column;gap:10px;padding:4px 2px">
                                 <div class="rte-wrap">
                                     <div class="rte-toolbar">
