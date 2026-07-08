@@ -547,27 +547,29 @@ function fmtDate(string $dt): string
                 <?php endforeach; ?>
             </select>
 
-            <div class="rte-wrap">
-                <div class="rte-toolbar">
-                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
-                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
-                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
-                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
-                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+            <div id="orderFields" style="display:none;flex-direction:column;gap:10px">
+                <div class="rte-wrap">
+                    <div class="rte-toolbar">
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                    </div>
+                    <div class="rte-body" id="orderBody" contenteditable="true"
+                         data-placeholder="Mail/WhatsApp-Text hier einfügen oder schreiben …"></div>
                 </div>
-                <div class="rte-body" id="orderBody" contenteditable="true"
-                     data-placeholder="Mail/WhatsApp-Text hier einfügen oder schreiben …"></div>
-            </div>
 
-            <div class="order-upload">
-                <input type="file" id="orderFiles" multiple
-                       accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
-                <span class="order-hint">Bilder, PDF, Office – max. 25&nbsp;MB pro Datei</span>
-            </div>
+                <div class="order-upload">
+                    <input type="file" id="orderFiles" multiple
+                           accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
+                    <span class="order-hint">Bilder, PDF, Office – max. 25&nbsp;MB pro Datei</span>
+                </div>
 
-            <div class="order-form-actions">
-                <button type="button" class="btn btn--primary" id="orderSaveBtn">Auftrag speichern</button>
-                <span id="orderMsg" class="order-msg"></span>
+                <div class="order-form-actions">
+                    <button type="button" class="btn btn--primary" id="orderSaveBtn">Auftrag speichern</button>
+                    <span id="orderMsg" class="order-msg"></span>
+                </div>
             </div>
         </div>
 

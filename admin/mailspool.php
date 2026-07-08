@@ -81,7 +81,7 @@ function fmtDt($dt) {
 }
 .modal-backdrop.show { display: flex; }
 .modal {
-    background: #fff;
+    background: var(--card-bg);
     color: var(--text);
     border-radius: 6px;
     max-width: 760px;

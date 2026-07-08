@@ -663,6 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const orderFilesInput = document.getElementById('orderFiles');
     const orderSaveBtn    = document.getElementById('orderSaveBtn');
     const orderMsg        = document.getElementById('orderMsg');
+    const orderFields     = document.getElementById('orderFields');
+
+    if (orderCustomer && orderFields) {
+        orderCustomer.addEventListener('change', () => {
+            orderFields.style.display = orderCustomer.value ? 'flex' : 'none';
+        });
+    }
 
     if (orderSaveBtn) {
         orderSaveBtn.addEventListener('click', async () => {
