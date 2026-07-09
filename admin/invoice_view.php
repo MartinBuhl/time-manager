@@ -25,7 +25,7 @@ if (!$invoice) { header('Location: invoices.php'); exit; }
 // Items from tm_invoice_items (may be empty for old invoices)
 $stmt = db()->prepare(
     'SELECT date, activity, comment, duration_minutes
-     FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
+     FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1 ORDER BY sort_order, id'
 );
 $stmt->execute([$invoiceId]);
 $items = $stmt->fetchAll();

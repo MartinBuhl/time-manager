@@ -120,7 +120,7 @@ function recalcInvoiceTotals(int $invoiceId): array {
         ];
     }
 
-    $rows  = $pdo->prepare('SELECT duration_minutes FROM tm_invoice_items WHERE invoice_id = ?');
+    $rows  = $pdo->prepare('SELECT duration_minutes FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1');
     $rows->execute([$invoiceId]);
 
     $amountNet = 0.0; $totalRoundedH = 0.0;
@@ -958,7 +958,7 @@ switch ($action) {
 
         $stmt = db()->prepare(
             'SELECT id, date, activity, comment, duration_minutes
-             FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
+             FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1 ORDER BY sort_order, id'
         );
         $stmt->execute([$invoiceId]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1020,7 +1020,7 @@ switch ($action) {
 
         $stmt = db()->prepare(
             'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
-             FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
+             FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1 ORDER BY sort_order, id'
         );
         $stmt->execute([$invoiceId]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1188,6 +1188,21 @@ switch ($action) {
         jsonOk(['totals' => recalcInvoiceTotals($invoiceId)]);
 
     // ----------------------------------------------------------------
+    case 'toggle_invoice_item_visible':
+        $id      = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $visible = (int)($_POST['visible'] ?? 1) === 1 ? 1 : 0;
+        if (!$id) { jsonErr('Ungültige ID.'); }
+
+        $r = db()->prepare('SELECT invoice_id FROM tm_invoice_items WHERE id = ? LIMIT 1');
+        $r->execute([$id]);
+        $invoiceId = (int)$r->fetchColumn();
+        if (!$invoiceId) { jsonErr('Posten nicht gefunden.'); }
+
+        db()->prepare('UPDATE tm_invoice_items SET visible = ? WHERE id = ?')->execute([$visible, $id]);
+
+        jsonOk(['totals' => recalcInvoiceTotals($invoiceId)]);
+
+    // ----------------------------------------------------------------
     case 'update_invoice_meta':
         $invoiceId   = filter_var($_POST['invoice_id'] ?? '', FILTER_VALIDATE_INT);
         if (!$invoiceId) { jsonErr('Ungültige Rechnungs-ID.'); }
@@ -1295,7 +1310,7 @@ switch ($action) {
         // Rechnungs-Stammdaten neu aufbauen – NICHT aus aktuellen Kundendaten.
         $itemStmt = db()->prepare(
             'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
-             FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC'
+             FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1 ORDER BY sort_order ASC'
         );
         $itemStmt->execute([$spool['invoice_id']]);
         $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1365,7 +1380,7 @@ switch ($action) {
 
             $itemStmt = db()->prepare(
                 'SELECT date, start_datetime, end_datetime, activity, comment, project, duration_minutes
-                 FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order ASC'
+                 FROM tm_invoice_items WHERE invoice_id = ? AND visible = 1 ORDER BY sort_order ASC'
             );
             $itemStmt->execute([$spool['invoice_id']]);
             $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);

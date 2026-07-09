@@ -32,7 +32,7 @@ $mailTemplateHtml  = $invoice['mail_template_html']  ?? '';
 $mailTemplatePlain = $invoice['mail_template_plain'] ?? '';
 
 $stmt = db()->prepare(
-    'SELECT id, date, activity, comment, duration_minutes, sort_order
+    'SELECT id, date, activity, comment, duration_minutes, sort_order, visible
      FROM tm_invoice_items WHERE invoice_id = ? ORDER BY sort_order, id'
 );
 $stmt->execute([$invoiceId]);
@@ -123,6 +123,8 @@ $amountGross  = (float)$invoice['amount_gross'];
 .col-eur  { width:90px; text-align:right; }
 .col-act  { width:200px; }
 .items-foot td { border-top:2px solid #cbd3dc; font-weight:700; color:#1e293b; padding-top:8px; }
+tr.item-hidden td { opacity:0.4; }
+tr.item-hidden td:first-child { opacity:1; }
 .meta-form { background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
              padding:16px 20px; margin-bottom:20px; }
 .meta-form h3 { margin:0 0 12px; font-size:14px; }
@@ -181,7 +183,7 @@ $amountGross  = (float)$invoice['amount_gross'];
             </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-            <button class="btn btn--primary" id="regenBtn">PDF neu erstellen</button>
+            <a href="invoice_view.php?invoice_id=<?= (int)$invoiceId ?>" class="btn">Vorschau</a>
             <a href="invoices.php" class="btn-logout">&#8592; Rechnungen</a>
         </div>
     </div>
@@ -190,7 +192,7 @@ $amountGross  = (float)$invoice['amount_gross'];
 
         <div class="summary-bar" id="summaryBar">
             <span>Kunde: <strong><?= h($invoice['customer_name'] ?? '—') ?></strong></span>
-            <span><strong id="sumItems"><?= count($items) ?></strong> Posten</span>
+            <span><strong id="sumItems"><?= count(array_filter($items, fn($it) => (int)$it['visible'] === 1)) ?></strong> Posten</span>
             <span><strong id="sumH"><?= fmtH($totalMinutes) ?></strong></span>
             <span>Netto: <strong id="sumNet"><?= fmtEur($amountNet) ?></strong></span>
             <span>Brutto: <strong id="sumGross"><?= fmtEur($amountGross) ?></strong></span>
@@ -306,6 +308,7 @@ $amountGross  = (float)$invoice['amount_gross'];
             <table class="entries-table" id="itemsTable">
                 <thead>
                     <tr>
+                        <th style="width:40px;text-align:center" title="Auf der Rechnung anzeigen">Anz.</th>
                         <th>Datum</th>
                         <th>Tätigkeit &amp; Kommentar</th>
                         <th class="col-min">Min</th>
@@ -319,7 +322,10 @@ $amountGross  = (float)$invoice['amount_gross'];
                     $itemH   = (int)$item['duration_minutes'] / 60;
                     $itemEur = round($itemH * $rate, 2);
                 ?>
-                    <tr id="row-<?= (int)$item['id'] ?>">
+                    <tr id="row-<?= (int)$item['id'] ?>"<?= (int)$item['visible'] === 0 ? ' class="item-hidden"' : '' ?>>
+                        <td style="text-align:center">
+                            <input type="checkbox" class="ei-visible" onchange="toggleItemVisible(<?= (int)$item['id'] ?>, this.checked)"<?= (int)$item['visible'] === 1 ? ' checked' : '' ?>>
+                        </td>
                         <td><?= h(fmtDate($item['date'])) ?></td>
                         <td>
                             <?= h($item['activity']) ?>
@@ -336,6 +342,7 @@ $amountGross  = (float)$invoice['amount_gross'];
                         </td>
                     </tr>
                     <tr id="edit-<?= (int)$item['id'] ?>" class="edit-row hidden">
+                        <td></td>
                         <td><input type="date" class="ei-date" value="<?= h($item['date']) ?>"></td>
                         <td>
                             <input type="text" class="ei-activity" value="<?= h($item['activity']) ?>" placeholder="Tätigkeit">
@@ -350,10 +357,10 @@ $amountGross  = (float)$invoice['amount_gross'];
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
-                <?php $itemsSumMin = array_sum(array_map(fn($it) => (int)$it['duration_minutes'], $items)); ?>
+                <?php $itemsSumMin = array_sum(array_map(fn($it) => (int)$it['visible'] ? (int)$it['duration_minutes'] : 0, $items)); ?>
                 <tfoot>
                     <tr class="items-foot">
-                        <td colspan="2" style="text-align:right">Summe</td>
+                        <td colspan="3" style="text-align:right">Summe</td>
                         <td class="col-min" id="footSumMin"><?= $itemsSumMin ?></td>
                         <td class="col-h" id="footSumH"><?= number_format($itemsSumMin / 60, 2, ',', '.') ?></td>
                         <td class="col-eur"></td>
@@ -411,15 +418,42 @@ function rowCount() {
     return document.querySelectorAll('#itemsTable tbody tr[id^="row-"]').length;
 }
 
-// Summenzeile (Minuten + Stunden) aus den sichtbaren Posten-Zeilen aktualisieren
+// Zahl der auf der Rechnung sichtbaren (angehakten) Posten
+function visibleRowCount() {
+    let n = 0;
+    document.querySelectorAll('#itemsTable tbody tr[id^="row-"]').forEach(function(row) {
+        const cb = row.querySelector('.ei-visible');
+        if (!cb || cb.checked) n++;
+    });
+    return n;
+}
+
+// Summenzeile (Minuten + Stunden) nur aus den angehakten Posten aktualisieren
 function recalcItemsFooter() {
     if (!document.getElementById('footSumMin')) return;
     let sum = 0;
-    document.querySelectorAll('#itemsTable tbody tr[id^="row-"] td.col-min').forEach(function(td) {
-        sum += parseInt(td.textContent, 10) || 0;
+    document.querySelectorAll('#itemsTable tbody tr[id^="row-"]').forEach(function(row) {
+        const cb = row.querySelector('.ei-visible');
+        if (cb && !cb.checked) return;
+        const td = row.querySelector('td.col-min');
+        if (td) sum += parseInt(td.textContent, 10) || 0;
     });
     document.getElementById('footSumMin').textContent = sum;
     document.getElementById('footSumH').textContent   = (sum / 60).toFixed(2).replace('.', ',');
+}
+
+// Posten auf der Rechnung ein-/ausblenden
+async function toggleItemVisible(id, checked) {
+    const data = await apiCall('toggle_invoice_item_visible', { id, visible: checked ? 1 : 0 });
+    if (data.success) {
+        document.getElementById('row-' + id)?.classList.toggle('item-hidden', !checked);
+        updateSummary(data.data.totals, visibleRowCount());
+        recalcItemsFooter();
+    } else {
+        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
+        const cb = document.querySelector('#row-' + id + ' .ei-visible');
+        if (cb) cb.checked = !checked;
+    }
 }
 
 async function saveItem(id) {
@@ -440,13 +474,13 @@ async function saveItem(id) {
         const amount = Math.round(h * RATE * 100) / 100;
         const vRow   = document.getElementById('row-' + id);
         const cells  = vRow.querySelectorAll('td');
-        cells[0].textContent = fmtDate(date);
-        cells[1].innerHTML   = escHtml(activity) + (comment ? '<br><small style="color:var(--text-muted)">' + escHtml(comment) + '</small>' : '');
-        cells[2].textContent = minutes;
-        cells[3].textContent = (minutes / 60).toFixed(2).replace('.', ',');
-        cells[4].textContent = fmtEur(amount);
+        cells[1].textContent = fmtDate(date);
+        cells[2].innerHTML   = escHtml(activity) + (comment ? '<br><small style="color:var(--text-muted)">' + escHtml(comment) + '</small>' : '');
+        cells[3].textContent = minutes;
+        cells[4].textContent = (minutes / 60).toFixed(2).replace('.', ',');
+        cells[5].textContent = fmtEur(amount);
         hideEdit(id);
-        updateSummary(data.data.totals, rowCount());
+        updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
         Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
@@ -459,7 +493,7 @@ async function deleteItem(id) {
     if (data.success) {
         document.getElementById('row-'  + id)?.remove();
         document.getElementById('edit-' + id)?.remove();
-        updateSummary(data.data.totals, rowCount());
+        updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
         Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
@@ -493,6 +527,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         const vRow = document.createElement('tr');
         vRow.id    = 'row-' + id;
         vRow.innerHTML =
+            '<td style="text-align:center"><input type="checkbox" class="ei-visible" onchange="toggleItemVisible(' + id + ', this.checked)" checked></td>' +
             '<td>' + fmtDate(date) + '</td>' +
             '<td>' + escHtml(activity) + (comment ? '<br><small style="color:var(--text-muted)">' + escHtml(comment) + '</small>' : '') + '</td>' +
             '<td class="col-min">' + minutes + '</td>' +
@@ -507,6 +542,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         eRow.id        = 'edit-' + id;
         eRow.className = 'edit-row hidden';
         eRow.innerHTML =
+            '<td></td>' +
             '<td><input type="date" class="ei-date" value="' + date + '"></td>' +
             '<td><input type="text" class="ei-activity" value="' + escAttr(activity) + '" placeholder="Tätigkeit">' +
                 '<input type="text" class="ei-comment" value="' + escAttr(comment) + '" placeholder="Kommentar" style="margin-top:4px"></td>' +
@@ -525,7 +561,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         document.getElementById('addMinutes').value  = '';
         msg.textContent = '';
 
-        updateSummary(data.data.totals, rowCount());
+        updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
         msg.style.color = '#c0392b';
@@ -543,11 +579,12 @@ function createTableBody() {
     wrapper.innerHTML =
         '<table class="entries-table" id="itemsTable">' +
         '<thead><tr>' +
+        '<th style="width:40px;text-align:center">Anz.</th>' +
         '<th>Datum</th><th>Tätigkeit &amp; Kommentar</th>' +
         '<th class="col-min">Min</th><th class="col-h">Std.</th><th class="col-eur">Betrag</th><th></th>' +
         '</tr></thead><tbody></tbody>' +
         '<tfoot><tr class="items-foot">' +
-        '<td colspan="2" style="text-align:right">Summe</td>' +
+        '<td colspan="3" style="text-align:right">Summe</td>' +
         '<td class="col-min" id="footSumMin">0</td>' +
         '<td class="col-h" id="footSumH">0,00</td>' +
         '<td class="col-eur"></td><td></td>' +
@@ -555,29 +592,6 @@ function createTableBody() {
     section.appendChild(wrapper);
     return wrapper.querySelector('tbody');
 }
-
-document.getElementById('regenBtn').addEventListener('click', async function() {
-    const btn = this;
-    btn.disabled    = true;
-    btn.textContent = 'Wird erstellt…';
-
-    const data = await apiCall('regenerate_invoice', { invoice_id: INVOICE_ID });
-
-    if (data.success) {
-        btn.textContent = 'PDF erstellt ✓';
-        if (data.data.totals) updateSummary(data.data.totals, rowCount());
-        if (data.data.pdf_file) {
-            setTimeout(() => {
-                window.open('invoice_download.php?type=pdf&file=' + encodeURIComponent(data.data.pdf_file), '_blank', 'noopener');
-            }, 300);
-        }
-        setTimeout(() => { btn.disabled = false; btn.textContent = 'PDF neu erstellen'; }, 3000);
-    } else {
-        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
-        btn.disabled    = false;
-        btn.textContent = 'PDF neu erstellen';
-    }
-});
 
 function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

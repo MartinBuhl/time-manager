@@ -152,6 +152,7 @@ function tableSql(): array
             `comment`          TEXT         DEFAULT NULL,
             `duration_minutes` INT          NOT NULL,
             `sort_order`       INT          NOT NULL DEFAULT 0,
+            `visible`          TINYINT(1)   NOT NULL DEFAULT 1,
             PRIMARY KEY (`id`),
             KEY `idx_invoice_id` (`invoice_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
