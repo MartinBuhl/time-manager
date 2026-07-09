@@ -661,7 +661,7 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                         <td colspan="2">
                             <div class="suborder-list">
                                 <?php foreach ($custOrders as $so): $soid = (int)$so['id']; ?>
-                                <div class="suborder">
+                                <div class="suborder" id="suborder-<?= $soid ?>">
                                     <div class="suborder-head">
                                         <span class="suborder-date"><?= h(date('d.m.', strtotime($so['created_at']))) ?></span>
                                         <span class="suborder-preview"><?= h(orderPreview($so['body'])) ?: '<i>(kein Text)</i>' ?></span>

@@ -119,8 +119,18 @@ function cancelSubDelete(id) {
 }
 async function confirmSubDelete(id) {
     const res = await api('delete_order', { id });
-    if (res.success) location.reload();
-    else { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); cancelSubDelete(id); }
+    if (res.success) {
+        const el   = document.getElementById('suborder-' + id);
+        const list = el ? el.closest('.suborder-list') : null;
+        if (el) el.remove();
+        // Bleibt die Unterliste leer, kurzen Hinweis zeigen (Liste bleibt offen)
+        if (list && !list.querySelector('.suborder')) {
+            list.innerHTML = '<div class="order-hint" style="padding:6px">Keine offenen Aufträge.</div>';
+        }
+    } else {
+        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        cancelSubDelete(id);
+    }
 }
 
 /* Liste aller Aufträge des Kunden auf-/zuklappen */
