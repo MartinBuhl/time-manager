@@ -123,6 +123,13 @@ async function confirmOrderDelete(id) {
     else { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); cancelOrderDelete(id); }
 }
 
+/* Liste aller Aufträge des Kunden auf-/zuklappen */
+function toggleCustomerOrders(ev, oid) {
+    if (ev) ev.stopPropagation();
+    const row = document.getElementById('osub-' + oid);
+    if (row) row.classList.toggle('hidden');
+}
+
 /* „Bearbeitet" – Auftrag heute als bearbeitet markieren (bis morgen ausblenden) */
 async function markWorked(ev, id) {
     ev.stopPropagation();

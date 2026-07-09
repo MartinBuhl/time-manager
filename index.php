@@ -43,6 +43,7 @@ require_once __DIR__ . '/includes/activities.php';
 $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
 $processingOrders = [];
+$openOrdersByCustomer = [];
 $customers    = [];
 $userState    = null;
 $todayMinutes = 0;
@@ -147,6 +148,16 @@ if ($loggedIn) {
               )
             ORDER BY o.created_at ASC, o.id ASC
         ")->fetchAll();
+
+        // Alle offenen Aufträge je Kunde (für die aufklappbare Unterliste)
+        foreach ($pdo->query("
+            SELECT id, customer_id, created_at, body
+            FROM tm_orders
+            WHERE status = 'offen' AND deleted_at IS NULL
+            ORDER BY created_at ASC, id ASC
+        ") as $row) {
+            $openOrdersByCustomer[(int)$row['customer_id']][] = $row;
+        }
     } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 }
 
@@ -161,6 +172,12 @@ function h(string $s): string
 function fmtTime(string $dt): string
 {
     return substr($dt, 11, 5);
+}
+
+function orderPreview(?string $body): string
+{
+    $txt = trim(preg_replace('/\s+/', ' ', strip_tags((string) $body)));
+    return mb_substr($txt, 0, 70);
 }
 
 function fmtDate(string $dt): string
@@ -584,6 +601,34 @@ $icoTrash  = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="tru
 $icoCheck  = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true"><path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg>';
 $icoX      = '<svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>';
 $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv';
+$icoList   = '<svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M40 48C26.7 48 16 58.7 16 72l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24L40 48zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L192 64zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zM16 232l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0c-13.3 0-24 10.7-24 24zM40 368c-13.3 0-24 10.7-24 24l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0z"/></svg>';
+
+$renderOrderEditor = function (int $id) use ($ordAccept) { ?>
+    <div style="display:flex;flex-direction:column;gap:10px;padding:4px 2px">
+        <div class="rte-wrap">
+            <div class="rte-toolbar">
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+            </div>
+            <div class="rte-body" id="oeditBody-<?= $id ?>" contenteditable="true"></div>
+        </div>
+        <div class="order-view-files" id="oeditFiles-<?= $id ?>"></div>
+        <div class="order-upload">
+            <input type="file" id="oeditNewFiles-<?= $id ?>" multiple accept="<?= $ordAccept ?>">
+            <span class="order-hint">weitere Dateien anhängen</span>
+        </div>
+        <div class="order-view-actions">
+            <button type="button" class="btn btn--primary" onclick="saveOrderInline(<?= $id ?>)">Speichern</button>
+            <button type="button" class="btn" onclick="completeOrderInline(<?= $id ?>)"
+                    style="background:#27ae60;color:#fff;border-color:#27ae60">Erledigt</button>
+            <button type="button" class="btn" onclick="hideOrderEdit(<?= $id ?>)">Schließen</button>
+            <span class="order-msg" id="oeditMsg-<?= $id ?>"></span>
+        </div>
+    </div>
+<?php };
 ?>
         <div class="table-wrapper">
             <table class="entries-table orders-table"<?= empty($processingOrders) ? ' style="display:none"' : '' ?> id="ordersTable">
@@ -594,7 +639,11 @@ $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.
                     </tr>
                 </thead>
                 <tbody id="ordersTbody">
-                <?php foreach ($processingOrders as $o): $oid = (int)$o['id']; ?>
+                <?php foreach ($processingOrders as $o):
+                    $oid = (int)$o['id'];
+                    $cid = (int)$o['customer_id'];
+                    $custOrders = $openOrdersByCustomer[$cid] ?? [];
+                ?>
                     <tr class="entry-row" id="orow-<?= $oid ?>" data-id="<?= $oid ?>">
                         <td class="ord-cust">
                             <span class="ord-date"><?= h(date('d.m.', strtotime($o['created_at']))) ?></span>
@@ -605,7 +654,7 @@ $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.
                                 <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
                                         title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
                                 <span class="actions-normal" id="oactions-<?= $oid ?>">
-                                    <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $oid ?>)" title="Bearbeiten"><?= $icoPencil ?></button>
+                                    <button type="button" class="btn-icon" onclick="toggleCustomerOrders(event, <?= $oid ?>)" title="Aufträge des Kunden"><?= $icoList ?></button>
                                     <button type="button" class="btn-icon btn-icon--danger" onclick="showOrderDeleteConfirm(<?= $oid ?>)" title="Löschen"><?= $icoTrash ?></button>
                                 </span>
                                 <span class="actions-confirm hidden" id="oactions-confirm-<?= $oid ?>">
@@ -615,31 +664,24 @@ $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.
                             </div>
                         </td>
                     </tr>
-                    <tr id="oedit-<?= $oid ?>" class="edit-row hidden">
+                    <tr id="osub-<?= $oid ?>" class="edit-row hidden">
                         <td colspan="2">
-                            <div style="display:flex;flex-direction:column;gap:10px;padding:4px 2px">
-                                <div class="rte-wrap">
-                                    <div class="rte-toolbar">
-                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
-                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
-                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
-                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
-                                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                            <div class="suborder-list">
+                                <?php foreach ($custOrders as $so): $soid = (int)$so['id']; ?>
+                                <div class="suborder">
+                                    <div class="suborder-head">
+                                        <span class="suborder-date"><?= h(date('d.m.', strtotime($so['created_at']))) ?></span>
+                                        <span class="suborder-preview"><?= h(orderPreview($so['body'])) ?: '<i>(kein Text)</i>' ?></span>
+                                        <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $soid ?>)" title="Bearbeiten"><?= $icoPencil ?></button>
                                     </div>
-                                    <div class="rte-body" id="oeditBody-<?= $oid ?>" contenteditable="true"></div>
+                                    <div id="oedit-<?= $soid ?>" class="suborder-edit hidden">
+                                        <?php $renderOrderEditor($soid); ?>
+                                    </div>
                                 </div>
-                                <div class="order-view-files" id="oeditFiles-<?= $oid ?>"></div>
-                                <div class="order-upload">
-                                    <input type="file" id="oeditNewFiles-<?= $oid ?>" multiple accept="<?= $ordAccept ?>">
-                                    <span class="order-hint">weitere Dateien anhängen</span>
-                                </div>
-                                <div class="order-view-actions">
-                                    <button type="button" class="btn btn--primary" onclick="saveOrderInline(<?= $oid ?>)">Speichern</button>
-                                    <button type="button" class="btn" onclick="completeOrderInline(<?= $oid ?>)"
-                                            style="background:#27ae60;color:#fff;border-color:#27ae60">Erledigt</button>
-                                    <button type="button" class="btn" onclick="hideOrderEdit(<?= $oid ?>)">Schließen</button>
-                                    <span class="order-msg" id="oeditMsg-<?= $oid ?>"></span>
-                                </div>
+                                <?php endforeach; ?>
+                                <?php if (empty($custOrders)): ?>
+                                <div class="order-hint" style="padding:6px">Keine offenen Aufträge.</div>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

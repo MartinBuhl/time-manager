@@ -470,6 +470,14 @@ select:focus {
 .order-row { cursor: pointer; }
 .ord-cust .ord-date { display: block; font-size: 11px; color: var(--text-muted); }
 .ord-cust .ord-name { display: block; }
+
+.suborder-list { display: flex; flex-direction: column; gap: 6px; padding: 2px; }
+.suborder { border-top: 1px solid var(--card-border); padding-top: 6px; }
+.suborder:first-child { border-top: none; padding-top: 0; }
+.suborder-head { display: flex; align-items: center; gap: 8px; }
+.suborder-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.suborder-preview { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suborder-edit { margin-top: 8px; }
 @media (max-width: 575px) {
     .orders-table .ord-cust { width: 80px; }
     .orders-table .ord-cust .ord-date,
