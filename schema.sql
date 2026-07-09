@@ -249,6 +249,7 @@ INSERT IGNORE INTO `tm_configuration`
 ('invoice_number_start',   '1',      2,  50),
 ('invoice_mail_subject',   'Rechnung {project} – {time}', 2, 60),
 ('invoice_mail_bcc',       '',                            2, 65),
+('invoice_general_info',   '',                            2, 66),
 ('site_url',             'https://ihre-domain.de/time_manager', 3, 10),
 ('mail_from',            'noreply@ihre-domain.de',           3,  20),
 ('mail_name',            'Time Manager',                     3,  30),

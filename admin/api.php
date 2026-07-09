@@ -189,7 +189,7 @@ switch ($action) {
             'invoice_iban', 'invoice_bic', 'invoice_bank', 'invoice_account_holder',
             'invoice_hourly_rate', 'invoice_tax_rate', 'invoice_payment_days',
             'invoice_number_prefix', 'invoice_number_start', 'invoice_mail_subject',
-            'invoice_mail_bcc',
+            'invoice_mail_bcc', 'invoice_general_info',
             'github_repo', 'github_token',
             'site_url', 'mail_from', 'mail_name', 'mail_bcc',
             'mail_signature_html', 'mail_signature_plain',

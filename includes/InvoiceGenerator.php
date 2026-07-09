@@ -424,6 +424,9 @@ table           { border-collapse: collapse; }
 </tr>
 </table>
 
+<?php $generalInfo = cfg('invoice_general_info', ''); if (trim($generalInfo) !== ''): ?>
+<div style="margin-top:24px; font-size:11px; color:#333; line-height:1.5; white-space:pre-wrap;"><?= $esc($generalInfo) ?></div>
+<?php endif; ?>
 
 </body>
 </html>

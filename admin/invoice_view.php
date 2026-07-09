@@ -54,6 +54,7 @@ $invIban          = cfg('invoice_iban');
 $invBic           = cfg('invoice_bic');
 $invBank          = cfg('invoice_bank');
 $invAccountHolder = cfg('invoice_account_holder');
+$invGeneralInfo   = cfg('invoice_general_info');
 $paymentDays      = (int)cfg('invoice_payment_days', '14');
 
 // Stored-at-invoice-time values (fall back to config for old invoices that predate the migration)
@@ -329,6 +330,10 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
                 <tr class="total-row"><td>Gesamtbetrag</td><td><?= fmtEur($amountGross) ?></td></tr>
             </table>
         </div>
+
+        <?php if (trim((string)$invGeneralInfo) !== ''): ?>
+        <div class="inv-general-info" style="margin-top:24px; font-size:12px; color:#333; line-height:1.5; white-space:pre-wrap;"><?= h($invGeneralInfo) ?></div>
+        <?php endif; ?>
 
         <div class="inv-push"></div>
         <div class="inv-footer">
