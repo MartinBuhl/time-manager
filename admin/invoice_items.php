@@ -136,7 +136,7 @@ $amountGross  = (float)$invoice['amount_gross'];
     font-family: var(--font);
     font-size: 13px;
     color: var(--text);
-    background: #fff;
+    background: var(--card-bg);
     transition: border-color 0.15s;
     min-width: 0;
 }
@@ -150,14 +150,6 @@ $amountGross  = (float)$invoice['amount_gross'];
 .meta-row .f-hours { width:90px; }
 .meta-row .f-net   { width:110px; }
 .meta-row textarea { width:320px; min-height:60px; resize:vertical; }
-.rte-wrap { border:1px solid var(--card-border); border-radius:var(--radius); overflow:hidden; }
-.rte-wrap:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,120,212,0.15); }
-.rte-toolbar { display:flex; gap:2px; padding:4px 6px; background:#f5f5f5; flex-wrap:wrap; }
-.rte-btn { border:1px solid transparent; border-radius:3px; background:none; cursor:pointer;
-           padding:2px 7px; font-size:13px; line-height:1.5; }
-.rte-btn:hover { background:#e0eef9; border-color:var(--accent); }
-.rte-body { min-height:90px; padding:8px 10px; font-size:13px; line-height:1.6;
-            outline:none; background:#fff; }
 .meta-form textarea {
     padding: 7px 10px;
     border: 1px solid var(--card-border);
@@ -165,7 +157,7 @@ $amountGross  = (float)$invoice['amount_gross'];
     font-family: var(--font);
     font-size: 13px;
     color: var(--text);
-    background: #fff;
+    background: var(--card-bg);
     transition: border-color 0.15s;
     min-height: 60px;
     resize: vertical;
