@@ -417,8 +417,17 @@ switch ($action) {
         $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
 
-        db()->prepare('UPDATE tm_orders SET last_worked_date = CURDATE() WHERE id = ?')
-            ->execute([$orderId]);
+        // Variante A: den ganzen Kunden für heute als bearbeitet markieren –
+        // also alle offenen Aufträge dieses Kunden.
+        $cstmt = db()->prepare('SELECT customer_id FROM tm_orders WHERE id = ?');
+        $cstmt->execute([$orderId]);
+        $custId = $cstmt->fetchColumn();
+        if ($custId !== false) {
+            db()->prepare(
+                "UPDATE tm_orders SET last_worked_date = CURDATE()
+                 WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
+            )->execute([$custId]);
+        }
         jsonOk();
 
     // ----------------------------------------------------------------

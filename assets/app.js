@@ -108,19 +108,19 @@ async function completeOrderInline(id) {
     else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
 }
 
-/* Zwei-Schritt-Löschen (wie bei Arbeitszeit) */
-function showOrderDeleteConfirm(id) {
-    document.getElementById('oactions-' + id).classList.add('hidden');
-    document.getElementById('oactions-confirm-' + id).classList.remove('hidden');
+/* Zwei-Schritt-Löschen eines Auftrags in der Kunden-Unterliste */
+function showSubDeleteConfirm(id) {
+    document.getElementById('soactions-' + id).classList.add('hidden');
+    document.getElementById('soactions-confirm-' + id).classList.remove('hidden');
 }
-function cancelOrderDelete(id) {
-    document.getElementById('oactions-confirm-' + id).classList.add('hidden');
-    document.getElementById('oactions-' + id).classList.remove('hidden');
+function cancelSubDelete(id) {
+    document.getElementById('soactions-confirm-' + id).classList.add('hidden');
+    document.getElementById('soactions-' + id).classList.remove('hidden');
 }
-async function confirmOrderDelete(id) {
+async function confirmSubDelete(id) {
     const res = await api('delete_order', { id });
     if (res.success) location.reload();
-    else { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); cancelOrderDelete(id); }
+    else { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); cancelSubDelete(id); }
 }
 
 /* Liste aller Aufträge des Kunden auf-/zuklappen */

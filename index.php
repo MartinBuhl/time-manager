@@ -653,14 +653,7 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                             <div style="display:inline-flex;gap:6px;align-items:center">
                                 <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
                                         title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
-                                <span class="actions-normal" id="oactions-<?= $oid ?>">
-                                    <button type="button" class="btn-icon" onclick="toggleCustomerOrders(event, <?= $oid ?>)" title="Aufträge des Kunden"><?= $icoList ?></button>
-                                    <button type="button" class="btn-icon btn-icon--danger" onclick="showOrderDeleteConfirm(<?= $oid ?>)" title="Löschen"><?= $icoTrash ?></button>
-                                </span>
-                                <span class="actions-confirm hidden" id="oactions-confirm-<?= $oid ?>">
-                                    <button type="button" class="btn-icon btn-icon--confirm" onclick="confirmOrderDelete(<?= $oid ?>)" title="Löschen bestätigen"><?= $icoCheck ?></button>
-                                    <button type="button" class="btn-icon" onclick="cancelOrderDelete(<?= $oid ?>)" title="Abbrechen"><?= $icoX ?></button>
-                                </span>
+                                <button type="button" class="btn-icon" onclick="toggleCustomerOrders(event, <?= $oid ?>)" title="Aufträge des Kunden"><?= $icoList ?></button>
                             </div>
                         </td>
                     </tr>
@@ -672,7 +665,14 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                                     <div class="suborder-head">
                                         <span class="suborder-date"><?= h(date('d.m.', strtotime($so['created_at']))) ?></span>
                                         <span class="suborder-preview"><?= h(orderPreview($so['body'])) ?: '<i>(kein Text)</i>' ?></span>
-                                        <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $soid ?>)" title="Bearbeiten"><?= $icoPencil ?></button>
+                                        <span class="actions-normal" id="soactions-<?= $soid ?>">
+                                            <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $soid ?>)" title="Bearbeiten"><?= $icoPencil ?></button>
+                                            <button type="button" class="btn-icon btn-icon--danger" onclick="showSubDeleteConfirm(<?= $soid ?>)" title="Löschen"><?= $icoTrash ?></button>
+                                        </span>
+                                        <span class="actions-confirm hidden" id="soactions-confirm-<?= $soid ?>">
+                                            <button type="button" class="btn-icon btn-icon--confirm" onclick="confirmSubDelete(<?= $soid ?>)" title="Löschen bestätigen"><?= $icoCheck ?></button>
+                                            <button type="button" class="btn-icon" onclick="cancelSubDelete(<?= $soid ?>)" title="Abbrechen"><?= $icoX ?></button>
+                                        </span>
                                     </div>
                                     <div id="oedit-<?= $soid ?>" class="suborder-edit hidden">
                                         <?php $renderOrderEditor($soid); ?>
