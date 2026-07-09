@@ -225,7 +225,7 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                             <a href="invoice_items.php?invoice_id=<?= (int)$inv['id'] ?>"
                                class="btn" style="font-size:11px;padding:2px 8px">Bearbeiten</a>
                             <a href="invoice_view.php?invoice_id=<?= (int)$inv['id'] ?>"
-                               class="btn btn--primary" style="font-size:11px;padding:2px 8px;margin-left:4px">Vorschau</a>
+                               class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px">Vorschau</a>
                             <?php if ($inv['pdf_file']): ?>
                                 <a href="invoice_download.php?type=pdf&file=<?= urlencode($inv['pdf_file']) ?>"
                                    class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px"
