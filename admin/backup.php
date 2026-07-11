@@ -52,8 +52,10 @@ function fmtSize(int $bytes): string
 
     <div class="admin-section">
 
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
             <button type="button" class="btn btn--primary" id="createBtn">Backup erstellen</button>
+            <label for="uploadInput" class="btn" id="uploadBtn" style="cursor:pointer">Backup hochladen</label>
+            <input type="file" id="uploadInput" accept=".zip" style="display:none">
             <span id="createMsg" class="backup-msg"></span>
         </div>
 
@@ -78,8 +80,10 @@ function fmtSize(int $bytes): string
                         <td class="col-num"><?= h(date('d.m.Y H:i:s', $b['mtime'])) ?></td>
                         <td class="col-num"><?= h(fmtSize((int)$b['size'])) ?></td>
                         <td style="white-space:nowrap">
+                            <button type="button" class="btn restore-btn" data-file="<?= h($b['name']) ?>"
+                                    style="font-size:11px;padding:2px 8px">Einspielen</button>
                             <button type="button" class="btn mail-btn" data-file="<?= h($b['name']) ?>"
-                                    style="font-size:11px;padding:2px 8px">Mail</button>
+                                    style="font-size:11px;padding:2px 8px;margin-left:4px">Mail</button>
                             <button type="button" class="btn btn--danger del-btn" data-file="<?= h($b['name']) ?>"
                                     style="font-size:11px;padding:2px 8px;margin-left:4px">Löschen</button>
                         </td>
@@ -112,8 +116,36 @@ function fmtSize(bytes) {
 }
 
 function attachRowHandlers(row) {
+    row.querySelector('.restore-btn')?.addEventListener('click', handleRestore);
     row.querySelector('.mail-btn')?.addEventListener('click', handleMail);
     row.querySelector('.del-btn')?.addEventListener('click', handleDelete);
+}
+
+function rowHtml(b) {
+    return '<td>' + escAttr(b.name) + '</td>' +
+        '<td class="col-num">' + escAttr(b.mtime) + '</td>' +
+        '<td class="col-num">' + fmtSize(b.size) + '</td>' +
+        '<td style="white-space:nowrap">' +
+            '<button type="button" class="btn restore-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px">Einspielen</button>' +
+            '<button type="button" class="btn mail-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">Mail</button>' +
+            '<button type="button" class="btn btn--danger del-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">Löschen</button>' +
+        '</td>';
+}
+
+function addBackupRow(b) {
+    document.getElementById('emptyRow')?.remove();
+    const tbody = document.querySelector('#backupTable tbody');
+    let tr = document.getElementById('row-' + b.name);
+    if (tr) {                         // vorhandene Zeile aktualisieren (Überschreiben)
+        tr.innerHTML = rowHtml(b);
+    } else {
+        tr = document.createElement('tr');
+        tr.className = 'entry-row';
+        tr.id = 'row-' + b.name;
+        tr.innerHTML = rowHtml(b);
+        tbody.insertBefore(tr, tbody.firstChild);
+    }
+    attachRowHandlers(tr);
 }
 
 // ---- Backup erstellen ----
@@ -129,24 +161,9 @@ document.getElementById('createBtn').addEventListener('click', async function() 
     try {
         const data = await apiCall('create_backup', {});
         if (data.success) {
-            const b = data.data;
-            document.getElementById('emptyRow')?.remove();
-            const tbody = document.querySelector('#backupTable tbody');
-            const tr = document.createElement('tr');
-            tr.className = 'entry-row';
-            tr.id = 'row-' + b.name;
-            tr.innerHTML =
-                '<td>' + escAttr(b.name) + '</td>' +
-                '<td class="col-num">' + escAttr(b.mtime) + '</td>' +
-                '<td class="col-num">' + fmtSize(b.size) + '</td>' +
-                '<td style="white-space:nowrap">' +
-                    '<button type="button" class="btn mail-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px">Mail</button>' +
-                    '<button type="button" class="btn btn--danger del-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">Löschen</button>' +
-                '</td>';
-            tbody.insertBefore(tr, tbody.firstChild);
-            attachRowHandlers(tr);
+            addBackupRow(data.data);
             msg.style.color = '#27ae60';
-            msg.textContent = '✓ Backup erstellt: ' + b.name;
+            msg.textContent = '✓ Backup erstellt: ' + data.data.name;
         } else {
             msg.style.color = '#c0392b';
             msg.textContent = data.error || 'Fehler beim Erstellen.';
@@ -159,6 +176,82 @@ document.getElementById('createBtn').addEventListener('click', async function() 
     btn.disabled = false;
     btn.textContent = orig;
 });
+
+// ---- Backup hochladen ----
+document.getElementById('uploadInput').addEventListener('change', async function() {
+    const input = this;
+    const file  = input.files && input.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('uploadBtn');
+    const msg = document.getElementById('createMsg');
+    const orig = btn.textContent;
+    btn.textContent = 'Wird hochgeladen…';
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.6';
+    msg.textContent = '';
+    msg.style.color = '';
+
+    try {
+        const fd = new FormData();
+        fd.append('action', 'upload_backup');
+        fd.append('file', file);
+        const res  = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: fd });
+        const data = await res.json();
+        if (data.success) {
+            addBackupRow(data.data);
+            msg.style.color = '#27ae60';
+            msg.textContent = '✓ Backup hochgeladen: ' + data.data.name;
+        } else {
+            msg.style.color = '#c0392b';
+            msg.textContent = data.error || 'Fehler beim Hochladen.';
+        }
+    } catch (e) {
+        msg.style.color = '#c0392b';
+        msg.textContent = 'Serverfehler.';
+    }
+
+    input.value = '';
+    btn.textContent = orig;
+    btn.style.pointerEvents = '';
+    btn.style.opacity = '';
+});
+
+// ---- Backup einspielen ----
+async function handleRestore(ev) {
+    const btn  = ev.currentTarget;
+    const file = btn.dataset.file;
+    if (!await Dialog.confirm(
+        'Backup „' + file + '" jetzt einspielen?\n\n' +
+        'ACHTUNG: Der gesamte aktuelle Datenbestand (Kunden, Zeiten, Rechnungen, Aufträge, Benutzer …) ' +
+        'wird durch die Daten aus diesem Backup ERSETZT.\n\n' +
+        'Vor dem Einspielen wird automatisch ein Sicherheits-Backup des aktuellen Standes ' +
+        '(tm_backup_pre_restore_…) angelegt, das du bei Bedarf zurückspielen kannst.',
+        { danger: true }
+    )) return;
+
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Spiele ein…';
+
+    try {
+        const data = await apiCall('restore_backup', { file });
+        if (data.success) {
+            await Dialog.alert('✓ Backup eingespielt (' + data.data.statements + ' Anweisungen).\n\n' +
+                'Sicherheits-Backup des vorherigen Standes: ' + (data.data.safety || '—') + '\n\n' +
+                'Die Seite wird neu geladen.');
+            location.reload();
+        } else {
+            Dialog.alert('Fehler beim Einspielen: ' + (data.error || 'Unbekannter Fehler'));
+            btn.textContent = orig;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        Dialog.alert('Serverfehler beim Einspielen.');
+        btn.textContent = orig;
+        btn.disabled = false;
+    }
+}
 
 // ---- Mail versenden ----
 async function handleMail(ev) {

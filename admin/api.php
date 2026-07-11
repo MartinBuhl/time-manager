@@ -85,6 +85,80 @@ function buildSqlDump(PDO $pdo): string {
     return $out;
 }
 
+/**
+ * Zerlegt einen SQL-Dump in einzelne Statements.
+ * Beachtet einfache/doppelte Anführungszeichen, Backslash-Escapes,
+ * doppelte Quotes ('') sowie Zeilen- und Blockkommentare, damit
+ * Semikolons innerhalb von Werten nicht fälschlich trennen.
+ *
+ * @return string[]
+ */
+function splitSqlStatements(string $sql): array {
+    $statements = [];
+    $buf = '';
+    $len = strlen($sql);
+    $inString = false;      // aktuell in einem String?
+    $quote = '';            // ' oder "
+    $i = 0;
+
+    while ($i < $len) {
+        $ch = $sql[$i];
+
+        if ($inString) {
+            $buf .= $ch;
+            if ($ch === '\\') {                 // Backslash-Escape: nächstes Zeichen roh übernehmen
+                if ($i + 1 < $len) { $buf .= $sql[$i + 1]; $i += 2; continue; }
+            } elseif ($ch === $quote) {
+                if ($i + 1 < $len && $sql[$i + 1] === $quote) { // verdoppeltes Quote
+                    $buf .= $sql[$i + 1]; $i += 2; continue;
+                }
+                $inString = false;
+            }
+            $i++;
+            continue;
+        }
+
+        // Zeilenkommentar --...  oder #...
+        if (($ch === '-' && $i + 1 < $len && $sql[$i + 1] === '-') || $ch === '#') {
+            $nl = strpos($sql, "\n", $i);
+            if ($nl === false) { break; }
+            $i = $nl + 1;
+            continue;
+        }
+        // Blockkommentar /* ... */
+        if ($ch === '/' && $i + 1 < $len && $sql[$i + 1] === '*') {
+            $end = strpos($sql, '*/', $i + 2);
+            if ($end === false) { break; }
+            $i = $end + 2;
+            continue;
+        }
+
+        if ($ch === '\'' || $ch === '"') {
+            $inString = true;
+            $quote = $ch;
+            $buf .= $ch;
+            $i++;
+            continue;
+        }
+
+        if ($ch === ';') {
+            $stmt = trim($buf);
+            if ($stmt !== '') { $statements[] = $stmt; }
+            $buf = '';
+            $i++;
+            continue;
+        }
+
+        $buf .= $ch;
+        $i++;
+    }
+
+    $stmt = trim($buf);
+    if ($stmt !== '') { $statements[] = $stmt; }
+
+    return $statements;
+}
+
 function recalcInvoiceTotals(int $invoiceId): array {
     $pdo = db();
     $inv = $pdo->prepare(
@@ -1824,6 +1898,156 @@ switch ($action) {
         if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
         if (!@unlink($path)) { jsonErr('Backup-Datei konnte nicht gelöscht werden.'); }
         jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'upload_backup':
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            $codes = [
+                UPLOAD_ERR_INI_SIZE   => 'Datei überschreitet die Server-Grenze (upload_max_filesize).',
+                UPLOAD_ERR_FORM_SIZE  => 'Datei ist zu groß.',
+                UPLOAD_ERR_PARTIAL    => 'Upload wurde abgebrochen.',
+                UPLOAD_ERR_NO_FILE    => 'Keine Datei ausgewählt.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Kein temporäres Verzeichnis auf dem Server.',
+                UPLOAD_ERR_CANT_WRITE => 'Datei konnte nicht gespeichert werden.',
+            ];
+            $err = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
+            jsonErr($codes[$err] ?? 'Upload fehlgeschlagen.');
+        }
+
+        $tmp  = $_FILES['file']['tmp_name'];
+        $orig = (string)($_FILES['file']['name'] ?? '');
+        if (strtolower((string)pathinfo($orig, PATHINFO_EXTENSION)) !== 'zip') {
+            jsonErr('Nur .zip-Backups können hochgeladen werden.');
+        }
+
+        // Inhalt prüfen: muss ein gültiges ZIP mit einer .sql-Datei sein
+        $chk = new ZipArchive();
+        if ($chk->open($tmp) !== true) {
+            jsonErr('Die Datei ist kein gültiges ZIP-Archiv.');
+        }
+        $hasSql = false;
+        for ($k = 0; $k < $chk->numFiles; $k++) {
+            if (strtolower((string)pathinfo($chk->getNameIndex($k), PATHINFO_EXTENSION)) === 'sql') {
+                $hasSql = true;
+                break;
+            }
+        }
+        $chk->close();
+        if (!$hasSql) {
+            jsonErr('Das ZIP enthält keine .sql-Datei – kein gültiges Time-Manager-Backup.');
+        }
+
+        $dir = dirname(__DIR__) . '/backups';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            jsonErr('Backup-Verzeichnis konnte nicht angelegt werden.');
+        }
+        $htaccess = $dir . '/.htaccess';
+        if (!is_file($htaccess)) {
+            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
+        }
+
+        // Zieldateiname: Originalname übernehmen, wenn er zum Muster passt und
+        // noch nicht existiert – sonst einen eindeutigen Namen erzeugen.
+        $base = basename($orig);
+        if (preg_match('/^tm_backup_[\w\-]+\.zip$/', $base) && !is_file($dir . '/' . $base)) {
+            $name = $base;
+        } else {
+            $name = 'tm_backup_' . date('Y-m-d_His') . '_upload.zip';
+            $n = 1;
+            while (is_file($dir . '/' . $name)) {
+                $name = 'tm_backup_' . date('Y-m-d_His') . '_upload' . (++$n) . '.zip';
+            }
+        }
+        $path = $dir . '/' . $name;
+
+        if (!@move_uploaded_file($tmp, $path)) {
+            jsonErr('Hochgeladene Datei konnte nicht gespeichert werden.');
+        }
+
+        jsonOk([
+            'name'  => $name,
+            'size'  => filesize($path),
+            'mtime' => date('d.m.Y H:i:s', filemtime($path)),
+        ]);
+
+    // ----------------------------------------------------------------
+    case 'restore_backup':
+        @set_time_limit(300);
+        $name = basename((string)($_POST['file'] ?? ''));
+        if (!preg_match('/^tm_backup_[\w\-]+\.zip$/', $name)) {
+            jsonErr('Ungültiger Dateiname.');
+        }
+        $path = dirname(__DIR__) . '/backups/' . $name;
+        if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
+
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) {
+            jsonErr('Backup-ZIP konnte nicht geöffnet werden.');
+        }
+        $sql = false;
+        for ($k = 0; $k < $zip->numFiles; $k++) {
+            if (strtolower((string)pathinfo($zip->getNameIndex($k), PATHINFO_EXTENSION)) === 'sql') {
+                $sql = $zip->getFromIndex($k);
+                break;
+            }
+        }
+        $zip->close();
+        if ($sql === false || trim($sql) === '') {
+            jsonErr('Im Backup wurde keine SQL-Datei gefunden.');
+        }
+
+        $statements = splitSqlStatements($sql);
+        if (empty($statements)) {
+            jsonErr('Backup enthält keine ausführbaren SQL-Anweisungen.');
+        }
+
+        $pdo = db();
+
+        // Sicherheits-Backup des AKTUELLEN Standes anlegen, bevor wir überschreiben.
+        // Schlägt es fehl, brechen wir ab – lieber kein Restore als kein Rückweg.
+        $dir = dirname(__DIR__) . '/backups';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            jsonErr('Sicherheits-Backup fehlgeschlagen: Backup-Verzeichnis nicht verfügbar.');
+        }
+        $htaccess = $dir . '/.htaccess';
+        if (!is_file($htaccess)) {
+            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
+        }
+        $safetyName = 'tm_backup_pre_restore_' . date('Y-m-d_His') . '.zip';
+        $safetyPath = $dir . '/' . $safetyName;
+        try {
+            $safetySql = buildSqlDump($pdo);
+            $zip = new ZipArchive();
+            if ($zip->open($safetyPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new \RuntimeException('ZIP-Datei konnte nicht erstellt werden.');
+            }
+            $zip->addFromString(str_replace('.zip', '.sql', $safetyName), $safetySql);
+            $zip->close();
+            if (!is_file($safetyPath) || filesize($safetyPath) === 0) {
+                throw new \RuntimeException('Sicherungsdatei ist leer.');
+            }
+        } catch (\Throwable $e) {
+            @unlink($safetyPath);
+            jsonErr('Sicherheits-Backup vor dem Einspielen fehlgeschlagen – Restore abgebrochen: '
+                . $e->getMessage());
+        }
+
+        $applied = 0;
+        try {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+            foreach ($statements as $stmt) {
+                $pdo->exec($stmt);
+                $applied++;
+            }
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        } catch (\Throwable $e) {
+            @$pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+            jsonErr('Fehler beim Einspielen (Anweisung ' . ($applied + 1) . ' von '
+                . count($statements) . '). Der vorherige Stand wurde als „' . $safetyName
+                . '" gesichert und kann erneut eingespielt werden. Fehler: ' . $e->getMessage());
+        }
+
+        jsonOk(['statements' => $applied, 'safety' => $safetyName]);
 
     // ----------------------------------------------------------------
     default:
