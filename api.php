@@ -431,6 +431,22 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    case 'reset_order_worked':
+        requireAuth();
+        verifyCsrf();
+
+        $custId = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$custId) jsonErr('Ungültige Kunden-ID.');
+
+        // "Bearbeitet"-Markierung des Kunden zurücknehmen – alle offenen
+        // Aufträge tauchen wieder in der Auftragsliste auf.
+        db()->prepare(
+            "UPDATE tm_orders SET last_worked_date = NULL
+             WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
+        )->execute([$custId]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
     case 'delete_order':
         requireAuth();
         verifyCsrf();

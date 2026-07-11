@@ -148,6 +148,22 @@ async function markWorked(ev, id) {
     else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
 }
 
+/* Liste der heute bearbeiteten Kunden auf-/zuklappen */
+function toggleWorkedList() {
+    const list  = document.getElementById('workedList');
+    const caret = document.getElementById('workedCaret');
+    if (!list) return;
+    const open = list.classList.toggle('hidden') === false;
+    if (caret) caret.innerHTML = open ? '&#9662;' : '&#9656;';
+}
+
+/* Status eines heute bearbeiteten Kunden zurücksetzen */
+async function resetWorked(customerId) {
+    const res = await api('reset_order_worked', { customer_id: customerId });
+    if (res.success) location.reload();
+    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+}
+
 /* ------------------------------------------------------------------
    Countdown
 ------------------------------------------------------------------ */

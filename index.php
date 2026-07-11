@@ -44,6 +44,7 @@ $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
+$workedCustomers = [];
 $customers    = [];
 $userState    = null;
 $todayMinutes = 0;
@@ -158,6 +159,19 @@ if ($loggedIn) {
         ") as $row) {
             $openOrdersByCustomer[(int)$row['customer_id']][] = $row;
         }
+
+        // Heute bearbeitete Kunden: alle offenen Aufträge des Kunden sind
+        // heute als bearbeitet markiert (Status kann zurückgesetzt werden).
+        $workedCustomers = $pdo->query("
+            SELECT o.customer_id, COALESCE(c.name, '') AS customer_name
+            FROM tm_orders o
+            LEFT JOIN tm_customers c ON c.id = o.customer_id
+            WHERE o.status = 'offen' AND o.deleted_at IS NULL
+            GROUP BY o.customer_id, c.name
+            HAVING SUM(o.last_worked_date IS NULL OR o.last_worked_date < CURDATE()) = 0
+               AND SUM(o.last_worked_date = CURDATE()) > 0
+            ORDER BY customer_name ASC, o.customer_id ASC
+        ")->fetchAll();
     } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 }
 
@@ -688,6 +702,22 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+
+        <div class="worked-customers"<?= empty($workedCustomers) ? ' style="display:none"' : '' ?> id="workedCustomers">
+            <button type="button" class="worked-toggle" onclick="toggleWorkedList()">
+                <span class="worked-caret" id="workedCaret">&#9656;</span>
+                <span>Heute bearbeitete Kunden (<span id="workedCount"><?= count($workedCustomers) ?></span>)</span>
+            </button>
+            <div class="worked-list hidden" id="workedList">
+                <?php foreach ($workedCustomers as $wc): $wcid = (int)$wc['customer_id']; ?>
+                <div class="worked-item" id="worked-<?= $wcid ?>">
+                    <span class="worked-name"><?= h($wc['customer_name'] !== '' ? $wc['customer_name'] : '—') ?></span>
+                    <button type="button" class="btn" onclick="resetWorked(<?= $wcid ?>)"
+                            title="Status zurücksetzen – Kunde erscheint wieder in der Auftragsliste">Status zurücksetzen</button>
+                </div>
+                <?php endforeach; ?>
+            </div>
         </div>
 
     </section>
