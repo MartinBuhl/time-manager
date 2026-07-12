@@ -2050,6 +2050,26 @@ switch ($action) {
         jsonOk(['statements' => $applied, 'safety' => $safetyName]);
 
     // ----------------------------------------------------------------
+    case 'create_demo_data':
+        require_once dirname(__DIR__) . '/includes/demo_data.php';
+        try {
+            $summary = createDemoData(db(), $userId);
+        } catch (\Throwable $e) {
+            jsonErr($e->getMessage());
+        }
+        jsonOk($summary);
+
+    // ----------------------------------------------------------------
+    case 'delete_demo_data':
+        require_once dirname(__DIR__) . '/includes/demo_data.php';
+        try {
+            $deleted = deleteDemoData(db());
+        } catch (\Throwable $e) {
+            jsonErr($e->getMessage());
+        }
+        jsonOk(['deleted' => $deleted]);
+
+    // ----------------------------------------------------------------
     default:
         jsonErr('Unbekannte Aktion.', 404);
 }

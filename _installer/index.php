@@ -474,6 +474,23 @@ if ($posted) {
                     $stmt->execute([$key, trim($_POST[$key] ?? '')]);
                 }
 
+                // Optional: Demo-Daten anlegen
+                $demoCreated = false;
+                if (!empty($_POST['create_demo'])) {
+                    require_once dirname(__DIR__) . '/includes/demo_data.php';
+                    $adminId = (int) ($pdo->query(
+                        "SELECT id FROM tm_users WHERE role = 'admin' ORDER BY id ASC LIMIT 1"
+                    )->fetchColumn() ?: 0);
+                    try {
+                        createDemoData($pdo, $adminId);
+                        $demoCreated = true;
+                    } catch (Throwable $ex) {
+                        // Demo-Daten sind optional – Installation nicht abbrechen
+                        error_log('Installer Demo-Daten: ' . $ex->getMessage());
+                    }
+                }
+                $_SESSION['inst_demo'] = $demoCreated;
+
                 file_put_contents(LOCK_FILE, date('Y-m-d H:i:s'));
                 unset($_SESSION['inst_db']);
                 $step = 6; // Fertig!
@@ -855,6 +872,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
         endwhile;
         ?>
 
+        <div class="form-group" style="margin-top:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer">
+                <input type="checkbox" name="create_demo" value="1" style="width:auto"<?= !empty($_POST['create_demo']) ? ' checked' : '' ?>>
+                <span>Demo-Daten anlegen (Beispiel-Kunde mit Arbeitszeiten, Rechnung und Aufträgen)</span>
+            </label>
+            <p class="form-hint">Praktisch zum Ausprobieren – lässt sich später unter <strong>Administration → Konfiguration</strong> jederzeit wieder löschen.</p>
+        </div>
+
         <div class="btn-row">
             <button type="submit" class="btn btn-primary">Weiter →</button>
         </div>
@@ -882,7 +907,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
         <li>Ihr Administrator-Konto wurde erstellt</li>
         <li>Ihre Firmendaten wurden gespeichert</li>
         <li>Die Datei <code>config.php</code> wurde geschrieben</li>
+        <?php if (!empty($_SESSION['inst_demo'])): ?>
+        <li>Demo-Daten wurden angelegt (später in der Konfiguration löschbar)</li>
+        <?php endif; ?>
     </ul>
+    <?php unset($_SESSION['inst_demo']); ?>
 
     <div class="alert alert-info" style="margin-bottom:24px">
         <strong>Sicherheitshinweis:</strong> Löschen oder schützen Sie das Verzeichnis

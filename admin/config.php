@@ -34,6 +34,10 @@ function cfgVal(array $map, string $key, string $default = ''): string
     return $map[$key] ?? $default;
 }
 
+// Demo-Daten-Status
+require_once dirname(__DIR__) . '/includes/demo_data.php';
+$demoExists = demoDataExists(db());
+
 // Field definitions per group
 $groups = [
     1 => [
@@ -363,6 +367,25 @@ $groups = [
         <div id="sqlResults" style="margin-top:10px"></div>
     </div>
 
+    <div class="admin-section">
+        <h2>Demo-Daten</h2>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">
+            Legt einen Demo-Kunden mit abgerechneten und offenen Arbeitszeiten, einer
+            Beispiel-Rechnung und einigen Aufträgen an. Beim Löschen werden ausschließlich
+            diese Demo-Daten entfernt – echte Daten bleiben unberührt.
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn--primary" id="demoCreateBtn" onclick="createDemo()"
+                    <?= $demoExists ? 'style="display:none"' : '' ?>>Demo-Daten anlegen</button>
+            <button class="btn btn--danger" id="demoDeleteBtn" onclick="deleteDemo()"
+                    <?= $demoExists ? '' : 'style="display:none"' ?>>Demo-Daten löschen</button>
+            <span id="demoMsg" style="font-size:12px"></span>
+        </div>
+        <p id="demoStatus" style="font-size:12px;color:var(--text-muted);margin:10px 0 0">
+            <?= $demoExists ? 'Es sind aktuell Demo-Daten vorhanden.' : 'Aktuell sind keine Demo-Daten vorhanden.' ?>
+        </p>
+    </div>
+
 </div>
 
 <script>
@@ -618,6 +641,67 @@ async function listImapFolders() {
         err.textContent = 'Serverfehler.';
         out.appendChild(err);
     }
+}
+
+// ---- Demo-Daten ----
+async function demoApi(action) {
+    const res  = await fetch('api.php', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': CSRF },
+        body: new URLSearchParams({ action })
+    });
+    return res.json();
+}
+
+async function createDemo() {
+    const btn = document.getElementById('demoCreateBtn');
+    const msg = document.getElementById('demoMsg');
+    btn.disabled = true;
+    msg.style.color = 'var(--text-muted)';
+    msg.textContent = 'Wird angelegt…';
+    try {
+        const data = await demoApi('create_demo_data');
+        if (data.success) {
+            msg.style.color = 'var(--success)';
+            msg.textContent = '✓ Demo-Daten angelegt.';
+            document.getElementById('demoCreateBtn').style.display = 'none';
+            document.getElementById('demoDeleteBtn').style.display = '';
+            document.getElementById('demoStatus').textContent = 'Es sind aktuell Demo-Daten vorhanden.';
+        } else {
+            msg.style.color = 'var(--danger)';
+            msg.textContent = 'Fehler: ' + (data.error || 'Unbekannter Fehler');
+        }
+    } catch (e) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = 'Serverfehler.';
+    }
+    btn.disabled = false;
+}
+
+async function deleteDemo() {
+    if (!await Dialog.confirm('Alle Demo-Daten (Demo-Kunde, Zeiten, Rechnung, Aufträge) jetzt löschen?', { danger: true })) return;
+    const btn = document.getElementById('demoDeleteBtn');
+    const msg = document.getElementById('demoMsg');
+    btn.disabled = true;
+    msg.style.color = 'var(--text-muted)';
+    msg.textContent = 'Wird gelöscht…';
+    try {
+        const data = await demoApi('delete_demo_data');
+        if (data.success) {
+            msg.style.color = 'var(--success)';
+            msg.textContent = '✓ Demo-Daten gelöscht.';
+            document.getElementById('demoDeleteBtn').style.display = 'none';
+            document.getElementById('demoCreateBtn').style.display = '';
+            document.getElementById('demoStatus').textContent = 'Aktuell sind keine Demo-Daten vorhanden.';
+        } else {
+            msg.style.color = 'var(--danger)';
+            msg.textContent = 'Fehler: ' + (data.error || 'Unbekannter Fehler');
+        }
+    } catch (e) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = 'Serverfehler.';
+    }
+    btn.disabled = false;
 }
 </script>
 </body>
