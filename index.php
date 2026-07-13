@@ -45,6 +45,7 @@ $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
 $workedCustomers = [];
+$activities   = ACTIVITIES;
 $customers    = [];
 $userState    = null;
 $todayMinutes = 0;
@@ -55,6 +56,9 @@ $isToday      = $viewDate === $today;
 
 if ($loggedIn) {
     $pdo = db();
+
+    /* Verwaltbare Tätigkeiten (Fallback: Konstante) */
+    $activities = getActivities($pdo);
 
     /* User role */
     $stmt = $pdo->prepare('SELECT role FROM tm_users WHERE id = ? LIMIT 1');
@@ -358,7 +362,7 @@ function fmtDate(string $dt): string
             </select>
             <select id="selectActivity" class="hidden">
                 <option value="">-- Tätigkeit wählen --</option>
-                <?php foreach (ACTIVITIES as $act): ?>
+                <?php foreach ($activities as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
                 <?php endforeach; ?>
             </select>
@@ -521,7 +525,14 @@ function fmtDate(string $dt): string
                                     <?php endforeach; ?>
                                 </select>
                                 <select class="edit-activity">
-                                    <?php foreach (ACTIVITIES as $act): ?>
+                                    <?php
+                                    // Aktuelle Tätigkeit des Eintrags erhalten, auch wenn sie
+                                    // nicht (mehr) in der verwalteten Liste steht.
+                                    $editActs = $activities;
+                                    if ($e['activity'] !== '' && !in_array($e['activity'], $editActs, true)) {
+                                        array_unshift($editActs, $e['activity']);
+                                    }
+                                    foreach ($editActs as $act): ?>
                                     <option value="<?= h($act) ?>"
                                         <?= $e['activity'] === $act ? 'selected' : '' ?>>
                                         <?= h($act) ?>

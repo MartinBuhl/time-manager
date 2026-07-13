@@ -2050,6 +2050,66 @@ switch ($action) {
         jsonOk(['statements' => $applied, 'safety' => $safetyName]);
 
     // ----------------------------------------------------------------
+    case 'add_activity':
+        $name = trim($_POST['name'] ?? '');
+        if ($name === '')            { jsonErr('Name darf nicht leer sein.'); }
+        if (mb_strlen($name) > 100)  { jsonErr('Name ist zu lang (max. 100 Zeichen).'); }
+
+        $exists = db()->prepare('SELECT id FROM tm_activities WHERE name = ? LIMIT 1');
+        $exists->execute([$name]);
+        if ($exists->fetchColumn()) { jsonErr('Diese Tätigkeit gibt es bereits.'); }
+
+        $maxSort = (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) FROM tm_activities')->fetchColumn();
+        $stmt = db()->prepare('INSERT INTO tm_activities (name, active, sort_order) VALUES (?, 1, ?)');
+        $stmt->execute([$name, $maxSort + 1]);
+        jsonOk(['id' => (int) db()->lastInsertId(), 'name' => $name, 'sort_order' => $maxSort + 1]);
+
+    // ----------------------------------------------------------------
+    case 'rename_activity':
+        $id   = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $name = trim($_POST['name'] ?? '');
+        if (!$id)                    { jsonErr('Ungültige ID.'); }
+        if ($name === '')            { jsonErr('Name darf nicht leer sein.'); }
+        if (mb_strlen($name) > 100)  { jsonErr('Name ist zu lang (max. 100 Zeichen).'); }
+
+        $dup = db()->prepare('SELECT id FROM tm_activities WHERE name = ? AND id <> ? LIMIT 1');
+        $dup->execute([$name, $id]);
+        if ($dup->fetchColumn()) { jsonErr('Diese Tätigkeit gibt es bereits.'); }
+
+        db()->prepare('UPDATE tm_activities SET name = ? WHERE id = ?')->execute([$name, $id]);
+        jsonOk(['id' => $id, 'name' => $name]);
+
+    // ----------------------------------------------------------------
+    case 'toggle_activity':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) { jsonErr('Ungültige ID.'); }
+        db()->prepare('UPDATE tm_activities SET active = IF(active=1,0,1) WHERE id = ?')->execute([$id]);
+        $stmt = db()->prepare('SELECT active FROM tm_activities WHERE id = ?');
+        $stmt->execute([$id]);
+        jsonOk(['active' => (int) $stmt->fetchColumn()]);
+
+    // ----------------------------------------------------------------
+    case 'delete_activity':
+        // Löscht nur den Listeneintrag – bestehende Zeiteinträge speichern die
+        // Tätigkeit als Freitext und bleiben unverändert erhalten.
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) { jsonErr('Ungültige ID.'); }
+        db()->prepare('DELETE FROM tm_activities WHERE id = ?')->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'reorder_activities':
+        $idsRaw = trim($_POST['ids'] ?? '');
+        $ids    = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
+        if (empty($ids)) { jsonErr('Keine Reihenfolge übergeben.'); }
+        $stmt = db()->prepare('UPDATE tm_activities SET sort_order = ? WHERE id = ?');
+        $sort = 1;
+        foreach ($ids as $aid) {
+            $stmt->execute([$sort++, $aid]);
+        }
+        jsonOk(['count' => count($ids)]);
+
+    // ----------------------------------------------------------------
     case 'create_demo_data':
         require_once dirname(__DIR__) . '/includes/demo_data.php';
         try {

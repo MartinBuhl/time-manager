@@ -301,7 +301,7 @@ $groups = [
             <div>
                 <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Tätigkeit</label>
                 <select id="scActivity">
-                    <?php foreach (ACTIVITIES as $act): ?>
+                    <?php foreach (getActivities(db()) as $act): ?>
                     <option value="<?= h($act) ?>"><?= h($act) ?></option>
                     <?php endforeach; ?>
                 </select>

@@ -305,3 +305,13 @@ CREATE TABLE IF NOT EXISTS `tm_order_files` (
     PRIMARY KEY (`id`),
     KEY `idx_order` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tm_activities` (
+    `id`         INT          NOT NULL AUTO_INCREMENT,
+    `name`       VARCHAR(100) NOT NULL,
+    `active`     TINYINT(1)   NOT NULL DEFAULT 1,
+    `sort_order` INT          NOT NULL DEFAULT 0,
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

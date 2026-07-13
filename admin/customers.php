@@ -368,7 +368,7 @@ $customers = $stmt->fetchAll();
         <div class="rule-add-row">
             <select id="e-rnew-act">
                 <option value="">— Tätigkeit wählen —</option>
-                <?php foreach (ACTIVITIES as $act): ?>
+                <?php foreach (getActivities(db()) as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
                 <?php endforeach; ?>
             </select>
@@ -384,7 +384,7 @@ $customers = $stmt->fetchAll();
         <div class="rule-add-row">
             <select id="e-search-act">
                 <option value="">— Tätigkeit wählen —</option>
-                <?php foreach (ACTIVITIES as $act): ?>
+                <?php foreach (getActivities(db()) as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
                 <?php endforeach; ?>
             </select>
