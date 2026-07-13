@@ -6,6 +6,8 @@ define('GH_REPO',  cfg('github_repo', ''));
 define('ROOT_DIR', dirname(__DIR__));
 define('LOG_DIR',  ROOT_DIR . '/log');
 
+require_once ROOT_DIR . '/includes/db_backup.php';
+
 // Dateien/Verzeichnisse, die beim Update niemals überschrieben werden
 $PROTECTED = ['config.php', '_installer', 'invoices', 'log', 'backups'];
 
@@ -142,6 +144,124 @@ function isAlreadyAppliedError(PDOException $e): bool
     return false;
 }
 
+/**
+ * Erstellt vor dem Einspielen ein vollständiges DB-Backup im backups-Ordner.
+ * Gleiches Format/Namensschema wie die Backup-Funktion → über die
+ * Backup-Oberfläche wiederherstellbar. Wirft bei Fehler eine Exception.
+ */
+function preUpdateBackup(): string
+{
+    $dir = ROOT_DIR . '/backups';
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+        throw new RuntimeException('Backup-Verzeichnis konnte nicht angelegt werden.');
+    }
+    $htaccess = $dir . '/.htaccess';
+    if (!is_file($htaccess)) {
+        @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
+    }
+    $name = 'tm_backup_pre_update_' . date('Ymd_His') . '.zip';
+    $path = $dir . '/' . $name;
+
+    $sql = buildSqlDump(db());
+    $zip = new ZipArchive();
+    if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('Sicherungs-ZIP konnte nicht erstellt werden.');
+    }
+    $zip->addFromString(str_replace('.zip', '.sql', $name), $sql);
+    $zip->close();
+    if (!is_file($path) || filesize($path) === 0) {
+        @unlink($path);
+        throw new RuntimeException('Sicherungsdatei ist leer.');
+    }
+    return $name;
+}
+
+/**
+ * Spielt ein Update aus einer ZIP-Datei ein (gemeinsam für GitHub-Download
+ * und manuellen Upload):
+ *   entpacken → Plausibilitätsprüfung → Vor-Update-Backup → Dateien mergen
+ *   → Migrationen. Wirft bei Fehlern eine Exception.
+ *
+ * @return array{version:string, files:int, migrations:array, backup:string}
+ */
+function installFromZip(string $zipFile, bool $allowDowngrade = false): array
+{
+    global $PROTECTED;
+
+    // Entpacken
+    ulog('Schritt 3: ZIP-Datei entpacken…');
+    $zip = new ZipArchive();
+    if ($zip->open($zipFile) !== true) throw new RuntimeException('ZIP-Datei konnte nicht geöffnet werden.');
+    $tempDir = sys_get_temp_dir() . '/tm_extract_' . uniqid();
+    mkdir($tempDir, 0755, true);
+    $zip->extractTo($tempDir);
+    $zip->close();
+    ulog('  Entpackt nach ' . $tempDir);
+
+    try {
+        // GitHub-Archive haben einen einzelnen Unterordner
+        $entries = array_values(array_filter(
+            scandir($tempDir),
+            fn($e) => $e !== '.' && $e !== '..'
+        ));
+        $srcDir = (count($entries) === 1 && is_dir($tempDir . '/' . $entries[0]))
+            ? $tempDir . '/' . $entries[0]
+            : $tempDir;
+
+        // Plausibilitätsprüfung: sieht es wie ein Time-Manager-Release aus?
+        if (!is_file($srcDir . '/VERSION')
+            || !is_file($srcDir . '/index.php')
+            || !is_dir($srcDir . '/admin')) {
+            throw new RuntimeException('Das Archiv ist kein gültiges Time-Manager-Release (VERSION, index.php oder admin/ fehlt).');
+        }
+
+        $newVersion = trim((string) file_get_contents($srcDir . '/VERSION'));
+        if ($newVersion === '') throw new RuntimeException('Im Archiv fehlt eine gültige VERSION.');
+        ulog('  Archiv-Version: ' . $newVersion . ' (installiert: ' . APP_VERSION . ')');
+
+        // Downgrade-/Gleichstand-Schutz
+        if (!$allowDowngrade && version_compare($newVersion, APP_VERSION, '<=')) {
+            throw new RuntimeException(
+                'Die Archiv-Version (' . $newVersion . ') ist nicht neuer als die installierte Version ('
+                . APP_VERSION . '). Zum Erzwingen die Option „Downgrade/gleiche Version zulassen" aktivieren.'
+            );
+        }
+
+        // Vor-Update-Sicherung (DB)
+        ulog('Schritt 4: Vor-Update-Backup der Datenbank…');
+        $backupName = preUpdateBackup();
+        ulog('  Sicherung erstellt: ' . $backupName);
+
+        // Dateien einspielen
+        ulog('Schritt 5: Dateien einspielen…');
+        $copied = mergeDir($srcDir, ROOT_DIR, $PROTECTED);
+        ulog('  ' . count($copied) . ' Dateien kopiert (geschützt: ' . implode(', ', $PROTECTED) . ')');
+        foreach ($copied as $rel) { ulog('    + ' . $rel); }
+
+        // Migrationen
+        ulog('Schritt 6: Datenbankmigrationen prüfen…');
+        $migrations = runMigrations();
+        if ($migrations) {
+            foreach ($migrations as $m) { ulog('    Migration ausgeführt: ' . $m); }
+        } else {
+            ulog('    Keine ausstehenden Migrationen.');
+        }
+
+        $installedVersion = is_readable(ROOT_DIR . '/VERSION')
+            ? trim((string) file_get_contents(ROOT_DIR . '/VERSION'))
+            : $newVersion;
+
+        return [
+            'version'    => $installedVersion,
+            'files'      => count($copied),
+            'migrations' => $migrations,
+            'backup'     => $backupName,
+        ];
+    } finally {
+        deleteDir($tempDir);
+    }
+}
+
 // ----------------------------------------------------------------
 // POST: Update durchführen
 // ----------------------------------------------------------------
@@ -149,20 +269,23 @@ $result  = null;
 $csrfOk  = isset($_POST['csrf_token'])
     && hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perform') {
+$postAction = $_POST['action'] ?? '';
+
+// ---- GitHub-Direktupdate ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'perform') {
     if (!$csrfOk) {
         $result = ['ok' => false, 'msg' => 'Ungültiger Sicherheitstoken.'];
     } else {
         set_time_limit(180);
         ignore_user_abort(true);
+        ulog('=== Update (GitHub) gestartet (installierte Version: ' . APP_VERSION . ') ===');
 
-        ulog('=== Update gestartet (installierte Version: ' . APP_VERSION . ') ===');
-
+        $zipFile = null;
         try {
             // 1. Release-Info holen
             ulog('Schritt 1: Release-Informationen von GitHub abrufen…');
-            $release = fetchRelease();
             if (GH_REPO === '') throw new RuntimeException('GitHub-Repository nicht konfiguriert (Administration → Konfiguration → System).');
+            $release = fetchRelease();
             if (!$release) throw new RuntimeException('GitHub API nicht erreichbar.');
             ulog('  Release gefunden: ' . ($release['tag_name'] ?? '?') . ' (' . ($release['name'] ?? '') . ')');
 
@@ -188,64 +311,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'perfo
             ulog('Schritt 2: ZIP-Datei herunterladen…');
             $zipData = @file_get_contents($dlUrl, false, stream_context_create(ghHeaders()));
             if ($zipData === false) throw new RuntimeException('ZIP-Download fehlgeschlagen.');
-
             $zipFile = sys_get_temp_dir() . '/tm_update_' . uniqid() . '.zip';
             file_put_contents($zipFile, $zipData);
             ulog('  ' . number_format(strlen($zipData)) . ' Bytes heruntergeladen → ' . $zipFile);
 
-            // 3. Entpacken
-            ulog('Schritt 3: ZIP-Datei entpacken…');
-            $zip = new ZipArchive();
-            if ($zip->open($zipFile) !== true) throw new RuntimeException('ZIP-Datei konnte nicht geöffnet werden.');
-
-            $tempDir = sys_get_temp_dir() . '/tm_extract_' . uniqid();
-            mkdir($tempDir, 0755, true);
-            $zip->extractTo($tempDir);
-            $zip->close();
-            unlink($zipFile);
-            ulog('  Entpackt nach ' . $tempDir);
-
-            // 4. Dateien kopieren (GitHub-Archive haben einen Unterordner)
-            ulog('Schritt 4: Dateien einspielen…');
-            global $PROTECTED;
-            $entries = array_values(array_filter(
-                scandir($tempDir),
-                fn($e) => $e !== '.' && $e !== '..'
-            ));
-            $srcDir = (count($entries) === 1 && is_dir($tempDir . '/' . $entries[0]))
-                ? $tempDir . '/' . $entries[0]
-                : $tempDir;
-            $copied = mergeDir($srcDir, ROOT_DIR, $PROTECTED);
-            ulog('  ' . count($copied) . ' Dateien kopiert (geschützt: ' . implode(', ', $PROTECTED) . ')');
-            foreach ($copied as $rel) { ulog('    + ' . $rel); }
-            deleteDir($tempDir);
-
-            // 5. Migrationen ausführen
-            ulog('Schritt 5: Datenbankmigrationen prüfen…');
-            $migrations = runMigrations();
-            if ($migrations) {
-                foreach ($migrations as $m) { ulog('    Migration ausgeführt: ' . $m); }
-            } else {
-                ulog('    Keine ausstehenden Migrationen.');
-            }
-
-            $newVersion = is_readable(ROOT_DIR . '/VERSION')
-                ? trim(file_get_contents(ROOT_DIR . '/VERSION'))
-                : '?';
-            ulog('=== Update erfolgreich abgeschlossen – neue Version: ' . $newVersion . ' ===');
-
-            $result = [
-                'ok'         => true,
-                'version'    => $newVersion,
-                'files'      => count($copied),
-                'migrations' => $migrations,
-            ];
+            // 3.–6. Einspielen (GitHub liefert immer neuere Version → Downgrade erlaubt)
+            $info = installFromZip($zipFile, true);
+            ulog('=== Update erfolgreich abgeschlossen – neue Version: ' . $info['version'] . ' ===');
+            $result = array_merge(['ok' => true], $info);
         } catch (Throwable $e) {
             ulog('FEHLER: ' . $e->getMessage());
             ulog('=== Update abgebrochen ===');
             $result = ['ok' => false, 'msg' => $e->getMessage()];
-            if (isset($tempDir) && is_dir($tempDir)) deleteDir($tempDir);
-            if (isset($zipFile) && file_exists($zipFile)) unlink($zipFile);
+        } finally {
+            if ($zipFile !== null && file_exists($zipFile)) unlink($zipFile);
+        }
+    }
+}
+
+// ---- Update per hochgeladener ZIP-Datei ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'perform_upload') {
+    if (!$csrfOk) {
+        $result = ['ok' => false, 'msg' => 'Ungültiger Sicherheitstoken.'];
+    } else {
+        set_time_limit(180);
+        ignore_user_abort(true);
+        ulog('=== Update (Datei-Upload) gestartet (installierte Version: ' . APP_VERSION . ') ===');
+
+        $zipFile = null;
+        try {
+            if (!isset($_FILES['update_zip']) || $_FILES['update_zip']['error'] !== UPLOAD_ERR_OK) {
+                $codes = [
+                    UPLOAD_ERR_INI_SIZE   => 'Datei überschreitet die Server-Grenze (upload_max_filesize).',
+                    UPLOAD_ERR_FORM_SIZE  => 'Datei ist zu groß.',
+                    UPLOAD_ERR_PARTIAL    => 'Upload wurde abgebrochen.',
+                    UPLOAD_ERR_NO_FILE    => 'Keine Datei ausgewählt.',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Kein temporäres Verzeichnis auf dem Server.',
+                    UPLOAD_ERR_CANT_WRITE => 'Datei konnte nicht gespeichert werden.',
+                ];
+                throw new RuntimeException($codes[$_FILES['update_zip']['error'] ?? UPLOAD_ERR_NO_FILE] ?? 'Upload fehlgeschlagen.');
+            }
+            $orig = (string) ($_FILES['update_zip']['name'] ?? '');
+            if (strtolower((string) pathinfo($orig, PATHINFO_EXTENSION)) !== 'zip') {
+                throw new RuntimeException('Nur .zip-Dateien können hochgeladen werden.');
+            }
+            ulog('Schritt 1/2: Hochgeladene Datei „' . basename($orig) . '" übernehmen…');
+
+            $zipFile = sys_get_temp_dir() . '/tm_upload_' . uniqid() . '.zip';
+            if (!move_uploaded_file($_FILES['update_zip']['tmp_name'], $zipFile)) {
+                throw new RuntimeException('Hochgeladene Datei konnte nicht übernommen werden.');
+            }
+
+            $allowDowngrade = !empty($_POST['allow_downgrade']);
+            $info = installFromZip($zipFile, $allowDowngrade);
+            ulog('=== Update erfolgreich abgeschlossen – neue Version: ' . $info['version'] . ' ===');
+            $result = array_merge(['ok' => true], $info);
+        } catch (Throwable $e) {
+            ulog('FEHLER: ' . $e->getMessage());
+            ulog('=== Update abgebrochen ===');
+            $result = ['ok' => false, 'msg' => $e->getMessage()];
+        } finally {
+            if ($zipFile !== null && file_exists($zipFile)) unlink($zipFile);
         }
     }
 }
@@ -334,6 +460,12 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
                 System wurde auf Version <strong><?= h($result['version']) ?></strong> aktualisiert.
                 <?= $result['files'] ?> Dateien wurden eingespielt.
             </p>
+            <?php if (!empty($result['backup'])): ?>
+            <p style="font-size:13px;color:#374151;margin-top:8px">
+                Vor-Update-Sicherung der Datenbank: <strong><?= h($result['backup']) ?></strong>
+                (wiederherstellbar unter Administration → Backup).
+            </p>
+            <?php endif; ?>
             <?php if (!empty($result['migrations'])): ?>
             <p style="font-size:13px;color:#374151;margin-top:8px">Migrationen ausgeführt:</p>
             <ul class="migration-list">
@@ -397,6 +529,29 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
         </div>
         <?php endif; ?>
 
+        <!-- ---- Alternative: Update per Datei hochladen ---- -->
+        <div class="update-card">
+            <h2>Update per Datei einspielen</h2>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:16px">
+                Für Systeme ohne GitHub-Zugriff: Release-ZIP von der
+                <?php if (GH_REPO !== ''): ?><a href="https://github.com/<?= h(GH_REPO) ?>/releases" target="_blank" rel="noopener">GitHub-Releases-Seite</a><?php else: ?>GitHub-Releases-Seite<?php endif; ?>
+                herunterladen (auf einem Rechner mit Internetzugang) und hier hochladen.
+                Vor dem Einspielen wird automatisch ein Datenbank-Backup erstellt; geschützte Ordner
+                (<code>config.php</code>, <code>invoices</code>, <code>backups</code>, <code>log</code>) bleiben unberührt.
+            </p>
+            <form method="post" id="uploadForm" enctype="multipart/form-data">
+                <input type="hidden" name="action"     value="perform_upload">
+                <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
+                <input type="file" name="update_zip" accept=".zip" required
+                       style="display:block;margin-bottom:12px;font-size:13px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;margin-bottom:16px;cursor:pointer">
+                    <input type="checkbox" name="allow_downgrade" value="1" style="width:auto">
+                    <span>Downgrade / gleiche Version zulassen (z.&nbsp;B. zum Reparieren)</span>
+                </label>
+                <button type="submit" class="btn-update" id="uploadBtn">↑ ZIP hochladen und einspielen</button>
+            </form>
+        </div>
+
     <?php endif; ?>
 
     </div>
@@ -405,6 +560,11 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 <script>
 document.getElementById('updateForm')?.addEventListener('submit', function() {
     const btn = document.getElementById('updateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Update wird eingespielt…';
+});
+document.getElementById('uploadForm')?.addEventListener('submit', function() {
+    const btn = document.getElementById('uploadBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Update wird eingespielt…';
 });
