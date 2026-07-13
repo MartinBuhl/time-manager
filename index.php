@@ -669,17 +669,15 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                     $cid = (int)$o['customer_id'];
                     $custOrders = $openOrdersByCustomer[$cid] ?? [];
                 ?>
-                    <tr class="entry-row" id="orow-<?= $oid ?>" data-id="<?= $oid ?>">
+                    <tr class="entry-row order-row" id="orow-<?= $oid ?>" data-id="<?= $oid ?>"
+                        onclick="toggleCustomerOrders(event, <?= $oid ?>)" title="Aufträge des Kunden anzeigen">
                         <td class="ord-cust">
                             <span class="ord-date"><?= h(date('d.m.', strtotime($o['created_at']))) ?></span>
                             <span class="ord-name"><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></span>
                         </td>
                         <td style="text-align:right;white-space:nowrap">
-                            <div style="display:inline-flex;gap:6px;align-items:center">
-                                <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
-                                        title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
-                                <button type="button" class="btn-icon" onclick="toggleCustomerOrders(event, <?= $oid ?>)" title="Aufträge des Kunden"><?= $icoList ?></button>
-                            </div>
+                            <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
+                                    title="Heute bearbeitet – bis morgen ausblenden">Bearbeitet</button>
                         </td>
                     </tr>
                     <tr id="osub-<?= $oid ?>" class="edit-row hidden">
