@@ -102,6 +102,8 @@ $amountGross  = (float)$invoice['amount_gross'];
 <style>
 .summary-bar { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--text-muted); }
 .summary-bar strong { color:var(--text); }
+.customer-link { color:inherit; text-decoration:none; }
+.customer-link:hover { color:#3b82f6; text-decoration:underline; }
 .add-form { background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
             padding:16px 20px; margin-bottom:20px;
             display:flex; flex-direction:column; align-items:flex-start; }
@@ -191,7 +193,7 @@ tr.item-hidden td:first-child { opacity:1; }
     <div class="admin-section">
 
         <div class="summary-bar" id="summaryBar">
-            <span><?= h(t('entries.colCustomer')) ?>: <strong><?= h($invoice['customer_name'] ?? '—') ?></strong></span>
+            <span><?= h(t('entries.colCustomer')) ?>: <strong><?php if (!empty($invoice['customer_id'])): ?><a class="customer-link" href="customers.php?edit=<?= (int)$invoice['customer_id'] ?>"><?= h($invoice['customer_name'] ?? '—') ?></a><?php else: ?><?= h($invoice['customer_name'] ?? '—') ?><?php endif; ?></strong></span>
             <span><strong id="sumItems"><?= count(array_filter($items, fn($it) => (int)$it['visible'] === 1)) ?></strong> <?= h(t('invItems.posten')) ?></span>
             <span><strong id="sumH"><?= fmtH($totalMinutes) ?></strong></span>
             <span><?= h(t('invoices.net')) ?>: <strong id="sumNet"><?= fmtEur($amountNet) ?></strong></span>
