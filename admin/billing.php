@@ -89,6 +89,8 @@ function fmtEur(float $amount): string
 .detail-table .col-dur { text-align: right; white-space: nowrap; }
 .detail-project { color: #3b82f6; font-size: 12px; }
 .detail-comment { color: var(--text-muted); font-size: 12px; }
+.customer-link { color: var(--text); text-decoration: none; font-weight: 600; }
+.customer-link:hover { color: #3b82f6; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -138,7 +140,7 @@ function fmtEur(float $amount): string
                     }
                 ?>
                     <tr class="entry-row">
-                        <td><?= h($c['name']) ?></td>
+                        <td><a class="customer-link" href="customers.php?edit=<?= (int)$c['id'] ?>"><?= h($c['name']) ?></a></td>
                         <td class="col-time"><?= h($period) ?></td>
                         <td><?= (int)$c['entry_count'] ?></td>
                         <td class="col-dur"><?= fmtH((int)$c['total_minutes']) ?></td>

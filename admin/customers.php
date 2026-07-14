@@ -1014,6 +1014,13 @@ document.querySelectorAll('#customerTable thead th.sortable').forEach(function(t
     th.addEventListener('click', function() { sortTable(parseInt(th.dataset.col)); });
 });
 
+/* Direktaufruf von anderen Seiten (z. B. Abrechnung): ?edit=<id> oeffnet
+   das Bearbeitungsformular des Kunden sofort. */
+(function() {
+    const editId = parseInt(new URLSearchParams(window.location.search).get('edit') || '', 10);
+    if (editId > 0) { openEdit(editId); }
+})();
+
 /* ================================================================
    TOGGLE ACTIVE
    ================================================================ */
