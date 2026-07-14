@@ -202,6 +202,7 @@ return [
     'cfg.label.invoice_mail_subject'   => 'E-Mail Betreff für Rechnungen — Platzhalter: {project}, {time}',
     'cfg.label.invoice_mail_bcc'       => 'Kopie der Rechnungsmails an (BCC) — wird beim Versand aus dem Mailspool als Kopie zugestellt',
     'cfg.label.invoice_general_info'   => 'Allgemeine Info auf allen Rechnungen — erscheint unter dem Gesamtbetrag (PDF und Vorschau)',
+    'cfg.label.invoice_text_template'  => 'Allgemeiner Rechnungstext — Platzhalter: {project}',
     'cfg.label.invoice_mail_template_html'  => 'Mailvorlage Rechnung HTML — Platzhalter: {time}, {work}',
     'cfg.label.invoice_mail_template_plain' => 'Mailvorlage Rechnung Plain Text — Platzhalter: {time}, {work}',
     'cfg.label.github_repo'            => 'GitHub Repository (für System-Updates, z.B. benutzer/time-manager)',

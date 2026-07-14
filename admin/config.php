@@ -68,6 +68,7 @@ $groups = [
             ['key' => 'invoice_mail_subject',   'label' => t('cfg.label.invoice_mail_subject'), 'type' => 'text'],
             ['key' => 'invoice_mail_bcc',       'label' => t('cfg.label.invoice_mail_bcc'), 'type' => 'email'],
             ['key' => 'invoice_general_info',   'label' => t('cfg.label.invoice_general_info'), 'type' => 'textarea'],
+            ['key' => 'invoice_text_template',  'label' => t('cfg.label.invoice_text_template'), 'type' => 'textarea'],
             ['key' => 'invoice_mail_template_html',  'label' => t('cfg.label.invoice_mail_template_html'),  'type' => 'richtext'],
             ['key' => 'invoice_mail_template_plain', 'label' => t('cfg.label.invoice_mail_template_plain'), 'type' => 'textarea'],
         ],

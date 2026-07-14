@@ -263,6 +263,7 @@ function defaultConfigSql(): string
     ('invoice_number_start',   '1',                                2,  50),
     ('invoice_mail_subject',   'Rechnung {project} - {time}',      2,  60),
     ('invoice_general_info',   '',                                 2,  66),
+    ('invoice_text_template',  '',                                 2,  65),
     ('invoice_mail_template_html',  '',                            2,  67),
     ('invoice_mail_template_plain', '',                            2,  68),
     ('github_repo',            '',                                 3,   5),

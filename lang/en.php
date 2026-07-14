@@ -202,6 +202,7 @@ return [
     'cfg.label.invoice_mail_subject'   => 'Invoice email subject — placeholders: {project}, {time}',
     'cfg.label.invoice_mail_bcc'       => 'Copy of invoice emails to (BCC) — delivered as a copy when sending from the mail spool',
     'cfg.label.invoice_general_info'   => 'General info on all invoices — appears below the total (PDF and preview)',
+    'cfg.label.invoice_text_template'  => 'General invoice text — placeholder: {project}',
     'cfg.label.invoice_mail_template_html'  => 'Invoice email template HTML — placeholders: {time}, {work}',
     'cfg.label.invoice_mail_template_plain' => 'Invoice email template plain text — placeholders: {time}, {work}',
     'cfg.label.github_repo'            => 'GitHub repository (for system updates, e.g. user/time-manager)',

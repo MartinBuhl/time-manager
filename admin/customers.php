@@ -329,6 +329,7 @@ $customers = $stmt->fetchAll();
             </div>
             <div class="full" id="e-invoice-text-wrap">
                 <label><?= h(t('customers.fInvoiceText')) ?></label>
+                <button type="button" class="btn" style="margin-bottom:6px" onclick="applyGlobalInvoiceText()"><?= h(t('customers.applyGlobalTemplate')) ?></button>
                 <textarea id="e-invoice-text" rows="3" maxlength="1000"
                           style="width:100%;padding:7px 10px;border:1px solid var(--card-border);border-radius:var(--radius);font-family:var(--font);font-size:13px;resize:vertical;color:var(--text)"></textarea>
             </div>
@@ -512,8 +513,16 @@ function closeEdit() {
 
 /* Allgemeine (globale) Mailvorlagen aus der Konfiguration – koennen per
    Button in die Kundenfelder uebernommen werden. */
+const GLOBAL_INVOICE_TEXT = <?= json_encode(cfg('invoice_text_template', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 const GLOBAL_MAIL_HTML  = <?= json_encode(cfg('invoice_mail_template_html', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 const GLOBAL_MAIL_PLAIN = <?= json_encode(cfg('invoice_mail_template_plain', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
+async function applyGlobalInvoiceText() {
+    if (!GLOBAL_INVOICE_TEXT.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
+    const el = document.getElementById('e-invoice-text');
+    if (el.value.trim() !== '' && !await Dialog.confirm(t('customers.applyGlobalConfirm'))) return;
+    el.value = GLOBAL_INVOICE_TEXT;
+}
 
 async function applyGlobalMailHtml() {
     if (!GLOBAL_MAIL_HTML.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
