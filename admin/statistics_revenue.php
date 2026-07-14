@@ -96,10 +96,8 @@ $avgGross     = $activeMonths > 0 ? $totalGross / $activeMonths : 0.0;
 
 $CHART_H = 260; // px für die Balkenhöhe
 
-$monthNames = [
-    1=>'Jan',2=>'Feb',3=>'Mär',4=>'Apr',5=>'Mai',6=>'Jun',
-    7=>'Jul',8=>'Aug',9=>'Sep',10=>'Okt',11=>'Nov',12=>'Dez',
-];
+$monthNames = [];
+for ($mn = 1; $mn <= 12; $mn++) { $monthNames[$mn] = t('stats.monShort.' . $mn); }
 
 function fmtEur(float $v): string {
     return number_format($v, 2, ',', '.') . ' €';
@@ -114,11 +112,11 @@ function fmtHours(int $minutes): string {
     return number_format($minutes / 60, 2, ',', '.') . ' h';
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Umsatz-Statistik – Administration</title>
+<title><?= h(t('stats.pageTitleRevenue')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -239,13 +237,13 @@ function fmtHours(int $minutes): string {
 
     <div class="admin-header">
         <div>
-            <h1>Umsatz-Statistik</h1>
+            <h1><?= h(t('stats.headingRevenue')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo;
-                <a href="statistics.php">Statistik</a> &rsaquo; Umsatz
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo;
+                <a href="statistics.php"><?= h(t('admin.card.statistics')) ?></a> &rsaquo; <?= h(t('stats.cardRevenue')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
@@ -253,7 +251,7 @@ function fmtHours(int $minutes): string {
         <form method="get" action="statistics_revenue.php" class="filter-bar">
 
             <div class="filter-group">
-                <span class="filter-sep">Von</span>
+                <span class="filter-sep"><?= h(t('adminEntries.from')) ?></span>
                 <select name="from_year">
                     <?php foreach ($allYears as $yr): ?>
                     <option value="<?= (int)$yr ?>" <?= $fromYear === (int)$yr ? 'selected' : '' ?>>
@@ -273,7 +271,7 @@ function fmtHours(int $minutes): string {
             <span class="filter-sep">–</span>
 
             <div class="filter-group">
-                <span class="filter-sep">Bis</span>
+                <span class="filter-sep"><?= h(t('adminEntries.to')) ?></span>
                 <select name="to_year">
                     <?php foreach ($allYears as $yr): ?>
                     <option value="<?= (int)$yr ?>" <?= $toYear === (int)$yr ? 'selected' : '' ?>>
@@ -290,29 +288,29 @@ function fmtHours(int $minutes): string {
                 </select>
             </div>
 
-            <button class="btn btn--primary" type="submit">Anzeigen</button>
+            <button class="btn btn--primary" type="submit"><?= h(t('stats.show')) ?></button>
         </form>
 
         <?php if (empty($months)): ?>
-            <p class="empty-message">Kein gültiger Zeitraum.</p>
+            <p class="empty-message"><?= h(t('stats.noValidRange')) ?></p>
         <?php else: ?>
 
         <div class="summary-bar">
             <span>
-                Stunden: <strong><?= h(fmtHours($totalMinutes)) ?></strong>
+                <?= h(t('invoices.colHours')) ?>: <strong><?= h(fmtHours($totalMinutes)) ?></strong>
             </span>
             <span>
-                Netto gesamt: <strong><?= h(fmtEur($totalNet)) ?></strong>
+                <?= h(t('stats.netTotal')) ?>: <strong><?= h(fmtEur($totalNet)) ?></strong>
             </span>
             <span>
-                Brutto gesamt: <strong><?= h(fmtEur($totalGross)) ?></strong>
+                <?= h(t('stats.grossTotal')) ?>: <strong><?= h(fmtEur($totalGross)) ?></strong>
             </span>
             <span>
-                Einträge: <strong><?= $totalEntries ?></strong>
+                <?= h(t('invoices.colEntries')) ?>: <strong><?= $totalEntries ?></strong>
             </span>
             <?php if ($avgGross > 0): ?>
             <span>
-                Ø Monat (Brutto): <strong><?= h(fmtEur($avgGross)) ?></strong>
+                <?= h(t('stats.avgMonth')) ?>: <strong><?= h(fmtEur($avgGross)) ?></strong>
             </span>
             <?php endif; ?>
         </div>
@@ -332,7 +330,7 @@ function fmtHours(int $minutes): string {
                         </span>
                         <div class="bar-fill <?= $isZero ? 'bar-zero' : '' ?>"
                              style="height:<?= $barH ?>px"
-                             title="<?= h($monthNames[$mo['m']]) ?> <?= $mo['y'] ?>: <?= h(fmtEur($mo['total_gross'])) ?> Brutto<?= $mo['cnt'] ? ' (' . h(fmtHours($mo['total_minutes'])) . ', ' . $mo['cnt'] . ' Eintr' . ($mo['cnt'] > 1 ? 'äge' : 'ag') . ')' : '' ?>">
+                             title="<?= h($monthNames[$mo['m']]) ?> <?= $mo['y'] ?>: <?= h(fmtEur($mo['total_gross'])) ?> <?= h(t('invoices.gross')) ?><?= $mo['cnt'] ? ' (' . h(fmtHours($mo['total_minutes'])) . ', ' . $mo['cnt'] . ' ' . h($mo['cnt'] > 1 ? t('stats.entryMany') : t('stats.entryOne')) . ')' : '' ?>">
                         </div>
                         <div class="bar-month">
                             <strong><?= h($monthNames[$mo['m']]) ?></strong>
@@ -348,12 +346,12 @@ function fmtHours(int $minutes): string {
             <table class="entries-table rev-table">
                 <thead>
                     <tr>
-                        <th>Monat</th>
-                        <th class="right">Stunden</th>
-                        <th class="right">Einträge</th>
-                        <th class="right">Netto</th>
-                        <th class="right">MwSt.</th>
-                        <th class="right">Brutto</th>
+                        <th><?= h(t('stats.colMonth')) ?></th>
+                        <th class="right"><?= h(t('invoices.colHours')) ?></th>
+                        <th class="right"><?= h(t('invoices.colEntries')) ?></th>
+                        <th class="right"><?= h(t('invoices.net')) ?></th>
+                        <th class="right"><?= h(t('stats.vat')) ?></th>
+                        <th class="right"><?= h(t('invoices.gross')) ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -372,7 +370,7 @@ function fmtHours(int $minutes): string {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td>Gesamt</td>
+                        <td><?= h(t('stats.total')) ?></td>
                         <td class="right"><?= h(fmtHours($totalMinutes)) ?></td>
                         <td class="right"><?= $totalEntries ?></td>
                         <td class="right"><?= h(fmtEur($totalNet)) ?></td>

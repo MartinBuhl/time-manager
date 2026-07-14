@@ -55,11 +55,11 @@ function fmtEur(float $amount): string
     return number_format($amount, 2, ',', '.') . ' €';
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Abrechnung – Administration</title>
+<title><?= h(t('billing.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -96,35 +96,35 @@ function fmtEur(float $amount): string
 
     <div class="admin-header">
         <div>
-            <h1>Abrechnung</h1>
+            <h1><?= h(t('admin.card.billing')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Abrechnung
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.billing')) ?>
             </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-            <button type="button" class="btn" id="btnShowBill" onclick="showBill()">Abgerechnet setzen</button>
-            <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+            <button type="button" class="btn" id="btnShowBill" onclick="showBill()"><?= h(t('adminEntries.setBilled')) ?></button>
+            <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
         </div>
     </div>
 
     <div id="billingMsg" style="display:none;margin-bottom:16px"></div>
 
     <div class="admin-section" id="listSection">
-        <h2>Nicht abgerechnete Arbeitszeit</h2>
+        <h2><?= h(t('billing.unbilledHeading')) ?></h2>
 
         <?php if (empty($customers)): ?>
-            <p class="empty-message">Keine offenen Abrechnungen vorhanden.</p>
+            <p class="empty-message"><?= h(t('billing.empty')) ?></p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Kunde</th>
-                        <th>Zeitraum</th>
-                        <th>Einträge</th>
-                        <th class="col-dur">Stunden</th>
-                        <th class="col-dur">Satz (€/h)</th>
-                        <th class="col-dur">Betrag (netto)</th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('adminEntries.period')) ?></th>
+                        <th><?= h(t('invoices.colEntries')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.colHours')) ?></th>
+                        <th class="col-dur"><?= h(t('billing.colRate')) ?></th>
+                        <th class="col-dur"><?= h(t('billing.colAmountNet')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -145,16 +145,16 @@ function fmtEur(float $amount): string
                         <td class="col-dur">
                             <?= number_format($rate, 2, ',', '.') ?>
                             <?php if ((float)$c['hourly_rate'] <= 0): ?>
-                                <br><span style="color:var(--text-muted);font-size:10px">Standard</span>
+                                <br><span style="color:var(--text-muted);font-size:10px"><?= h(t('customers.default')) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="col-dur"><?= fmtEur($amountNet) ?></td>
                         <td style="white-space:nowrap">
                             <a href="invoice.php?customer_id=<?= (int)$c['id'] ?>" class="btn">
-                                Prüfen
+                                <?= h(t('billing.check')) ?>
                             </a>
                             <button type="button" class="btn" onclick="toggleDetails(<?= (int)$c['id'] ?>)"
-                                    id="detailsBtn-<?= (int)$c['id'] ?>">Details</button>
+                                    id="detailsBtn-<?= (int)$c['id'] ?>"><?= h(t('billing.details')) ?></button>
                         </td>
                     </tr>
                     <tr class="detail-row" id="detailRow-<?= (int)$c['id'] ?>" style="display:none">
@@ -164,13 +164,13 @@ function fmtEur(float $amount): string
                                 <table class="detail-table">
                                     <thead>
                                         <tr>
-                                            <th style="white-space:nowrap">Datum</th>
-                                            <th style="white-space:nowrap">Zeit</th>
-                                            <th class="col-dur" style="white-space:nowrap">Min</th>
-                                            <th>Kunde</th>
-                                            <th>Projekt</th>
-                                            <th>Tätigkeit</th>
-                                            <th>Kommentar</th>
+                                            <th style="white-space:nowrap"><?= h(t('customers.colDate')) ?></th>
+                                            <th style="white-space:nowrap"><?= h(t('entries.colTime')) ?></th>
+                                            <th class="col-dur" style="white-space:nowrap"><?= h(t('entries.colMin')) ?></th>
+                                            <th><?= h(t('entries.colCustomer')) ?></th>
+                                            <th><?= h(t('adminEntries.project')) ?></th>
+                                            <th><?= h(t('common.activity')) ?></th>
+                                            <th><?= h(t('customers.colComment')) ?></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -188,12 +188,12 @@ function fmtEur(float $amount): string
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colspan="2" class="col-dur">Summe (Min.)</td>
+                                            <td colspan="2" class="col-dur"><?= h(t('billing.sumMin')) ?></td>
                                             <td class="col-dur"><?= $detailMin ?></td>
                                             <td colspan="4"></td>
                                         </tr>
                                         <tr>
-                                            <td colspan="2" class="col-dur">Summe (h)</td>
+                                            <td colspan="2" class="col-dur"><?= h(t('billing.sumH')) ?></td>
                                             <td class="col-dur"><?= number_format($detailMin / 60, 2, ',', '.') ?></td>
                                             <td colspan="4"></td>
                                         </tr>
@@ -212,15 +212,15 @@ function fmtEur(float $amount): string
     <!-- Abgerechnet setzen -->
     <div class="admin-section hidden" id="billSection">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 style="margin:0">Abgerechnet setzen</h2>
-            <button type="button" class="btn" onclick="hideBill()">&#8592; Zurück zur Liste</button>
+            <h2 style="margin:0"><?= h(t('adminEntries.setBilled')) ?></h2>
+            <button type="button" class="btn" onclick="hideBill()"><?= h(t('customers.backToList')) ?></button>
         </div>
 
         <div style="max-width:400px">
             <div style="margin-bottom:12px">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Kunde *</label>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px"><?= h(t('adminEntries.customerReq')) ?></label>
                 <select id="billCustomer" style="width:100%">
-                    <option value="">— Kunde wählen —</option>
+                    <option value=""><?= h(t('adminEntries.chooseCustomer')) ?></option>
                     <?php foreach ($allCustomers as $c): ?>
                     <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -228,19 +228,26 @@ function fmtEur(float $amount): string
             </div>
 
             <div style="margin-bottom:16px">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Abgerechnet bis (einschließlich) *</label>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px"><?= h(t('adminEntries.billedUntil')) ?></label>
                 <input type="date" id="billDate" style="width:100%">
             </div>
 
             <div id="billMsg" style="margin-bottom:12px"></div>
 
-            <button type="button" class="btn btn--primary" id="billBtn" onclick="doBill()">Als abgerechnet markieren</button>
+            <button type="button" class="btn btn--primary" id="billBtn" onclick="doBill()"><?= h(t('adminEntries.markBilledBtn')) ?></button>
         </div>
     </div>
 
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 
 function toggleDetails(id) {
@@ -248,7 +255,7 @@ function toggleDetails(id) {
     const btn = document.getElementById('detailsBtn-' + id);
     const open = row.style.display === 'none';
     row.style.display = open ? 'table-row' : 'none';
-    if (btn) btn.textContent = open ? 'Schließen' : 'Details';
+    if (btn) btn.textContent = open ? t('orders.close') : t('billing.details');
 }
 
 function showBill() {
@@ -276,11 +283,11 @@ async function doBill() {
     msgEl.innerHTML = '';
 
     if (!customerId) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Bitte einen Kunden wählen.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('orders.chooseCustomerFirst')) + '</div>';
         return;
     }
     if (!cutoffDate) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Bitte ein Datum eingeben.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.enterDate')) + '</div>';
         return;
     }
 
@@ -294,15 +301,15 @@ async function doBill() {
         if (data.success) {
             const n = data.data.marked;
             msgEl.innerHTML = n > 0
-                ? '<div class="admin-msg admin-msg--ok">' + n + ' Eintr&auml;ge als abgerechnet markiert.</div>'
-                : '<div class="admin-msg admin-msg--err">Keine offenen Eintr&auml;ge bis zu diesem Datum gefunden.</div>';
+                ? '<div class="admin-msg admin-msg--ok">' + escHtml(t('adminEntries.markedBilled', { n: n })) + '</div>'
+                : '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.noneToBill')) + '</div>';
             document.getElementById('billCustomer').value = '';
             document.getElementById('billDate').value = '';
         } else {
-            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || 'Fehler.') + '</div>';
+            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || t('common.error')) + '</div>';
         }
     } catch(e) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Serverfehler.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('config.serverError')) + '</div>';
     }
 
     btn.disabled = false;

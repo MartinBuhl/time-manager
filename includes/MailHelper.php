@@ -1,10 +1,13 @@
 <?php
+require_once __DIR__ . '/i18n.php';
+
 class MailHelper
 {
-    private static array $months = [
-        'Januar','Februar','März','April','Mai','Juni',
-        'Juli','August','September','Oktober','November','Dezember',
-    ];
+    /** Dokumentsprache der Rechnungs-Mail (global). */
+    private static function docLang(): string
+    {
+        return cfg('default_lang', 'de');
+    }
 
     /**
      * Builds subject, html and plain body for an invoice mail.
@@ -70,16 +73,22 @@ class MailHelper
         $keys = array_keys($months);
         if (empty($keys)) return '';
 
+        $lang     = self::docLang();
+        $monthName = fn(int $m): string => tLang('stats.month.' . $m, $lang);
+
         if (count($keys) === 1) {
             [$y, $m] = explode('-', $keys[0]);
-            return 'im ' . self::$months[(int)$m - 1] . ' ' . $y;
+            return tLang('invoiceMail.timeSingle', $lang, [
+                'month' => $monthName((int)$m),
+                'year'  => $y,
+            ]);
         }
 
         [$fy, $fm] = explode('-', $keys[0]);
         [$ly, $lm] = explode('-', $keys[count($keys) - 1]);
-        $from = self::$months[(int)$fm - 1] . ($fy !== $ly ? ' ' . $fy : '');
-        $to   = self::$months[(int)$lm - 1] . ' ' . $ly;
-        return 'von ' . $from . ' bis ' . $to;
+        $from = $monthName((int)$fm) . ($fy !== $ly ? ' ' . $fy : '');
+        $to   = $monthName((int)$lm) . ' ' . $ly;
+        return tLang('invoiceMail.timeRange', $lang, ['from' => $from, 'to' => $to]);
     }
 
     /**
@@ -239,7 +248,7 @@ class MailHelper
             $lines[]  = $datePart . "\t" . $timePart . "\t" . $min . "\t" . $desc;
         }
 
-        $heading = 'Hier die Liste der Arbeiten:';
+        $heading = tLang('invoiceMail.workListHeading', self::docLang());
         if ($format === 'html') {
             $escaped = array_map(fn($l) => htmlspecialchars($l, ENT_QUOTES, 'UTF-8'), $lines);
             return '<p>' . htmlspecialchars($heading, ENT_QUOTES, 'UTF-8') . '</p>'
@@ -259,21 +268,26 @@ class MailHelper
 
     private static function defaultHtml(string $invoiceNumber, float $amountGross, string $time): string
     {
+        $lang = self::docLang();
         $n = htmlspecialchars($invoiceNumber, ENT_QUOTES, 'UTF-8');
         $t = htmlspecialchars($time, ENT_QUOTES, 'UTF-8');
         $a = number_format($amountGross, 2, ',', '.');
         $s = htmlspecialchars(cfg('invoice_company'), ENT_QUOTES, 'UTF-8');
-        return "<p>Sehr geehrte Damen und Herren,</p>"
-             . "<p>anbei erhalten Sie unsere Rechnung <strong>$n</strong> für $t über $a&nbsp;€.</p>"
-             . "<p>Mit freundlichen Grüßen<br>$s</p>";
+        $sal  = htmlspecialchars(tLang('invoiceMail.salutation', $lang), ENT_QUOTES, 'UTF-8');
+        $body = tLang('invoiceMail.bodyHtml', $lang, ['number' => $n, 'time' => $t, 'amount' => $a]);
+        $clos = htmlspecialchars(tLang('invoiceMail.closing', $lang), ENT_QUOTES, 'UTF-8');
+        return "<p>$sal</p>"
+             . "<p>$body</p>"
+             . "<p>$clos<br>$s</p>";
     }
 
     private static function defaultPlain(string $invoiceNumber, float $amountGross, string $time): string
     {
+        $lang = self::docLang();
         $a = number_format($amountGross, 2, ',', '.');
-        return "Sehr geehrte Damen und Herren,\n\n"
-             . "anbei erhalten Sie unsere Rechnung $invoiceNumber fuer $time ueber $a EUR.\n\n"
-             . "Mit freundlichen Gruessen\n"
+        return tLang('invoiceMail.salutation', $lang) . "\n\n"
+             . tLang('invoiceMail.bodyPlain', $lang, ['number' => $invoiceNumber, 'time' => $time, 'amount' => $a]) . "\n\n"
+             . tLang('invoiceMail.closingPlain', $lang) . "\n"
              . cfg('invoice_company');
     }
 }

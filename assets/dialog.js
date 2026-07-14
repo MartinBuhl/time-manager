@@ -10,6 +10,12 @@
     'use strict';
     if (window.Dialog) return;
 
+    // Übersetzung mit Fallback: nutzt window.I18N, sonst deutsche Defaults
+    // (z. B. im Admin-Bereich, wo i18n noch nicht geladen ist).
+    function T(key, def) {
+        return (window.I18N && window.I18N[key]) || def;
+    }
+
     // ---- Styles einmalig injizieren ----
     var style = document.createElement('style');
     style.textContent =
@@ -113,9 +119,9 @@
         alert: function (message, opts) {
             opts = opts || {};
             return build({
-                title:      opts.title  || 'Hinweis',
+                title:      opts.title  || T('dialog.notice', 'Hinweis'),
                 message:    String(message),
-                okText:     opts.okText || 'OK',
+                okText:     opts.okText || T('dialog.ok', 'OK'),
                 showCancel: false,
                 danger:     !!opts.danger
             });
@@ -123,10 +129,10 @@
         confirm: function (message, opts) {
             opts = opts || {};
             return build({
-                title:      opts.title      || 'Bestätigung',
+                title:      opts.title      || T('dialog.confirm', 'Bestätigung'),
                 message:    String(message),
-                okText:     opts.okText     || 'OK',
-                cancelText: opts.cancelText || 'Abbrechen',
+                okText:     opts.okText     || T('dialog.ok', 'OK'),
+                cancelText: opts.cancelText || T('dialog.cancel', 'Abbrechen'),
                 showCancel: true,
                 danger:     !!opts.danger
             });

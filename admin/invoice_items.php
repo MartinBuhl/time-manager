@@ -90,11 +90,11 @@ $totalMinutes = (int)$invoice['total_minutes'];
 $amountNet    = (float)$invoice['amount_net'];
 $amountGross  = (float)$invoice['amount_gross'];
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rechnungsposten <?= h($invoice['invoice_number']) ?></title>
+<title><?= h(t('invItems.title', ['num' => $invoice['invoice_number']])) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -175,145 +175,145 @@ tr.item-hidden td:first-child { opacity:1; }
 
     <div class="admin-header">
         <div>
-            <h1>Rechnungsposten <?= h($invoice['invoice_number']) ?></h1>
+            <h1><?= h(t('invItems.title', ['num' => $invoice['invoice_number']])) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo;
-                <a href="invoices.php">Rechnungen</a> &rsaquo;
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo;
+                <a href="invoices.php"><?= h(t('admin.card.invoices')) ?></a> &rsaquo;
                 <?= h($invoice['invoice_number']) ?>
             </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-            <a href="invoice_view.php?invoice_id=<?= (int)$invoiceId ?>" class="btn">Vorschau</a>
-            <a href="invoices.php" class="btn-logout">&#8592; Rechnungen</a>
+            <a href="invoice_view.php?invoice_id=<?= (int)$invoiceId ?>" class="btn"><?= h(t('invoices.preview')) ?></a>
+            <a href="invoices.php" class="btn-logout">&#8592; <?= h(t('admin.card.invoices')) ?></a>
         </div>
     </div>
 
     <div class="admin-section">
 
         <div class="summary-bar" id="summaryBar">
-            <span>Kunde: <strong><?= h($invoice['customer_name'] ?? '—') ?></strong></span>
-            <span><strong id="sumItems"><?= count(array_filter($items, fn($it) => (int)$it['visible'] === 1)) ?></strong> Posten</span>
+            <span><?= h(t('entries.colCustomer')) ?>: <strong><?= h($invoice['customer_name'] ?? '—') ?></strong></span>
+            <span><strong id="sumItems"><?= count(array_filter($items, fn($it) => (int)$it['visible'] === 1)) ?></strong> <?= h(t('invItems.posten')) ?></span>
             <span><strong id="sumH"><?= fmtH($totalMinutes) ?></strong></span>
-            <span>Netto: <strong id="sumNet"><?= fmtEur($amountNet) ?></strong></span>
-            <span>Brutto: <strong id="sumGross"><?= fmtEur($amountGross) ?></strong></span>
+            <span><?= h(t('invoices.net')) ?>: <strong id="sumNet"><?= fmtEur($amountNet) ?></strong></span>
+            <span><?= h(t('invoices.gross')) ?>: <strong id="sumGross"><?= fmtEur($amountGross) ?></strong></span>
             <span style="color:var(--text-muted);font-size:12px"><?= number_format($rate, 2, ',', '.') ?> €/h</span>
         </div>
 
         <div class="meta-form" id="metaForm">
-            <h3>Rechnungs-Stammdaten</h3>
+            <h3><?= h(t('invItems.metaHeading')) ?></h3>
             <div class="meta-row">
                 <div>
-                    <label>Rechnungsdatum</label>
+                    <label><?= h(t('invItems.invoiceDate')) ?></label>
                     <input type="date" id="metaDate" class="f-date"
                            value="<?= h($invoice['invoice_date'] ?? date('Y-m-d', strtotime($invoice['created_at']))) ?>">
                 </div>
                 <div>
-                    <label>Zeitraum von</label>
+                    <label><?= h(t('invItems.periodFrom')) ?></label>
                     <input type="date" id="metaPeriodStart" class="f-date"
                            value="<?= h($invoice['period_start'] ?? '') ?>">
                 </div>
                 <div>
-                    <label>Zeitraum bis</label>
+                    <label><?= h(t('invItems.periodTo')) ?></label>
                     <input type="date" id="metaPeriodEnd" class="f-date"
                            value="<?= h($invoice['period_end'] ?? '') ?>">
                 </div>
                 <div>
-                    <label>Stundensatz (€)</label>
+                    <label><?= h(t('invItems.hourlyRate')) ?></label>
                     <input type="number" id="metaRate" class="f-rate" step="0.01" min="0"
                            value="<?= number_format($rate, 2, '.', '') ?>">
                 </div>
                 <div>
-                    <label>MwSt. (%)</label>
+                    <label><?= h(t('invItems.tax')) ?></label>
                     <input type="number" id="metaTax" class="f-tax" step="1" min="0" max="100"
                            value="<?= $taxRate ?>">
                 </div>
             </div>
             <div class="meta-row">
                 <div>
-                    <label>Rechnungstyp</label>
+                    <label><?= h(t('invItems.invoiceType')) ?></label>
                     <select id="metaMode" onchange="toggleTextMode()">
-                        <option value="entries"<?= $invoiceMode === 'entries' ? ' selected' : '' ?>>Einzelne Posten</option>
-                        <option value="text"<?=   $invoiceMode === 'text'    ? ' selected' : '' ?>>Standard Text</option>
+                        <option value="entries"<?= $invoiceMode === 'entries' ? ' selected' : '' ?>><?= h(t('invItems.modeEntries')) ?></option>
+                        <option value="text"<?=   $invoiceMode === 'text'    ? ' selected' : '' ?>><?= h(t('invItems.modeText')) ?></option>
                     </select>
                 </div>
                 <div id="metaTextHoursWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
-                    <label>Stunden (gerundet)</label>
+                    <label><?= h(t('invItems.hoursRounded')) ?></label>
                     <input type="number" id="metaHours" class="f-hours" step="0.01" min="0"
                            value="<?= number_format((int)$invoice['total_minutes'] / 60, 2, '.', '') ?>">
                 </div>
                 <div id="metaNetWrap" style="display:<?= $invoiceMode === 'text' ? 'flex' : 'none' ?>;flex-direction:column;gap:4px">
-                    <label>Nettobetrag (€)</label>
+                    <label><?= h(t('invItems.netAmount')) ?></label>
                     <input type="number" id="metaNet" class="f-net" step="0.01" min="0"
                            value="<?= number_format((float)$invoice['amount_net'], 2, '.', '') ?>">
                 </div>
             </div>
             <div id="metaTextWrap" style="display:<?= $invoiceMode === 'text' ? 'block' : 'none' ?>;margin-bottom:8px">
-                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Standard Text für Rechnung</label>
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px"><?= h(t('customers.invoiceModeText')) ?></label>
                 <textarea id="metaText" style="width:100%;box-sizing:border-box"><?= h($invoiceText) ?></textarea>
             </div>
             <div style="margin-bottom:8px">
-                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Mailvorlage Rechnung HTML (Platzhalter: {time}, {work})</label>
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px"><?= h(t('customers.fMailHtml')) ?></label>
                 <div class="rte-wrap">
                     <div class="rte-toolbar">
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="rteLink(this)">Link</button>
-                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="<?= h(t('orders.removeFormat')) ?>">&#10005;</button>
                     </div>
                     <div class="rte-body" id="metaMailHtml" contenteditable="true"><?= $mailTemplateHtml ?></div>
                 </div>
             </div>
             <div style="margin-bottom:8px">
-                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px">Mailvorlage Rechnung Plain Text</label>
+                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px"><?= h(t('invItems.mailPlain')) ?></label>
                 <textarea id="metaMailPlain" style="width:100%;box-sizing:border-box;min-height:60px"><?= h($mailTemplatePlain) ?></textarea>
             </div>
             <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-                <button class="btn btn--primary" id="metaSaveBtn">Stammdaten speichern</button>
+                <button class="btn btn--primary" id="metaSaveBtn"><?= h(t('invItems.saveMeta')) ?></button>
                 <span id="metaMsg" style="font-size:12px"></span>
             </div>
         </div>
 
         <div class="add-form">
-            <h3>Neuen Posten hinzufügen</h3>
+            <h3><?= h(t('invItems.addHeading')) ?></h3>
             <div class="add-row">
                 <div>
-                    <label>Datum</label>
+                    <label><?= h(t('customers.colDate')) ?></label>
                     <input type="date" id="addDate" class="f-date" value="<?= date('Y-m-d') ?>">
                 </div>
                 <div>
-                    <label>Tätigkeit</label>
-                    <input type="text" id="addActivity" class="f-activity" placeholder="Tätigkeit">
+                    <label><?= h(t('common.activity')) ?></label>
+                    <input type="text" id="addActivity" class="f-activity" placeholder="<?= h(t('common.activity')) ?>">
                 </div>
                 <div style="flex:1">
-                    <label>Kommentar</label>
-                    <input type="text" id="addComment" class="f-comment" placeholder="Kommentar (optional)">
+                    <label><?= h(t('customers.colComment')) ?></label>
+                    <input type="text" id="addComment" class="f-comment" placeholder="<?= h(t('customers.commentOptional')) ?>">
                 </div>
                 <div>
-                    <label>Minuten</label>
-                    <input type="number" id="addMinutes" class="f-min" min="1" placeholder="Min">
+                    <label><?= h(t('invItems.minutes')) ?></label>
+                    <input type="number" id="addMinutes" class="f-min" min="1" placeholder="<?= h(t('entries.colMin')) ?>">
                 </div>
                 <div>
                     <label>&nbsp;</label>
-                    <button class="btn btn--primary" id="addBtn">Hinzufügen</button>
+                    <button class="btn btn--primary" id="addBtn"><?= h(t('customers.add')) ?></button>
                 </div>
             </div>
             <div id="addMsg" style="margin-top:8px;font-size:12px"></div>
         </div>
 
         <?php if (empty($items)): ?>
-            <p class="empty-message">Keine Posten vorhanden. Bitte oben einen Posten hinzufügen.</p>
+            <p class="empty-message"><?= h(t('invItems.emptyItems')) ?></p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table" id="itemsTable">
                 <thead>
                     <tr>
-                        <th style="width:40px;text-align:center" title="Auf der Rechnung anzeigen">Anz.</th>
-                        <th>Datum</th>
-                        <th>Tätigkeit &amp; Kommentar</th>
-                        <th class="col-min">Min</th>
-                        <th class="col-h">Std.</th>
-                        <th class="col-eur">Betrag</th>
+                        <th style="width:40px;text-align:center" title="<?= h(t('invItems.colVisibleTitle')) ?>"><?= h(t('invItems.colVisible')) ?></th>
+                        <th><?= h(t('customers.colDate')) ?></th>
+                        <th><?= h(t('invItems.colActivityComment')) ?></th>
+                        <th class="col-min"><?= h(t('entries.colMin')) ?></th>
+                        <th class="col-h"><?= h(t('invItems.colHoursShort')) ?></th>
+                        <th class="col-eur"><?= h(t('invItems.colAmount')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -337,22 +337,22 @@ tr.item-hidden td:first-child { opacity:1; }
                         <td class="col-h"><?= number_format((int)$item['duration_minutes'] / 60, 2, ',', '.') ?></td>
                         <td class="col-eur"><?= fmtEur($itemEur) ?></td>
                         <td style="white-space:nowrap">
-                            <button class="btn" onclick="showEdit(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px">Bearb.</button>
-                            <button class="btn btn--danger" onclick="deleteItem(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px;margin-left:4px">Löschen</button>
+                            <button class="btn" onclick="showEdit(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px"><?= h(t('invItems.editShort')) ?></button>
+                            <button class="btn btn--danger" onclick="deleteItem(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px;margin-left:4px"><?= h(t('common.delete')) ?></button>
                         </td>
                     </tr>
                     <tr id="edit-<?= (int)$item['id'] ?>" class="edit-row hidden">
                         <td></td>
                         <td><input type="date" class="ei-date" value="<?= h($item['date']) ?>"></td>
                         <td>
-                            <input type="text" class="ei-activity" value="<?= h($item['activity']) ?>" placeholder="Tätigkeit">
-                            <input type="text" class="ei-comment" value="<?= h($item['comment'] ?? '') ?>" placeholder="Kommentar" style="margin-top:4px">
+                            <input type="text" class="ei-activity" value="<?= h($item['activity']) ?>" placeholder="<?= h(t('common.activity')) ?>">
+                            <input type="text" class="ei-comment" value="<?= h($item['comment'] ?? '') ?>" placeholder="<?= h(t('customers.colComment')) ?>" style="margin-top:4px">
                         </td>
                         <td class="col-min"><input type="number" class="ei-min" value="<?= (int)$item['duration_minutes'] ?>" min="1" style="width:60px"></td>
                         <td colspan="2"></td>
                         <td style="white-space:nowrap">
-                            <button class="btn btn--primary" onclick="saveItem(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px">Speichern</button>
-                            <button class="btn" onclick="hideEdit(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px;margin-left:4px">Abbrechen</button>
+                            <button class="btn btn--primary" onclick="saveItem(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px"><?= h(t('common.save')) ?></button>
+                            <button class="btn" onclick="hideEdit(<?= (int)$item['id'] ?>)" style="font-size:11px;padding:2px 8px;margin-left:4px"><?= h(t('common.cancel')) ?></button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -360,7 +360,7 @@ tr.item-hidden td:first-child { opacity:1; }
                 <?php $itemsSumMin = array_sum(array_map(fn($it) => (int)$it['visible'] ? (int)$it['duration_minutes'] : 0, $items)); ?>
                 <tfoot>
                     <tr class="items-foot">
-                        <td colspan="3" style="text-align:right">Summe</td>
+                        <td colspan="3" style="text-align:right"><?= h(t('invItems.sum')) ?></td>
                         <td class="col-min" id="footSumMin"><?= $itemsSumMin ?></td>
                         <td class="col-h" id="footSumH"><?= number_format($itemsSumMin / 60, 2, ',', '.') ?></td>
                         <td class="col-eur"></td>
@@ -375,6 +375,13 @@ tr.item-hidden td:first-child { opacity:1; }
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF      = <?= json_encode($_SESSION['csrf_token']) ?>;
 const INVOICE_ID = <?= (int)$invoiceId ?>;
 const RATE       = <?= json_encode($rate) ?>;
@@ -450,7 +457,7 @@ async function toggleItemVisible(id, checked) {
         updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
-        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
         const cb = document.querySelector('#row-' + id + ' .ei-visible');
         if (cb) cb.checked = !checked;
     }
@@ -463,7 +470,7 @@ async function saveItem(id) {
     const comment  = eRow.querySelector('.ei-comment').value.trim();
     const minutes  = parseInt(eRow.querySelector('.ei-min').value, 10);
 
-    if (!date || !activity || !minutes) { Dialog.alert('Bitte alle Pflichtfelder ausfüllen.'); return; }
+    if (!date || !activity || !minutes) { Dialog.alert(t('invItems.alertAllFields')); return; }
 
     const data = await apiCall('update_invoice_item', {
         id, date, activity, comment, duration_minutes: minutes
@@ -483,12 +490,12 @@ async function saveItem(id) {
         updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
-        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
     }
 }
 
 async function deleteItem(id) {
-    if (!await Dialog.confirm('Posten löschen?', { danger: true })) return;
+    if (!await Dialog.confirm(t('invItems.confirmDeleteItem'), { danger: true })) return;
     const data = await apiCall('delete_invoice_item', { id });
     if (data.success) {
         document.getElementById('row-'  + id)?.remove();
@@ -496,7 +503,7 @@ async function deleteItem(id) {
         updateSummary(data.data.totals, visibleRowCount());
         recalcItemsFooter();
     } else {
-        Dialog.alert('Fehler: ' + (data.error || 'Unbekannt'));
+        Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
     }
 }
 
@@ -509,7 +516,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
 
     if (!date || !activity || !minutes) {
         msg.style.color = '#c0392b';
-        msg.textContent = 'Datum, Tätigkeit und Minuten sind Pflichtfelder.';
+        msg.textContent = t('invItems.addRequired');
         return;
     }
 
@@ -534,8 +541,8 @@ document.getElementById('addBtn').addEventListener('click', async function() {
             '<td class="col-h">' + (minutes / 60).toFixed(2).replace('.', ',') + '</td>' +
             '<td class="col-eur">' + fmtEur(amount) + '</td>' +
             '<td style="white-space:nowrap">' +
-              '<button class="btn" onclick="showEdit(' + id + ')" style="font-size:11px;padding:2px 8px">Bearb.</button> ' +
-              '<button class="btn btn--danger" onclick="deleteItem(' + id + ')" style="font-size:11px;padding:2px 8px;margin-left:4px">Löschen</button>' +
+              '<button class="btn" onclick="showEdit(' + id + ')" style="font-size:11px;padding:2px 8px">' + escHtml(t('invItems.editShort')) + '</button> ' +
+              '<button class="btn btn--danger" onclick="deleteItem(' + id + ')" style="font-size:11px;padding:2px 8px;margin-left:4px">' + escHtml(t('common.delete')) + '</button>' +
             '</td>';
 
         const eRow = document.createElement('tr');
@@ -544,13 +551,13 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         eRow.innerHTML =
             '<td></td>' +
             '<td><input type="date" class="ei-date" value="' + date + '"></td>' +
-            '<td><input type="text" class="ei-activity" value="' + escAttr(activity) + '" placeholder="Tätigkeit">' +
-                '<input type="text" class="ei-comment" value="' + escAttr(comment) + '" placeholder="Kommentar" style="margin-top:4px"></td>' +
+            '<td><input type="text" class="ei-activity" value="' + escAttr(activity) + '" placeholder="' + escAttr(t('common.activity')) + '">' +
+                '<input type="text" class="ei-comment" value="' + escAttr(comment) + '" placeholder="' + escAttr(t('customers.colComment')) + '" style="margin-top:4px"></td>' +
             '<td class="col-min"><input type="number" class="ei-min" value="' + minutes + '" min="1" style="width:60px"></td>' +
             '<td colspan="2"></td>' +
             '<td style="white-space:nowrap">' +
-              '<button class="btn btn--primary" onclick="saveItem(' + id + ')" style="font-size:11px;padding:2px 8px">Speichern</button> ' +
-              '<button class="btn" onclick="hideEdit(' + id + ')" style="font-size:11px;padding:2px 8px;margin-left:4px">Abbrechen</button>' +
+              '<button class="btn btn--primary" onclick="saveItem(' + id + ')" style="font-size:11px;padding:2px 8px">' + escHtml(t('common.save')) + '</button> ' +
+              '<button class="btn" onclick="hideEdit(' + id + ')" style="font-size:11px;padding:2px 8px;margin-left:4px">' + escHtml(t('common.cancel')) + '</button>' +
             '</td>';
 
         tbody.appendChild(vRow);
@@ -565,7 +572,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
         recalcItemsFooter();
     } else {
         msg.style.color = '#c0392b';
-        msg.textContent = data.error || 'Fehler beim Hinzufügen.';
+        msg.textContent = data.error || t('invItems.addError');
     }
 });
 
@@ -579,12 +586,12 @@ function createTableBody() {
     wrapper.innerHTML =
         '<table class="entries-table" id="itemsTable">' +
         '<thead><tr>' +
-        '<th style="width:40px;text-align:center">Anz.</th>' +
-        '<th>Datum</th><th>Tätigkeit &amp; Kommentar</th>' +
-        '<th class="col-min">Min</th><th class="col-h">Std.</th><th class="col-eur">Betrag</th><th></th>' +
+        '<th style="width:40px;text-align:center">' + escHtml(t('invItems.colVisible')) + '</th>' +
+        '<th>' + escHtml(t('customers.colDate')) + '</th><th>' + escHtml(t('invItems.colActivityComment')) + '</th>' +
+        '<th class="col-min">' + escHtml(t('entries.colMin')) + '</th><th class="col-h">' + escHtml(t('invItems.colHoursShort')) + '</th><th class="col-eur">' + escHtml(t('invItems.colAmount')) + '</th><th></th>' +
         '</tr></thead><tbody></tbody>' +
         '<tfoot><tr class="items-foot">' +
-        '<td colspan="3" style="text-align:right">Summe</td>' +
+        '<td colspan="3" style="text-align:right">' + escHtml(t('invItems.sum')) + '</td>' +
         '<td class="col-min" id="footSumMin">0</td>' +
         '<td class="col-h" id="footSumH">0,00</td>' +
         '<td class="col-eur"></td><td></td>' +
@@ -604,7 +611,7 @@ function rteLink(btn) {
     const body = btn.closest('.rte-wrap').querySelector('.rte-body');
     const sel  = window.getSelection();
     const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
-    const url  = prompt('URL:', 'https://');
+    const url  = prompt(t('customers.urlPrompt'), 'https://');
     if (!url) return;
     body.focus();
     if (range) { sel.removeAllRanges(); sel.addRange(range); }
@@ -629,7 +636,7 @@ document.getElementById('metaSaveBtn').addEventListener('click', async function(
     const msg = document.getElementById('metaMsg');
     btn.disabled = true;
     msg.style.color = '';
-    msg.textContent = 'Wird gespeichert…';
+    msg.textContent = t('common.saving');
 
     const mode = document.getElementById('metaMode').value;
     const params = {
@@ -652,7 +659,7 @@ document.getElementById('metaSaveBtn').addEventListener('click', async function(
     const data = await apiCall('update_invoice_meta', params);
     if (data.success) {
         msg.style.color = '#27ae60';
-        msg.textContent = '✓ Gespeichert';
+        msg.textContent = t('invItems.savedCheck');
         if (data.data.totals || data.data.amount_net) {
             const t = data.data;
             updateSummary({
@@ -664,7 +671,7 @@ document.getElementById('metaSaveBtn').addEventListener('click', async function(
         setTimeout(() => { btn.disabled = false; msg.textContent = ''; }, 2500);
     } else {
         msg.style.color = '#c0392b';
-        msg.textContent = data.error || 'Fehler';
+        msg.textContent = data.error || t('common.error');
         btn.disabled = false;
     }
 });

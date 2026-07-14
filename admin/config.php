@@ -41,70 +41,70 @@ $demoExists = demoDataExists(db());
 // Field definitions per group
 $groups = [
     1 => [
-        'title'  => 'Rechnungsabsender (eigene Firma)',
+        'title'  => t('cfg.group.1'),
         'fields' => [
-            ['key' => 'invoice_company', 'label' => 'Firmenname',            'type' => 'text'],
-            ['key' => 'invoice_street',  'label' => 'Straße & Hausnummer',   'type' => 'text'],
-            ['key' => 'invoice_zip',     'label' => 'PLZ',                   'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_city',    'label' => 'Ort',                   'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_email',          'label' => 'E-Mail',          'type' => 'email'],
-            ['key' => 'invoice_phone',          'label' => 'Telefon',         'type' => 'text'],
-            ['key' => 'invoice_tax_id',         'label' => 'USt-IdNr.',       'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_tax_number',     'label' => 'Steuernummer',    'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_bank',           'label' => 'Bank',            'type' => 'text'],
-            ['key' => 'invoice_account_holder', 'label' => 'Kontoinhaber',    'type' => 'text'],
-            ['key' => 'invoice_iban',           'label' => 'IBAN',            'type' => 'text'],
-            ['key' => 'invoice_bic',            'label' => 'BIC',             'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_company', 'label' => t('cfg.label.invoice_company'),            'type' => 'text'],
+            ['key' => 'invoice_street',  'label' => t('cfg.label.invoice_street'),   'type' => 'text'],
+            ['key' => 'invoice_zip',     'label' => t('cfg.label.invoice_zip'),                   'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_city',    'label' => t('cfg.label.invoice_city'),                   'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_email',          'label' => t('cfg.label.invoice_email'),          'type' => 'email'],
+            ['key' => 'invoice_phone',          'label' => t('cfg.label.invoice_phone'),         'type' => 'text'],
+            ['key' => 'invoice_tax_id',         'label' => t('cfg.label.invoice_tax_id'),       'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_tax_number',     'label' => t('cfg.label.invoice_tax_number'),    'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_bank',           'label' => t('cfg.label.invoice_bank'),            'type' => 'text'],
+            ['key' => 'invoice_account_holder', 'label' => t('cfg.label.invoice_account_holder'),    'type' => 'text'],
+            ['key' => 'invoice_iban',           'label' => t('cfg.label.invoice_iban'),            'type' => 'text'],
+            ['key' => 'invoice_bic',            'label' => t('cfg.label.invoice_bic'),             'type' => 'text', 'width' => 'half'],
         ],
     ],
     2 => [
-        'title'  => 'Rechnungsparameter',
+        'title'  => t('cfg.group.2'),
         'fields' => [
-            ['key' => 'invoice_hourly_rate',    'label' => 'Standard-Stundensatz (€)',   'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_tax_rate',       'label' => 'MwSt-Satz (%)',              'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_payment_days',   'label' => 'Zahlungsziel (Tage)',        'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_number_prefix',  'label' => 'Rechnungsnummer Prefix',     'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_number_start',   'label' => 'Rechnungsnummer Start',      'type' => 'text', 'width' => 'half'],
-            ['key' => 'invoice_mail_subject',   'label' => 'E-Mail Betreff für Rechnungen — Platzhalter: {project}, {time}', 'type' => 'text'],
-            ['key' => 'invoice_mail_bcc',       'label' => 'Kopie der Rechnungsmails an (BCC) — wird beim Versand aus dem Mailspool als Kopie zugestellt', 'type' => 'email'],
-            ['key' => 'invoice_general_info',   'label' => 'Allgemeine Info auf allen Rechnungen — erscheint unter dem Gesamtbetrag (PDF und Vorschau)', 'type' => 'textarea'],
+            ['key' => 'invoice_hourly_rate',    'label' => t('cfg.label.invoice_hourly_rate'),   'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_tax_rate',       'label' => t('cfg.label.invoice_tax_rate'),              'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_payment_days',   'label' => t('cfg.label.invoice_payment_days'),        'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_number_prefix',  'label' => t('cfg.label.invoice_number_prefix'),     'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_number_start',   'label' => t('cfg.label.invoice_number_start'),      'type' => 'text', 'width' => 'half'],
+            ['key' => 'invoice_mail_subject',   'label' => t('cfg.label.invoice_mail_subject'), 'type' => 'text'],
+            ['key' => 'invoice_mail_bcc',       'label' => t('cfg.label.invoice_mail_bcc'), 'type' => 'email'],
+            ['key' => 'invoice_general_info',   'label' => t('cfg.label.invoice_general_info'), 'type' => 'textarea'],
         ],
     ],
     3 => [
-        'title'  => 'System & E-Mail',
+        'title'  => t('cfg.group.3'),
         'fields' => [
-            ['key' => 'github_repo',           'label' => 'GitHub Repository (für System-Updates, z.B. benutzer/time-manager)', 'type' => 'text'],
-            ['key' => 'site_url',              'label' => 'Basis-URL der Installation (ohne abschließenden Slash)', 'type' => 'text'],
-            ['key' => 'mail_from',             'label' => 'Absender-E-Mail (noreply)',   'type' => 'email',    'width' => 'half'],
-            ['key' => 'mail_name',             'label' => 'Absender-Name',               'type' => 'text',     'width' => 'half'],
-            ['key' => 'mail_bcc',              'label' => 'BCC (alle ausgehenden Mails)', 'type' => 'email',   'width' => 'half'],
-            ['key' => 'mail_signature_html',   'label' => 'E-Mail Signatur (HTML)',      'type' => 'richtext'],
-            ['key' => 'mail_signature_plain',  'label' => 'E-Mail Signatur (Plain Text)','type' => 'textarea'],
+            ['key' => 'github_repo',           'label' => t('cfg.label.github_repo'), 'type' => 'text'],
+            ['key' => 'site_url',              'label' => t('cfg.label.site_url'), 'type' => 'text'],
+            ['key' => 'mail_from',             'label' => t('cfg.label.mail_from'),   'type' => 'email',    'width' => 'half'],
+            ['key' => 'mail_name',             'label' => t('cfg.label.mail_name'),               'type' => 'text',     'width' => 'half'],
+            ['key' => 'mail_bcc',              'label' => t('cfg.label.mail_bcc'), 'type' => 'email',   'width' => 'half'],
+            ['key' => 'mail_signature_html',   'label' => t('cfg.label.mail_signature_html'),      'type' => 'richtext'],
+            ['key' => 'mail_signature_plain',  'label' => t('cfg.label.mail_signature_plain'),'type' => 'textarea'],
         ],
     ],
     4 => [
-        'title'  => 'SMTP-Mailversand',
+        'title'  => t('cfg.group.4'),
         'fields' => [
-            ['key' => 'smtp_host',       'label' => 'SMTP Server',                         'type' => 'text',     'width' => 'half'],
-            ['key' => 'smtp_port',       'label' => 'Port (587 = TLS, 465 = SSL)',         'type' => 'text',     'width' => 'half'],
-            ['key' => 'smtp_user',       'label' => 'Benutzername',                        'type' => 'text',     'width' => 'half'],
-            ['key' => 'smtp_password',   'label' => 'Passwort',                            'type' => 'password', 'width' => 'half'],
-            ['key' => 'smtp_encryption', 'label' => 'Verschlüsselung (tls / ssl / none)', 'type' => 'text',     'width' => 'half'],
-            ['key' => 'imap_save_sent',   'label' => 'Versendete Rechnungsmails im IMAP-Sent-Ordner ablegen', 'type' => 'select',
-                'options' => ['0' => 'Nein', '1' => 'Ja']],
-            ['key' => 'imap_host',        'label' => 'IMAP Server (Login = SMTP-Benutzer/Passwort)', 'type' => 'text', 'width' => 'half'],
-            ['key' => 'imap_port',        'label' => 'IMAP Port (993 = SSL, 143 = TLS/none)',        'type' => 'text', 'width' => 'half'],
-            ['key' => 'imap_encryption',  'label' => 'IMAP Verschlüsselung (ssl / tls / none)',       'type' => 'text', 'width' => 'half'],
-            ['key' => 'imap_sent_folder', 'label' => 'Sent-Ordner (z.B. Sent, INBOX.Sent, Gesendet)', 'type' => 'text', 'width' => 'half'],
+            ['key' => 'smtp_host',       'label' => t('cfg.label.smtp_host'),                         'type' => 'text',     'width' => 'half'],
+            ['key' => 'smtp_port',       'label' => t('cfg.label.smtp_port'),         'type' => 'text',     'width' => 'half'],
+            ['key' => 'smtp_user',       'label' => t('cfg.label.smtp_user'),                        'type' => 'text',     'width' => 'half'],
+            ['key' => 'smtp_password',   'label' => t('cfg.label.smtp_password'),                            'type' => 'password', 'width' => 'half'],
+            ['key' => 'smtp_encryption', 'label' => t('cfg.label.smtp_encryption'), 'type' => 'text',     'width' => 'half'],
+            ['key' => 'imap_save_sent',   'label' => t('cfg.label.imap_save_sent'), 'type' => 'select',
+                'options' => ['0' => t('common.no'), '1' => t('common.yes')]],
+            ['key' => 'imap_host',        'label' => t('cfg.label.imap_host'), 'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_port',        'label' => t('cfg.label.imap_port'),        'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_encryption',  'label' => t('cfg.label.imap_encryption'),       'type' => 'text', 'width' => 'half'],
+            ['key' => 'imap_sent_folder', 'label' => t('cfg.label.imap_sent_folder'), 'type' => 'text', 'width' => 'half'],
         ],
     ],
 ];
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Konfiguration – Administration</title>
+<title><?= h(t('config.title')) ?> – <?= h(t('admin.title')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -187,25 +187,44 @@ $groups = [
 
     <div class="admin-header">
         <div>
-            <h1>Konfiguration</h1>
+            <h1><?= h(t('config.title')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Konfiguration
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('config.title')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div id="globalMsg"></div>
 
     <div class="admin-section">
-        <h2>Darstellung</h2>
+        <h2><?= h(t('config.appearance')) ?></h2>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <span style="font-size:13px;font-weight:600">Design</span>
+            <span style="font-size:13px;font-weight:600"><?= h(t('settings.design')) ?></span>
             <div class="theme-choice" id="adminThemeChoice">
-                <button type="button" class="theme-btn" data-theme-choice="light">Hell</button>
-                <button type="button" class="theme-btn" data-theme-choice="dark">Dunkel</button>
+                <button type="button" class="theme-btn" data-theme-choice="light"><?= h(t('settings.light')) ?></button>
+                <button type="button" class="theme-btn" data-theme-choice="dark"><?= h(t('settings.dark')) ?></button>
             </div>
-            <span style="font-size:12px;color:var(--text-muted)">Gilt für App und Administration.</span>
+            <span style="font-size:12px;color:var(--text-muted)"><?= h(t('config.appliesBoth')) ?></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px">
+            <span style="font-size:13px;font-weight:600"><?= h(t('settings.language')) ?></span>
+            <span class="theme-choice">
+                <?php foreach (i18nLangLabels() as $lc => $ll): ?>
+                <a href="?lang=<?= h($lc) ?>" class="theme-btn<?= $lc === currentLang() ? ' active' : '' ?>" style="text-decoration:none"><?= h($ll) ?></a>
+                <?php endforeach; ?>
+            </span>
+            <span style="font-size:12px;color:var(--text-muted)"><?= h(t('config.appliesBoth')) ?></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px">
+            <span style="font-size:13px;font-weight:600"><?= h(t('config.defaultLang')) ?></span>
+            <select id="cfg_default_lang" data-key="default_lang">
+                <?php $curDefault = cfgVal($cfgMap, 'default_lang', 'de'); foreach (i18nLangLabels() as $lc => $ll): ?>
+                <option value="<?= h($lc) ?>"<?= $curDefault === $lc ? ' selected' : '' ?>><?= h($ll) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn" type="button" onclick="saveDefaultLang()"><?= h(t('common.save')) ?></button>
+            <span id="defaultLangMsg" style="font-size:12px"></span>
         </div>
     </div>
 
@@ -259,10 +278,10 @@ $groups = [
             <?php endforeach; ?>
         </div>
         <div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
-            <button class="btn btn--primary" onclick="saveGroup(<?= $gid ?>)">Speichern</button>
+            <button class="btn btn--primary" onclick="saveGroup(<?= $gid ?>)"><?= h(t('common.save')) ?></button>
             <?php if ($gid === 4): ?>
-            <button class="btn" type="button" onclick="sendTestMail()">Testmail versenden</button>
-            <button class="btn" type="button" onclick="listImapFolders()">IMAP-Ordner anzeigen</button>
+            <button class="btn" type="button" onclick="sendTestMail()"><?= h(t('config.testMail')) ?></button>
+            <button class="btn" type="button" onclick="listImapFolders()"><?= h(t('config.showImapFolders')) ?></button>
             <?php endif; ?>
             <span class="cfg-msg" id="gmsg-<?= $gid ?>" style="font-size:12px"></span>
         </div>
@@ -273,11 +292,11 @@ $groups = [
     <?php endforeach; ?>
 
     <div class="admin-section">
-        <h2>Shortcuts festlegen</h2>
+        <h2><?= h(t('config.shortcuts')) ?></h2>
 
         <?php if ($cfgShortcuts === null): ?>
             <div class="admin-msg admin-msg--err" style="margin-bottom:12px">
-                Tabelle <code>tm_shortcuts</code> fehlt. Bitte zuerst im SQL-Migrations-Bereich ausführen:
+                <?= h(t('config.shortcutsMissing')) ?>
             </div>
             <pre style="background:#1a1a1a;color:#ddd;padding:10px;border-radius:4px;font-size:12px;overflow:auto">CREATE TABLE IF NOT EXISTS tm_shortcuts (
   id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -290,16 +309,16 @@ $groups = [
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px">
             <div>
-                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Kunde</label>
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px"><?= h(t('entries.colCustomer')) ?></label>
                 <select id="scCustomer">
-                    <option value="">— Alle Kunden —</option>
+                    <option value=""><?= h(t('config.allCustomers')) ?></option>
                     <?php foreach ($cfgCustomers as $c): ?>
                     <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div>
-                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Tätigkeit</label>
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px"><?= h(t('common.activity')) ?></label>
                 <select id="scActivity">
                     <?php foreach (getActivities(db()) as $act): ?>
                     <option value="<?= h($act) ?>"><?= h($act) ?></option>
@@ -307,10 +326,10 @@ $groups = [
                 </select>
             </div>
             <div style="flex:1;min-width:200px">
-                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px">Shortcut Text</label>
-                <input type="text" id="scText" placeholder="z.B. Fehler in Login behoben" style="width:100%;box-sizing:border-box">
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:3px"><?= h(t('config.shortcutText')) ?></label>
+                <input type="text" id="scText" placeholder="<?= h(t('config.shortcutPlaceholder')) ?>" style="width:100%;box-sizing:border-box">
             </div>
-            <button class="btn btn--primary" onclick="saveShortcut()">Shortcut speichern</button>
+            <button class="btn btn--primary" onclick="saveShortcut()"><?= h(t('config.saveShortcut')) ?></button>
             <span id="scMsg" style="font-size:12px"></span>
         </div>
 
@@ -319,21 +338,21 @@ $groups = [
         <table class="entries-table">
             <thead>
                 <tr>
-                    <th>Kunde</th>
-                    <th>Tätigkeit</th>
-                    <th>Text</th>
+                    <th><?= h(t('entries.colCustomer')) ?></th>
+                    <th><?= h(t('common.activity')) ?></th>
+                    <th><?= h(t('config.text')) ?></th>
                     <th></th>
                 </tr>
             </thead>
             <tbody id="scTbody">
             <?php foreach ($cfgShortcuts as $s): ?>
             <tr id="sc-row-<?= (int)$s['id'] ?>">
-                <td><?= $s['customer_name'] !== '' ? h($s['customer_name']) : '<span style="color:var(--text-muted)">— Alle Kunden —</span>' ?></td>
+                <td><?= $s['customer_name'] !== '' ? h($s['customer_name']) : '<span style="color:var(--text-muted)">' . h(t('config.allCustomers')) . '</span>' ?></td>
                 <td><?= h($s['activity']) ?></td>
                 <td><?= h($s['shortcut_text']) ?></td>
                 <td>
                     <button type="button" class="btn-icon btn-icon--danger"
-                            onclick="deleteShortcut(<?= (int)$s['id'] ?>)" title="Löschen">
+                            onclick="deleteShortcut(<?= (int)$s['id'] ?>)" title="<?= h(t('common.delete')) ?>">
                         <svg viewBox="0 0 448 512" width="13" height="13" aria-hidden="true"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
                     </button>
                 </td>
@@ -342,7 +361,7 @@ $groups = [
             </tbody>
         </table>
         <?php else: ?>
-        <p class="empty-message" id="scEmpty">Noch keine Shortcuts vorhanden.</p>
+        <p class="empty-message" id="scEmpty"><?= h(t('config.noShortcuts')) ?></p>
         <?php endif; ?>
         </div>
 
@@ -350,9 +369,9 @@ $groups = [
     </div>
 
     <div class="admin-section">
-        <h2>SQL-Migration ausführen</h2>
+        <h2><?= h(t('config.sqlMigration')) ?></h2>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">
-            Mehrere Anweisungen mit Semikolon trennen. Nur für Datenbank-Migrationen verwenden.
+            <?= h(t('config.sqlHint')) ?>
         </p>
         <textarea id="sqlInput" rows="8" style="
             width:100%; box-sizing:border-box; font-family:monospace; font-size:12px;
@@ -360,29 +379,27 @@ $groups = [
             background:var(--bg); color:#fff; resize:vertical;
         " placeholder="ALTER TABLE `tm_customers` ADD COLUMN ..."></textarea>
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
-            <button class="btn btn--primary" onclick="runSql()">Ausführen</button>
-            <button class="btn" onclick="document.getElementById('sqlInput').value=''">Leeren</button>
+            <button class="btn btn--primary" onclick="runSql()"><?= h(t('config.execute')) ?></button>
+            <button class="btn" onclick="document.getElementById('sqlInput').value=''"><?= h(t('config.clear')) ?></button>
             <span id="sqlMsg" style="font-size:12px"></span>
         </div>
         <div id="sqlResults" style="margin-top:10px"></div>
     </div>
 
     <div class="admin-section">
-        <h2>Demo-Daten</h2>
+        <h2><?= h(t('config.demoData')) ?></h2>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">
-            Legt einen Demo-Kunden mit abgerechneten und offenen Arbeitszeiten, einer
-            Beispiel-Rechnung und einigen Aufträgen an. Beim Löschen werden ausschließlich
-            diese Demo-Daten entfernt – echte Daten bleiben unberührt.
+            <?= h(t('config.demoHint')) ?>
         </p>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn btn--primary" id="demoCreateBtn" onclick="createDemo()"
-                    <?= $demoExists ? 'style="display:none"' : '' ?>>Demo-Daten anlegen</button>
+                    <?= $demoExists ? 'style="display:none"' : '' ?>><?= h(t('config.demoCreate')) ?></button>
             <button class="btn btn--danger" id="demoDeleteBtn" onclick="deleteDemo()"
-                    <?= $demoExists ? '' : 'style="display:none"' ?>>Demo-Daten löschen</button>
+                    <?= $demoExists ? '' : 'style="display:none"' ?>><?= h(t('config.demoDelete')) ?></button>
             <span id="demoMsg" style="font-size:12px"></span>
         </div>
         <p id="demoStatus" style="font-size:12px;color:var(--text-muted);margin:10px 0 0">
-            <?= $demoExists ? 'Es sind aktuell Demo-Daten vorhanden.' : 'Aktuell sind keine Demo-Daten vorhanden.' ?>
+            <?= $demoExists ? h(t('config.demoPresent')) : h(t('config.demoAbsent')) ?>
         </p>
     </div>
 
@@ -390,6 +407,31 @@ $groups = [
 
 <script>
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
+
+async function saveDefaultLang() {
+    const val = document.getElementById('cfg_default_lang').value;
+    const msg = document.getElementById('defaultLangMsg');
+    msg.textContent = '';
+    try {
+        const res = await fetch('api.php', {
+            method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+            body: new URLSearchParams({ action: 'save_config', default_lang: val })
+        });
+        const data = await res.json();
+        msg.style.color = data.success ? 'var(--success)' : 'var(--danger)';
+        msg.textContent = data.success ? t('common.saved') : (data.error || t('common.saveError'));
+    } catch (e) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = t('config.serverError');
+    }
+}
 
 // Design-Schalter (hell/dunkel) – Einstellung wird mit der App geteilt
 (function(){
@@ -445,14 +487,14 @@ async function saveGroup(gid) {
         const data = await res.json();
         if (data.success) {
             msgEl.style.color = 'var(--success)';
-            msgEl.textContent = 'Gespeichert.';
+            msgEl.textContent = t('common.saved');
         } else {
             msgEl.style.color = 'var(--danger)';
-            msgEl.textContent = data.error || 'Fehler beim Speichern.';
+            msgEl.textContent = data.error || t('common.saveError');
         }
     } catch(e) {
         msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = 'Serverfehler.';
+        msgEl.textContent = t('config.serverError');
     }
 }
 
@@ -465,12 +507,12 @@ async function runSql() {
 
     if (!sql) {
         msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = 'Kein SQL eingegeben.';
+        msgEl.textContent = t('config.noSql');
         return;
     }
 
     msgEl.style.color = 'var(--text-muted)';
-    msgEl.textContent = 'Wird ausgeführt…';
+    msgEl.textContent = t('config.running');
 
     try {
         const body = new URLSearchParams({ action: 'execute_sql', sql });
@@ -483,7 +525,7 @@ async function runSql() {
 
         if (data.success) {
             msgEl.style.color = 'var(--success)';
-            msgEl.textContent = data.data.count + ' Anweisung(en) erfolgreich ausgeführt.';
+            msgEl.textContent = t('config.stmtsOk', { n: data.data.count });
 
             const rows = data.data.results.map(function(r) {
                 return '<tr style="border-bottom:1px solid var(--border)">' +
@@ -491,25 +533,25 @@ async function runSql() {
                         escHtml(r.preview) + (r.preview.length >= 80 ? '…' : '') +
                     '</td>' +
                     '<td style="padding:5px 0;white-space:nowrap;font-size:12px;color:var(--success)">' +
-                        r.affected + ' Zeile(n) betroffen' +
+                        t('config.rowsAffected', { n: r.affected }) +
                     '</td>' +
                 '</tr>';
             }).join('');
             resEl.innerHTML = '<table style="width:100%;border-collapse:collapse">' + rows + '</table>';
         } else {
             msgEl.style.color = 'var(--danger)';
-            msgEl.textContent = 'Fehler: ' + (data.error || 'Unbekannter Fehler');
+            msgEl.textContent = t('common.error') + ': ' + (data.error || t('common.unknownError'));
         }
     } catch(e) {
         msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = 'Serverfehler – bitte erneut versuchen.';
+        msgEl.textContent = t('config.serverErrorRetry');
     }
 }
 
 async function sendTestMail() {
     const msgEl = document.getElementById('gmsg-4');
     msgEl.style.color   = '#777';
-    msgEl.textContent   = 'Wird gesendet…';
+    msgEl.textContent   = t('config.sending');
 
     try {
         const res  = await fetch('api.php', {
@@ -520,15 +562,15 @@ async function sendTestMail() {
         const data = await res.json();
         if (data.success) {
             msgEl.style.color = 'var(--success)';
-            msgEl.textContent = 'Testmail versendet an ' + (data.data.recipient || '?')
+            msgEl.textContent = t('config.testMailSent', { r: data.data.recipient || '?' })
                               + (data.data.imap ? ' — ' + data.data.imap : '');
         } else {
             msgEl.style.color = 'var(--danger)';
-            msgEl.textContent = data.error || 'Fehler beim Versenden.';
+            msgEl.textContent = data.error || t('config.sendFailed');
         }
     } catch(e) {
         msgEl.style.color = 'var(--danger)';
-        msgEl.textContent = 'Serverfehler.';
+        msgEl.textContent = t('config.serverError');
     }
 }
 
@@ -544,7 +586,7 @@ async function saveShortcut() {
     msgEl.textContent = '';
 
     if (!text) {
-        msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Bitte Text eingeben.'; return;
+        msgEl.style.color = 'var(--danger)'; msgEl.textContent = t('config.enterText'); return;
     }
 
     try {
@@ -554,9 +596,9 @@ async function saveShortcut() {
             body: new URLSearchParams({ action: 'save_shortcut', customer_id: customerId, activity, shortcut_text: text }),
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Fehler');
+        if (!data.success) throw new Error(data.error || t('common.error'));
 
-        msgEl.style.color = 'var(--success)'; msgEl.textContent = 'Gespeichert.';
+        msgEl.style.color = 'var(--success)'; msgEl.textContent = t('common.saved');
         document.getElementById('scText').value = '';
 
         // Zeile in Tabelle einfügen
@@ -566,7 +608,7 @@ async function saveShortcut() {
         if (!tbody) {
             // Tabelle neu aufbauen wenn vorher leer
             document.getElementById('scList').innerHTML =
-                '<table class="entries-table"><thead><tr><th>Kunde</th><th>Tätigkeit</th><th>Text</th><th></th></tr></thead>' +
+                '<table class="entries-table"><thead><tr><th>' + escHtml(t('entries.colCustomer')) + '</th><th>' + escHtml(t('common.activity')) + '</th><th>' + escHtml(t('config.text')) + '</th><th></th></tr></thead>' +
                 '<tbody id="scTbody"></tbody></table>';
         }
         const tb = document.getElementById('scTbody');
@@ -574,10 +616,10 @@ async function saveShortcut() {
         const tr = document.createElement('tr');
         tr.id = 'sc-row-' + data.data.id;
         tr.innerHTML =
-            '<td>' + (customerId ? escHtml(customerName) : '<span style="color:var(--text-muted)">— Alle Kunden —</span>') + '</td>' +
+            '<td>' + (customerId ? escHtml(customerName) : '<span style="color:var(--text-muted)">' + escHtml(t('config.allCustomers')) + '</span>') + '</td>' +
             '<td>' + escHtml(activity) + '</td>' +
             '<td>' + escHtml(text) + '</td>' +
-            '<td><button type="button" class="btn-icon btn-icon--danger" onclick="deleteShortcut(' + data.data.id + ')" title="Löschen">' +
+            '<td><button type="button" class="btn-icon btn-icon--danger" onclick="deleteShortcut(' + data.data.id + ')" title="' + escHtml(t('common.delete')) + '">' +
             '<svg viewBox="0 0 448 512" width="13" height="13"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>' +
             '</button></td>';
         tb.appendChild(tr);
@@ -594,16 +636,16 @@ async function deleteShortcut(id) {
             body: new URLSearchParams({ action: 'delete_shortcut', id }),
         });
         const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Fehler');
+        if (!data.success) throw new Error(data.error || t('common.error'));
         document.getElementById('sc-row-' + id)?.remove();
     } catch(e) {
-        Dialog.alert('Fehler: ' + e.message);
+        Dialog.alert(t('common.error') + ': ' + e.message);
     }
 }
 
 async function listImapFolders() {
     const out = document.getElementById('imapFoldersResult');
-    out.textContent = 'Lade Ordner…';
+    out.textContent = t('config.loadingFolders');
     try {
         const res  = await fetch('api.php', {
             method: 'POST',
@@ -615,17 +657,17 @@ async function listImapFolders() {
         if (!data.success) {
             const err = document.createElement('span');
             err.style.color = 'var(--danger)';
-            err.textContent = data.error || 'Fehler';
+            err.textContent = data.error || t('common.error');
             out.appendChild(err);
             return;
         }
         const folders = data.data.folders || [];
         if (folders.length === 0) {
-            out.textContent = 'Keine Ordner gefunden.';
+            out.textContent = t('config.noFolders');
             return;
         }
         const title = document.createElement('div');
-        title.innerHTML = '<strong>Ordner auf dem Server</strong> (Wert für „Sent-Ordner" übernehmen):';
+        title.innerHTML = t('config.foldersOnServer');
         title.style.marginBottom = '4px';
         out.appendChild(title);
         folders.forEach(function(name) {
@@ -638,7 +680,7 @@ async function listImapFolders() {
         out.innerHTML = '';
         const err = document.createElement('span');
         err.style.color = 'var(--danger)';
-        err.textContent = 'Serverfehler.';
+        err.textContent = t('config.serverError');
         out.appendChild(err);
     }
 }
@@ -658,48 +700,48 @@ async function createDemo() {
     const msg = document.getElementById('demoMsg');
     btn.disabled = true;
     msg.style.color = 'var(--text-muted)';
-    msg.textContent = 'Wird angelegt…';
+    msg.textContent = t('config.demoCreating');
     try {
         const data = await demoApi('create_demo_data');
         if (data.success) {
             msg.style.color = 'var(--success)';
-            msg.textContent = '✓ Demo-Daten angelegt.';
+            msg.textContent = t('config.demoCreated');
             document.getElementById('demoCreateBtn').style.display = 'none';
             document.getElementById('demoDeleteBtn').style.display = '';
-            document.getElementById('demoStatus').textContent = 'Es sind aktuell Demo-Daten vorhanden.';
+            document.getElementById('demoStatus').textContent = t('config.demoPresent');
         } else {
             msg.style.color = 'var(--danger)';
-            msg.textContent = 'Fehler: ' + (data.error || 'Unbekannter Fehler');
+            msg.textContent = t('common.error') + ': ' + (data.error || t('common.unknownError'));
         }
     } catch (e) {
         msg.style.color = 'var(--danger)';
-        msg.textContent = 'Serverfehler.';
+        msg.textContent = t('config.serverError');
     }
     btn.disabled = false;
 }
 
 async function deleteDemo() {
-    if (!await Dialog.confirm('Alle Demo-Daten (Demo-Kunde, Zeiten, Rechnung, Aufträge) jetzt löschen?', { danger: true })) return;
+    if (!await Dialog.confirm(t('config.demoConfirmDelete'), { danger: true })) return;
     const btn = document.getElementById('demoDeleteBtn');
     const msg = document.getElementById('demoMsg');
     btn.disabled = true;
     msg.style.color = 'var(--text-muted)';
-    msg.textContent = 'Wird gelöscht…';
+    msg.textContent = t('config.demoDeleting');
     try {
         const data = await demoApi('delete_demo_data');
         if (data.success) {
             msg.style.color = 'var(--success)';
-            msg.textContent = '✓ Demo-Daten gelöscht.';
+            msg.textContent = t('config.demoDeleted');
             document.getElementById('demoDeleteBtn').style.display = 'none';
             document.getElementById('demoCreateBtn').style.display = '';
-            document.getElementById('demoStatus').textContent = 'Aktuell sind keine Demo-Daten vorhanden.';
+            document.getElementById('demoStatus').textContent = t('config.demoAbsent');
         } else {
             msg.style.color = 'var(--danger)';
-            msg.textContent = 'Fehler: ' + (data.error || 'Unbekannter Fehler');
+            msg.textContent = t('common.error') + ': ' + (data.error || t('common.unknownError'));
         }
     } catch (e) {
         msg.style.color = 'var(--danger)';
-        msg.textContent = 'Serverfehler.';
+        msg.textContent = t('config.serverError');
     }
     btn.disabled = false;
 }

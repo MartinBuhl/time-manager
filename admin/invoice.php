@@ -129,12 +129,17 @@ function hoursOf(int $min): float {
 function fmtH(int $min): string {
     return number_format(hoursOf($min), 2, ',', '.');
 }
+
+// Dokumentsprache (global): Rechnungspapier immer in default_lang, unabhängig
+// von der Admin-Oberfläche. td() übersetzt die Papier-Labels entsprechend.
+$docLang = cfg('default_lang', 'de');
+$td = fn(string $k, array $p = []): string => tLang($k, $docLang, $p);
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rechnungsvorschau – <?= h($customer['name']) ?></title>
+<title><?= h(t('invoice.pageTitle', ['name' => $customer['name']])) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -337,42 +342,51 @@ function fmtH(int $min): string {
 <div class="invoice-wrap">
 
     <div class="invoice-actions">
-        <a href="billing.php" class="btn">&#8592; Zurück</a>
+        <a href="billing.php" class="btn"><?= h(t('invoice.back')) ?></a>
         <form method="get" style="display:flex;align-items:center;gap:8px;margin:0;flex-wrap:wrap">
             <input type="hidden" name="customer_id" value="<?= (int)$customerId ?>">
             <?php if (count($allProjects) > 0): ?>
             <select name="project" class="form-control" style="min-width:160px"
                     onchange="this.form.submit()">
-                <option value="">Alle Projekte</option>
+                <option value=""><?= h(t('adminEntries.allProjects')) ?></option>
                 <?php foreach ($allProjects as $p): ?>
                 <option value="<?= h($p) ?>"<?= $filterProject === $p ? ' selected' : '' ?>><?= h($p) ?></option>
                 <?php endforeach; ?>
             </select>
             <?php endif; ?>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)">Von
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)"><?= h(t('adminEntries.from')) ?>
                 <input type="date" name="date_from" value="<?= h($dateFrom) ?>"
                        class="form-control" style="width:auto" onchange="this.form.submit()">
             </label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)">Bis
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-muted)"><?= h(t('adminEntries.to')) ?>
                 <input type="date" name="date_to" value="<?= h($dateTo) ?>"
                        class="form-control" style="width:auto" onchange="this.form.submit()">
             </label>
         </form>
         <?php if ($hasDateFilter || $filterProject !== ''): ?>
-        <a href="?customer_id=<?= (int)$customerId ?>" class="btn" style="font-size:12px">Filter zurücksetzen</a>
+        <a href="?customer_id=<?= (int)$customerId ?>" class="btn" style="font-size:12px"><?= h(t('invoice.resetFilter')) ?></a>
         <?php endif; ?>
         <button class="btn btn--primary" id="billBtn"
                 data-id="<?= (int)$customerId ?>"
-                data-name="<?= h($customer['name']) ?>">Jetzt abrechnen</button>
+                data-name="<?= h($customer['name']) ?>"><?= h(t('invoice.billNow')) ?></button>
         <span id="billMsg" style="font-size:12px; align-self:center"></span>
     </div>
 
     <?php if (empty($entries) && ($filterProject !== '' || $hasDateFilter)): ?>
     <div style="padding:20px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;margin-bottom:16px;color:#856404">
-        Keine unabgerechneten Einträge
-        <?php if ($filterProject !== ''): ?>für das Projekt <strong><?= h($filterProject) ?></strong><?php endif; ?>
-        im Zeitraum <strong><?= h(date('d.m.Y', strtotime($dateFrom))) ?></strong>
-        bis <strong><?= h(date('d.m.Y', strtotime($dateTo))) ?></strong> gefunden.
+        <?php
+            $fromB = '<strong>' . h(date('d.m.Y', strtotime($dateFrom))) . '</strong>';
+            $toB   = '<strong>' . h(date('d.m.Y', strtotime($dateTo))) . '</strong>';
+            if ($filterProject !== '') {
+                echo t('invoice.noUnbilledProject', [
+                    'project' => '<strong>' . h($filterProject) . '</strong>',
+                    'from'    => $fromB,
+                    'to'      => $toB,
+                ]);
+            } else {
+                echo t('invoice.noUnbilled', ['from' => $fromB, 'to' => $toB]);
+            }
+        ?>
     </div>
     <?php endif; ?>
 
@@ -385,7 +399,7 @@ function fmtH(int $min): string {
                 <?= h($invZip) ?> <?= h($invCity) ?><br>
                 <?php if ($invEmail): ?><?= h($invEmail) ?><br><?php endif; ?>
                 <?php if ($invPhone): ?><?= h($invPhone) ?><br><?php endif; ?>
-                <?php if ($invTaxId): ?>USt-IdNr.: <?= h($invTaxId) ?><?php endif; ?>
+                <?php if ($invTaxId): ?><?= h($td('invoiceDoc.vatId')) ?>: <?= h($invTaxId) ?><?php endif; ?>
             </div>
         </div>
 
@@ -395,7 +409,7 @@ function fmtH(int $min): string {
                 $contactName = trim(($customer['contact_first_name'] ?? '') . ' ' . ($customer['contact_last_name'] ?? ''));
                 if ($customer['contact_on_invoice'] && $contactName !== ''):
             ?>
-                <p>z.&nbsp;Hd. <?= h($contactName) ?></p>
+                <p><?= h($td('invoiceDoc.attn')) ?> <?= h($contactName) ?></p>
             <?php endif; ?>
             <?php if ($customer['billing_street']): ?>
                 <p><?= h($customer['billing_street']) ?></p>
@@ -404,26 +418,26 @@ function fmtH(int $min): string {
                 <p><?= h(trim($customer['billing_zip'] . ' ' . $customer['billing_city'])) ?></p>
             <?php endif; ?>
             <?php if ($customer['billing_tax_id']): ?>
-                <p style="margin-top:6px">USt-IdNr.: <?= h($customer['billing_tax_id']) ?></p>
+                <p style="margin-top:6px"><?= h($td('invoiceDoc.vatId')) ?>: <?= h($customer['billing_tax_id']) ?></p>
             <?php endif; ?>
         </div>
 
         <div class="inv-number-row">
-            <span>Rechnung Nr. <?= h($invoiceNumber) ?></span>
+            <span><?= h($td('invoiceDoc.invoiceNo')) ?> <?= h($invoiceNumber) ?></span>
             <span><?= $todayStr ?></span>
         </div>
 
         <div class="inv-subject">
-            Leistungen Zeitraum: <?= $periodStart ?><?= $periodStart !== $periodEnd ? ' – ' . $periodEnd : '' ?>
+            <?= h($td('invoiceDoc.servicesPeriod')) ?>: <?= $periodStart ?><?= $periodStart !== $periodEnd ? ' – ' . $periodEnd : '' ?>
         </div>
 
         <?php if ($invoiceMode === 'text'): ?>
         <table class="inv-table">
             <thead>
                 <tr>
-                    <th>Beschreibung</th>
-                    <th class="right">Std.</th>
-                    <th class="right">Betrag</th>
+                    <th><?= h($td('invoiceDoc.description')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.hours')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.amount')) ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -438,10 +452,10 @@ function fmtH(int $min): string {
         <table class="inv-table">
             <thead>
                 <tr>
-                    <th>Datum</th>
-                    <th>Tätigkeit &amp; Kommentar</th>
-                    <th class="right">Std.</th>
-                    <th class="right">Betrag</th>
+                    <th><?= h($td('invoiceDoc.date')) ?></th>
+                    <th><?= h($td('invoiceDoc.activityComment')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.hours')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.amount')) ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -467,24 +481,24 @@ function fmtH(int $min): string {
 
         <div class="inv-totals">
             <table>
-                <tr><td>Nettobetrag</td><td><?= fmtEur($amountNet) ?></td></tr>
-                <tr><td>zzgl. <?= $taxRate ?> % MwSt.</td><td><?= fmtEur($taxAmount) ?></td></tr>
-                <tr class="total-row"><td>Gesamtbetrag</td><td><?= fmtEur($amountGross) ?></td></tr>
+                <tr><td><?= h($td('invoiceDoc.net')) ?></td><td><?= fmtEur($amountNet) ?></td></tr>
+                <tr><td><?= h($td('invoiceDoc.plusVat', ['rate' => $taxRate])) ?></td><td><?= fmtEur($taxAmount) ?></td></tr>
+                <tr class="total-row"><td><?= h($td('invoiceDoc.total')) ?></td><td><?= fmtEur($amountGross) ?></td></tr>
             </table>
         </div>
 
         <div class="inv-push"></div>
         <div class="inv-footer">
             <div>
-                <strong>Bankverbindung</strong>
-                <?php if ($invAccountHolder): ?>Kontoinhaber: <?= h($invAccountHolder) ?><br><?php endif; ?>
-                Bank: <?= h($invBank) ?><br>
-                IBAN: <?= h($invIban) ?><br>
-                BIC:  <?= h($invBic) ?>
+                <strong><?= h($td('invoiceDoc.bankDetails')) ?></strong>
+                <?php if ($invAccountHolder): ?><?= h($td('invoiceDoc.accountHolder')) ?>: <?= h($invAccountHolder) ?><br><?php endif; ?>
+                <?= h($td('invoiceDoc.bank')) ?>: <?= h($invBank) ?><br>
+                <?= h($td('invoiceDoc.iban')) ?>: <?= h($invIban) ?><br>
+                <?= h($td('invoiceDoc.bic')) ?>:  <?= h($invBic) ?>
             </div>
             <?php if ($invTaxNumber): ?>
             <div>
-                <strong>Steuernummer</strong>
+                <strong><?= h($td('invoiceDoc.taxNumber')) ?></strong>
                 <?= h($invTaxNumber) ?>
             </div>
             <?php endif; ?>
@@ -494,13 +508,13 @@ function fmtH(int $min): string {
 
     <?php if (!empty($entries)): ?>
     <div class="entries-detail">
-        <h3>Arbeitszeit-Einträge<?php if ($invoiceMode === 'text'): ?> <span style="font-weight:400;color:#888;font-size:12px">(nicht Teil der Rechnung)</span><?php endif; ?></h3>
+        <h3><?= h(t('invoice.detailHeading')) ?><?php if ($invoiceMode === 'text'): ?> <span style="font-weight:400;color:#888;font-size:12px"><?= h(t('invoice.notPartOfInvoice')) ?></span><?php endif; ?></h3>
         <table>
             <thead>
                 <tr>
-                    <th style="white-space:nowrap">Datum</th>
-                    <th>Tätigkeit &amp; Kommentar</th>
-                    <th class="right" style="white-space:nowrap">Min.</th>
+                    <th style="white-space:nowrap"><?= h(t('customers.colDate')) ?></th>
+                    <th><?= h(t('invItems.colActivityComment')) ?></th>
+                    <th class="right" style="white-space:nowrap"><?= h(t('entries.colMin')) ?></th>
                     <th style="width:56px"></th>
                 </tr>
             </thead>
@@ -515,34 +529,34 @@ function fmtH(int $min): string {
                     </td>
                     <td class="right"><?= (int)$e['duration_minutes'] ?></td>
                     <td style="white-space:nowrap;padding-right:6px">
-                        <button class="btn-icon" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)" title="Bearbeiten">✏</button>
-                        <button class="btn-icon btn-del" onclick="trashEntry(<?= (int)$e['id'] ?>)" title="In Papierkorb">🗑</button>
+                        <button class="btn-icon" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)" title="<?= h(t('common.edit')) ?>">✏</button>
+                        <button class="btn-icon btn-del" onclick="trashEntry(<?= (int)$e['id'] ?>)" title="<?= h(t('invoice.trashTitle')) ?>">🗑</button>
                     </td>
                 </tr>
                 <tr id="entry-edit-<?= (int)$e['id'] ?>" class="entry-edit-row" style="display:none">
                     <td colspan="4">
                         <div class="entry-edit-form">
                             <div class="field field-dt">
-                                <label>Start (JJJJ-MM-TT HH:MM:SS)</label>
+                                <label><?= h(t('invoice.editStart')) ?></label>
                                 <input type="text" id="estart-<?= (int)$e['id'] ?>" value="<?= h($e['start_datetime']) ?>">
                             </div>
                             <div class="field field-dt">
-                                <label>Ende (JJJJ-MM-TT HH:MM:SS)</label>
+                                <label><?= h(t('invoice.editEnd')) ?></label>
                                 <input type="text" id="eend-<?= (int)$e['id'] ?>" value="<?= h($e['end_datetime']) ?>">
                             </div>
                             <div class="field field-wide">
-                                <label>Tätigkeit</label>
+                                <label><?= h(t('common.activity')) ?></label>
                                 <input type="text" id="eactivity-<?= (int)$e['id'] ?>" value="<?= h($e['activity'] ?? '') ?>">
                             </div>
                             <div class="field field-wide">
-                                <label>Kommentar</label>
+                                <label><?= h(t('customers.colComment')) ?></label>
                                 <input type="text" id="ecomment-<?= (int)$e['id'] ?>" value="<?= h($e['comment'] ?? '') ?>">
                             </div>
                             <div class="field" style="justify-content:flex-end">
                                 <label>&nbsp;</label>
                                 <div>
-                                    <button class="btn-save-entry" onclick="saveEntry(<?= (int)$e['id'] ?>, <?= (int)$customerId ?>)">Speichern</button>
-                                    <button class="btn-cancel-entry" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)">Abbrechen</button>
+                                    <button class="btn-save-entry" onclick="saveEntry(<?= (int)$e['id'] ?>, <?= (int)$customerId ?>)"><?= h(t('common.save')) ?></button>
+                                    <button class="btn-cancel-entry" onclick="toggleEntryEdit(<?= (int)$e['id'] ?>)"><?= h(t('common.cancel')) ?></button>
                                 </div>
                             </div>
                         </div>
@@ -552,12 +566,12 @@ function fmtH(int $min): string {
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="right">Summe</td>
+                    <td colspan="2" class="right"><?= h(t('invItems.sum')) ?></td>
                     <td class="right"><?= $totalMin ?></td>
                     <td></td>
                 </tr>
                 <tr>
-                    <td colspan="2" class="right">Summe (h):</td>
+                    <td colspan="2" class="right"><?= h(t('billing.sumH')) ?>:</td>
                     <td class="right"><?= number_format($totalMin / 60, 2, ',', '.') ?></td>
                     <td></td>
                 </tr>
@@ -568,6 +582,13 @@ function fmtH(int $min): string {
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF           = <?= json_encode($_SESSION['csrf_token']) ?>;
 const FILTER_PROJECT = <?= json_encode($filterProject) ?>;
 const DATE_FROM      = <?= json_encode($dateFrom) ?>;
@@ -597,17 +618,17 @@ async function saveEntry(id, customerId) {
     if (res.success) {
         location.reload();
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
 async function trashEntry(id) {
-    if (!await Dialog.confirm('Diesen Eintrag in den Papierkorb verschieben?', { danger: true })) return;
+    if (!await Dialog.confirm(t('invoice.confirmTrashEntry'), { danger: true })) return;
     const res = await apiCall('delete_entry', { id });
     if (res.success) {
         location.reload();
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
@@ -620,9 +641,9 @@ async function trashEntry(id) {
         billBtn.style.display = 'none';
         msgEl.style.color = '';
         msgEl.innerHTML =
-            '<span style="margin-right:8px;font-size:12px">Einträge als abgerechnet markieren?</span>' +
-            '<button id="billYes" class="btn btn--primary" style="font-size:12px">Ja, abrechnen</button>&nbsp;' +
-            '<button id="billNo" class="btn" style="font-size:12px">Abbrechen</button>';
+            '<span style="margin-right:8px;font-size:12px">' + t('invoice.markBilledQuestion') + '</span>' +
+            '<button id="billYes" class="btn btn--primary" style="font-size:12px">' + t('invoice.yesBill') + '</button>&nbsp;' +
+            '<button id="billNo" class="btn" style="font-size:12px">' + t('common.cancel') + '</button>';
 
         document.getElementById('billNo').addEventListener('click', function() {
             msgEl.innerHTML = '';
@@ -630,7 +651,7 @@ async function trashEntry(id) {
         });
 
         document.getElementById('billYes').addEventListener('click', async function() {
-            msgEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Wird erstellt…</span>';
+            msgEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">' + t('invoice.creating') + '</span>';
 
             try {
                 const params = { action: 'mark_billed', customer_id: customerId };
@@ -645,12 +666,12 @@ async function trashEntry(id) {
                     window.location.href = 'invoices.php';
                 } else {
                     msgEl.style.color = '#c0392b';
-                    msgEl.innerHTML   = data.error || 'Fehler beim Abrechnen.';
+                    msgEl.innerHTML   = data.error || t('invoice.billError');
                     billBtn.style.display = '';
                 }
             } catch(e) {
                 msgEl.style.color = '#c0392b';
-                msgEl.innerHTML   = 'Serverfehler.';
+                msgEl.innerHTML   = t('config.serverError');
                 billBtn.style.display = '';
             }
         });

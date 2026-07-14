@@ -13,12 +13,12 @@ $viewError   = null;
 if (isset($_GET['file']) && $_GET['file'] !== '') {
     $name = basename((string)$_GET['file']);          // Pfad-Traversal verhindern
     if (!preg_match('/^[A-Za-z0-9_.\-]+\.log$/', $name)) {
-        $viewError = 'Ungültiger Dateiname.';
+        $viewError = t('logs.invalidName');
     } else {
         $path = LOG_DIR . '/' . $name;
         $real = realpath($path);
         if ($real === false || strpos($real, realpath(LOG_DIR) . DIRECTORY_SEPARATOR) !== 0 || !is_file($real)) {
-            $viewError = 'Logdatei nicht gefunden.';
+            $viewError = t('logs.notFound');
         } else {
             $viewFile    = $name;
             $viewContent = (string)file_get_contents($real);
@@ -49,11 +49,11 @@ function fmtSize(int $bytes): string
     return number_format($bytes / 1024 / 1024, 1, ',', '.') . ' MB';
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Logs – Administration</title>
+<title><?= h(t('logs.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -81,41 +81,41 @@ function fmtSize(int $bytes): string
 
     <div class="admin-header">
         <div>
-            <h1>Logs</h1>
+            <h1><?= h(t('admin.card.logs')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Logs
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.logs')) ?>
                 <?php if ($viewFile): ?>&rsaquo; <?= h($viewFile) ?><?php endif; ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
 
     <?php if ($viewError): ?>
         <div class="admin-msg admin-msg--err" style="margin-bottom:16px"><?= h($viewError) ?></div>
-        <a href="logs.php" class="btn">&#8592; Zurück zur Übersicht</a>
+        <a href="logs.php" class="btn"><?= h(t('logs.backToOverview')) ?></a>
 
     <?php elseif ($viewFile !== null): ?>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
             <h2 style="margin:0"><?= h($viewFile) ?></h2>
-            <a href="logs.php" class="btn">&#8592; Zurück zur Übersicht</a>
+            <a href="logs.php" class="btn"><?= h(t('logs.backToOverview')) ?></a>
         </div>
-        <div class="log-view"><?= h($viewContent !== '' ? $viewContent : '(Logdatei ist leer)') ?></div>
+        <div class="log-view"><?= h($viewContent !== '' ? $viewContent : t('logs.emptyFile')) ?></div>
 
     <?php else: ?>
-        <h2>Logdateien</h2>
+        <h2><?= h(t('logs.heading')) ?></h2>
 
         <?php if (empty($logs)): ?>
-            <p class="empty-message">Noch keine Logdateien vorhanden.</p>
+            <p class="empty-message"><?= h(t('logs.empty')) ?></p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Dateiname</th>
-                        <th class="col-num">Geändert</th>
-                        <th class="col-num">Größe</th>
+                        <th><?= h(t('logs.colName')) ?></th>
+                        <th class="col-num"><?= h(t('logs.colModified')) ?></th>
+                        <th class="col-num"><?= h(t('logs.colSize')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -126,7 +126,7 @@ function fmtSize(int $bytes): string
                         <td class="col-num"><?= h(date('d.m.Y H:i:s', $l['mtime'])) ?></td>
                         <td class="col-num"><?= h(fmtSize((int)$l['size'])) ?></td>
                         <td style="white-space:nowrap">
-                            <a href="logs.php?file=<?= h(rawurlencode($l['name'])) ?>" class="btn">Detail</a>
+                            <a href="logs.php?file=<?= h(rawurlencode($l['name'])) ?>" class="btn"><?= h(t('logs.detail')) ?></a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

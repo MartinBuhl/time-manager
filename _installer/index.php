@@ -17,6 +17,16 @@ if (file_exists(LOCK_FILE)) {
 session_name('tm_installer');
 session_start();
 
+// ---- Sprache (i18n) -----------------------------------------
+// Der Installer läuft eigenständig, bevor Konfiguration/Benutzer
+// existieren. Die gewählte Sprache wird daher in der Installer-Session
+// gehalten und kann jederzeit über ?lang=de|en umgeschaltet werden.
+require_once dirname(__DIR__) . '/includes/i18n.php';
+if (isset($_GET['lang']) && in_array($_GET['lang'], i18nAvailableLangs(), true)) {
+    $_SESSION['inst_lang'] = $_GET['lang'];
+}
+i18nInit($_SESSION['inst_lang'] ?? 'de');
+
 $step   = 1;
 $errors = [];
 
@@ -31,14 +41,14 @@ function checkReqs(): array
 {
     $r = [];
     $phpOk = version_compare(PHP_VERSION, '8.0.0', '>=');
-    $r[] = ['PHP-Version >= 8.0', PHP_VERSION, $phpOk];
+    $r[] = [t('installer.req.phpVersion'), PHP_VERSION, $phpOk];
     foreach (['pdo', 'pdo_mysql', 'mbstring', 'json', 'openssl'] as $ext) {
         $ok = extension_loaded($ext);
-        $r[] = ['PHP-Erweiterung: ' . $ext, $ok ? 'vorhanden' : 'fehlt', $ok];
+        $r[] = [t('installer.req.extension', ['ext' => $ext]), $ok ? t('installer.req.present') : t('installer.req.missing'), $ok];
     }
     $confWritable = is_writable(CONFIG_FILE)
         || (!file_exists(CONFIG_FILE) && is_writable(dirname(CONFIG_FILE)));
-    $r[] = ['config.php beschreibbar', $confWritable ? 'OK' : 'Keine Schreibrechte', $confWritable];
+    $r[] = [t('installer.req.configWritable'), $confWritable ? t('installer.req.ok') : t('installer.req.noWrite'), $confWritable];
     return $r;
 }
 
@@ -316,18 +326,18 @@ function makeConfig(string $host, string $name, string $user, string $pass): str
 
 // Firmendaten-Felder (Gruppe 1)
 const FIRMA_FIELDS = [
-    'invoice_company'        => ['label' => 'Firmenname',          'type' => 'text',  'width' => 'full'],
-    'invoice_street'         => ['label' => 'Straße & Hausnummer', 'type' => 'text',  'width' => 'full'],
-    'invoice_zip'            => ['label' => 'PLZ',                 'type' => 'text',  'width' => 'half'],
-    'invoice_city'           => ['label' => 'Ort',                 'type' => 'text',  'width' => 'half'],
-    'invoice_email'          => ['label' => 'E-Mail',              'type' => 'email', 'width' => 'full'],
-    'invoice_phone'          => ['label' => 'Telefon',             'type' => 'text',  'width' => 'full'],
-    'invoice_tax_id'         => ['label' => 'USt-IdNr.',           'type' => 'text',  'width' => 'half'],
-    'invoice_tax_number'     => ['label' => 'Steuernummer',        'type' => 'text',  'width' => 'half'],
-    'invoice_bank'           => ['label' => 'Bank',                'type' => 'text',  'width' => 'full'],
-    'invoice_account_holder' => ['label' => 'Kontoinhaber',        'type' => 'text',  'width' => 'full'],
-    'invoice_iban'           => ['label' => 'IBAN',                'type' => 'text',  'width' => 'full'],
-    'invoice_bic'            => ['label' => 'BIC',                 'type' => 'text',  'width' => 'half'],
+    'invoice_company'        => ['label' => 'installer.firma.company',       'type' => 'text',  'width' => 'full'],
+    'invoice_street'         => ['label' => 'installer.firma.street',        'type' => 'text',  'width' => 'full'],
+    'invoice_zip'            => ['label' => 'installer.firma.zip',           'type' => 'text',  'width' => 'half'],
+    'invoice_city'           => ['label' => 'installer.firma.city',          'type' => 'text',  'width' => 'half'],
+    'invoice_email'          => ['label' => 'installer.firma.email',         'type' => 'email', 'width' => 'full'],
+    'invoice_phone'          => ['label' => 'installer.firma.phone',         'type' => 'text',  'width' => 'full'],
+    'invoice_tax_id'         => ['label' => 'installer.firma.taxId',         'type' => 'text',  'width' => 'half'],
+    'invoice_tax_number'     => ['label' => 'installer.firma.taxNumber',     'type' => 'text',  'width' => 'half'],
+    'invoice_bank'           => ['label' => 'installer.firma.bank',          'type' => 'text',  'width' => 'full'],
+    'invoice_account_holder' => ['label' => 'installer.firma.accountHolder', 'type' => 'text',  'width' => 'full'],
+    'invoice_iban'           => ['label' => 'installer.firma.iban',          'type' => 'text',  'width' => 'full'],
+    'invoice_bic'            => ['label' => 'installer.firma.bic',           'type' => 'text',  'width' => 'half'],
 ];
 
 // ---- Step-Verarbeitung ----------------------------------------
@@ -342,13 +352,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'test_db') {
     $u = trim($_POST['db_user'] ?? '');
     $p = $_POST['db_pass'] ?? '';
     if ($n === '' || $u === '') {
-        echo json_encode(['ok' => false, 'msg' => 'Datenbankname und Benutzer sind Pflichtfelder.']);
+        echo json_encode(['ok' => false, 'msg' => t('installer.dbFieldsRequired')]);
         exit;
     }
     try {
         new PDO("mysql:host={$h};dbname={$n};charset=utf8mb4", $u, $p,
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-        echo json_encode(['ok' => true, 'msg' => 'Verbindung erfolgreich!']);
+        echo json_encode(['ok' => true, 'msg' => t('installer.connSuccess')]);
     } catch (PDOException $ex) {
         echo json_encode(['ok' => false, 'msg' => $ex->getMessage()]);
     }
@@ -368,8 +378,8 @@ if ($posted) {
         $dbUser = trim($_POST['db_user'] ?? '');
         $dbPass = $_POST['db_pass'] ?? '';
 
-        if ($dbName === '') $errors[] = 'Datenbankname darf nicht leer sein.';
-        if ($dbUser === '') $errors[] = 'Datenbankbenutzer darf nicht leer sein.';
+        if ($dbName === '') $errors[] = t('installer.errDbNameEmpty');
+        if ($dbUser === '') $errors[] = t('installer.errDbUserEmpty');
 
         if (empty($errors)) {
             try {
@@ -384,7 +394,7 @@ if ($posted) {
                     'user' => $dbUser, 'pass' => $dbPass,
                 ];
             } catch (PDOException $ex) {
-                $errors[] = 'Datenbankverbindung fehlgeschlagen: ' . $ex->getMessage();
+                $errors[] = t('installer.errDbConnFailed', ['msg' => $ex->getMessage()]);
                 $step = 2;
             }
         } else {
@@ -395,7 +405,7 @@ if ($posted) {
         // Admin-Formular abgeschickt → Tabellen anlegen + Admin erstellen
         if (empty($_SESSION['inst_db'])) {
             $step    = 2;
-            $errors[] = 'Sitzung abgelaufen – bitte Datenbankdaten erneut eingeben.';
+            $errors[] = t('installer.errSessionExpired');
         } else {
             $adminUser  = trim($_POST['admin_user']  ?? '');
             $adminEmail = trim($_POST['admin_email'] ?? '');
@@ -403,18 +413,18 @@ if ($posted) {
             $adminPass2 = $_POST['admin_pass2'] ?? '';
 
             if ($adminUser === '')
-                $errors[] = 'Benutzername fehlt.';
+                $errors[] = t('installer.errUserMissing');
             elseif (strlen($adminUser) > 50)
-                $errors[] = 'Benutzername zu lang (max. 50 Zeichen).';
+                $errors[] = t('installer.errUserTooLong');
             elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $adminUser))
-                $errors[] = 'Benutzername darf nur Buchstaben, Zahlen und _ enthalten.';
+                $errors[] = t('installer.errUserChars');
 
             if (strlen($adminPass1) < 8)
-                $errors[] = 'Passwort muss mindestens 8 Zeichen haben.';
+                $errors[] = t('installer.errPassTooShort');
             if ($adminPass1 !== $adminPass2)
-                $errors[] = 'Passwörter stimmen nicht überein.';
+                $errors[] = t('installer.errPassMismatch');
             if ($adminEmail !== '' && !filter_var($adminEmail, FILTER_VALIDATE_EMAIL))
-                $errors[] = 'Ungültige E-Mail-Adresse.';
+                $errors[] = t('installer.errEmailInvalid');
 
             if (empty($errors)) {
                 try {
@@ -440,7 +450,7 @@ if ($posted) {
                     // Kein Lock noch – erst nach Firmendaten-Schritt
                     $step = 4; // → Firmendaten anzeigen
                 } catch (Throwable $ex) {
-                    $errors[] = 'Installation fehlgeschlagen: ' . $ex->getMessage();
+                    $errors[] = t('installer.errInstallFailed', ['msg' => $ex->getMessage()]);
                     $step = 3;
                 }
             } else {
@@ -452,7 +462,7 @@ if ($posted) {
         // Firmendaten speichern → Lock schreiben → Fertig
         if (empty($_SESSION['inst_db'])) {
             $step    = 4;
-            $errors[] = 'Sitzung abgelaufen – bitte erneut versuchen.';
+            $errors[] = t('installer.errSessionExpired2');
         } else {
             try {
                 $db  = $_SESSION['inst_db'];
@@ -495,7 +505,7 @@ if ($posted) {
                 unset($_SESSION['inst_db']);
                 $step = 6; // Fertig!
             } catch (Throwable $ex) {
-                $errors[] = 'Speichern fehlgeschlagen: ' . $ex->getMessage();
+                $errors[] = t('installer.errSaveFailed', ['msg' => $ex->getMessage()]);
                 $step = 4;
             }
         }
@@ -520,18 +530,18 @@ $tables = array_keys(tableSql());
 
 // Step-Indikator: 1 Voraussetzungen, 2 Datenbank, 3 Admin-Konto, 4 Firmendaten, 6 Fertig
 $stepMap = [
-    1 => 'Voraussetzungen',
-    2 => 'Datenbank',
-    3 => 'Admin-Konto',
-    4 => 'Firmendaten',
-    6 => 'Fertig',
+    1 => t('installer.step.requirements'),
+    2 => t('installer.step.database'),
+    3 => t('installer.step.admin'),
+    4 => t('installer.step.company'),
+    6 => t('installer.step.done'),
 ];
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= e(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Time Manager – Installation</title>
+<title><?= e(t('installer.pageTitle')) ?></title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
@@ -539,9 +549,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
        display: flex; flex-direction: column; align-items: center; padding: 40px 16px; }
 .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 16px rgba(0,0,0,.12);
         width: 100%; max-width: 620px; overflow: hidden; }
-.card-header { background: #1e293b; color: #fff; padding: 28px 32px; }
+.card-header { background: #1e293b; color: #fff; padding: 28px 32px; position: relative; }
 .card-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
 .card-header p  { font-size: 13px; color: #94a3b8; }
+.lang-switch { position: absolute; top: 20px; right: 32px; font-size: 12px; }
+.lang-switch a { color: #94a3b8; text-decoration: none; padding: 2px 6px; border-radius: 4px; }
+.lang-switch a.active { color: #fff; background: #334155; font-weight: 600; }
 .steps { display: flex; border-bottom: 1px solid #e5e7eb; padding: 0 32px; overflow-x: auto; }
 .step { padding: 14px 12px 14px 0; margin-right: 20px; font-size: 12px; font-weight: 600;
         color: #9ca3af; border-bottom: 2px solid transparent; white-space: nowrap; }
@@ -617,8 +630,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
 <div class="card">
 
     <div class="card-header">
-        <h1>Time Manager – Installation</h1>
-        <p>Willkommen beim Installations-Assistenten</p>
+        <div class="lang-switch">
+            <?php foreach (i18nLangLabels() as $code => $lbl): ?>
+            <a href="?lang=<?= e($code) ?>"<?= currentLang() === $code ? ' class="active"' : '' ?>><?= e($code === 'de' ? 'DE' : 'EN') ?></a>
+            <?php endforeach; ?>
+        </div>
+        <h1><?= e(t('installer.headerTitle')) ?></h1>
+        <p><?= e(t('installer.welcome')) ?></p>
     </div>
 
     <!-- Step-Indikator -->
@@ -644,7 +662,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
 
     <?php if (!empty($errors)): ?>
     <div class="alert alert-error">
-        <strong>Fehler:</strong>
+        <strong><?= e(t('installer.errorLabel')) ?></strong>
         <?php if (count($errors) === 1): ?>
             <?= e($errors[0]) ?>
         <?php else: ?>
@@ -658,29 +676,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
     ============================================================ -->
     <?php if ($step === 1): ?>
 
-    <p class="section-title">Systemvoraussetzungen</p>
+    <p class="section-title"><?= e(t('installer.sysRequirements')) ?></p>
 
     <table class="req-table">
         <?php foreach ($reqs as [$label, $value, $ok]): ?>
         <tr>
             <td><?= e($label) ?></td>
             <td><?= e((string)$value) ?></td>
-            <td><span class="<?= $ok ? 'badge-ok' : 'badge-fail' ?>"><?= $ok ? '✓ OK' : '✗ Fehler' ?></span></td>
+            <td><span class="<?= $ok ? 'badge-ok' : 'badge-fail' ?>"><?= e($ok ? t('installer.badge.ok') : t('installer.badge.fail')) ?></span></td>
         </tr>
         <?php endforeach; ?>
     </table>
 
     <?php if (!$reqsOk): ?>
     <div class="alert alert-error">
-        Nicht alle Voraussetzungen sind erfüllt. Bitte beheben Sie die markierten Probleme und laden Sie die Seite neu.
+        <?= e(t('installer.reqNotMet')) ?>
     </div>
     <?php else: ?>
     <div class="alert alert-info">
-        Alle Voraussetzungen sind erfüllt. Sie können mit der Installation fortfahren.
+        <?= e(t('installer.reqMet')) ?>
     </div>
     <form method="post">
         <input type="hidden" name="step" value="2">
-        <button type="submit" class="btn btn-primary">Weiter zur Datenbankkonfiguration →</button>
+        <button type="submit" class="btn btn-primary"><?= e(t('installer.toDbConfig')) ?></button>
     </form>
     <?php endif; ?>
 
@@ -689,39 +707,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
     ============================================================ -->
     <?php elseif ($step === 2): ?>
 
-    <p class="section-title">Datenbankverbindung konfigurieren</p>
+    <p class="section-title"><?= e(t('installer.dbConfigTitle')) ?></p>
 
     <form method="post" id="dbForm">
         <input type="hidden" name="step" value="3">
 
         <div class="form-group">
-            <label for="db_host">Datenbankserver (Host)</label>
+            <label for="db_host"><?= e(t('installer.dbHost')) ?></label>
             <input type="text" id="db_host" name="db_host" value="<?= $fDbHost ?>"
                    placeholder="localhost" autocomplete="off">
         </div>
 
         <div class="form-row">
             <div class="form-group">
-                <label for="db_name">Datenbankname *</label>
+                <label for="db_name"><?= e(t('installer.dbName')) ?></label>
                 <input type="text" id="db_name" name="db_name" value="<?= $fDbName ?>"
                        placeholder="time_manager" required autocomplete="off">
             </div>
             <div class="form-group">
-                <label for="db_user">Datenbankbenutzer *</label>
+                <label for="db_user"><?= e(t('installer.dbUser')) ?></label>
                 <input type="text" id="db_user" name="db_user" value="<?= $fDbUser ?>"
                        placeholder="db_user" required autocomplete="off">
             </div>
         </div>
 
         <div class="form-group">
-            <label for="db_pass">Datenbankpasswort</label>
-            <input type="password" id="db_pass" name="db_pass" placeholder="(leer lassen wenn kein Passwort)"
+            <label for="db_pass"><?= e(t('installer.dbPass')) ?></label>
+            <input type="password" id="db_pass" name="db_pass" placeholder="<?= e(t('installer.dbPassPlaceholder')) ?>"
                    autocomplete="new-password">
         </div>
 
         <div class="btn-row">
-            <button type="submit" class="btn btn-primary">Verbindung prüfen &amp; weiter →</button>
-            <button type="button" class="btn btn-secondary" id="testBtn">Verbindung testen</button>
+            <button type="submit" class="btn btn-primary"><?= e(t('installer.checkAndContinue')) ?></button>
+            <button type="button" class="btn btn-secondary" id="testBtn"><?= e(t('installer.testConnection')) ?></button>
             <span id="testResult"></span>
         </div>
     </form>
@@ -733,7 +751,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
         btn.disabled = true;
         res.className = '';
         res.style.display = 'none';
-        res.textContent = 'Teste…';
+        res.textContent = <?= json_encode(t('installer.testing'), JSON_UNESCAPED_UNICODE) ?>;
         res.style.display = 'inline-block';
 
         const body = new URLSearchParams({
@@ -749,7 +767,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
             res.textContent = d.msg;
             res.className = d.ok ? 'ok' : 'fail';
         } catch(e) {
-            res.textContent = 'Verbindungsfehler.';
+            res.textContent = <?= json_encode(t('installer.connError'), JSON_UNESCAPED_UNICODE) ?>;
             res.className = 'fail';
         }
         btn.disabled = false;
@@ -764,16 +782,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
     <?php $db = $_SESSION['inst_db'] ?? []; ?>
 
     <div class="db-info">
-        <strong>✓ Datenbankverbindung erfolgreich</strong>
+        <strong><?= e(t('installer.dbConnSuccess')) ?></strong>
         <table>
-            <tr><td>Host:</td><td><?= e($db['host'] ?? '') ?></td></tr>
-            <tr><td>Datenbank:</td><td><?= e($db['name'] ?? '') ?></td></tr>
-            <tr><td>Benutzer:</td><td><?= e($db['user'] ?? '') ?></td></tr>
+            <tr><td><?= e(t('installer.host')) ?></td><td><?= e($db['host'] ?? '') ?></td></tr>
+            <tr><td><?= e(t('installer.database')) ?></td><td><?= e($db['name'] ?? '') ?></td></tr>
+            <tr><td><?= e(t('installer.user')) ?></td><td><?= e($db['user'] ?? '') ?></td></tr>
         </table>
     </div>
 
     <p style="font-size:13px;color:#374151;margin-bottom:12px">
-        Folgende Datenbanktabellen werden beim Klick auf <strong>Weiter</strong> angelegt:
+        <?= t('installer.tablesIntro') ?>
     </p>
     <div class="table-list">
         <?php foreach ($tables as $t): ?>
@@ -783,20 +801,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
 
     <hr class="divider">
 
-    <p class="section-title">Administrator-Konto erstellen</p>
+    <p class="section-title"><?= e(t('installer.adminCreateTitle')) ?></p>
 
     <form method="post">
         <input type="hidden" name="step" value="4">
 
         <div class="form-row">
             <div class="form-group">
-                <label for="admin_user">Benutzername *</label>
+                <label for="admin_user"><?= e(t('installer.username')) ?></label>
                 <input type="text" id="admin_user" name="admin_user" value="<?= $fAdminUser ?>"
                        placeholder="admin" required autocomplete="off"
-                       pattern="[a-zA-Z0-9_]+" title="Nur Buchstaben, Zahlen und _">
+                       pattern="[a-zA-Z0-9_]+" title="<?= e(t('installer.usernameHint')) ?>">
             </div>
             <div class="form-group">
-                <label for="admin_email">E-Mail (optional)</label>
+                <label for="admin_email"><?= e(t('installer.emailOptional')) ?></label>
                 <input type="email" id="admin_email" name="admin_email" value="<?= $fAdminEmail ?>"
                        placeholder="admin@ihre-domain.de" autocomplete="off">
             </div>
@@ -804,20 +822,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
 
         <div class="form-row">
             <div class="form-group">
-                <label for="admin_pass1">Passwort * (min. 8 Zeichen)</label>
+                <label for="admin_pass1"><?= e(t('installer.passwordMin')) ?></label>
                 <input type="password" id="admin_pass1" name="admin_pass1" required
                        minlength="8" autocomplete="new-password">
             </div>
             <div class="form-group">
-                <label for="admin_pass2">Passwort bestätigen *</label>
+                <label for="admin_pass2"><?= e(t('installer.passwordConfirm')) ?></label>
                 <input type="password" id="admin_pass2" name="admin_pass2" required
                        minlength="8" autocomplete="new-password">
             </div>
         </div>
 
         <div class="btn-row">
-            <button type="submit" class="btn btn-primary">Weiter →</button>
-            <a href="?step=2" class="btn btn-secondary">← Zurück</a>
+            <button type="submit" class="btn btn-primary"><?= e(t('installer.next')) ?></button>
+            <a href="?step=2" class="btn btn-secondary"><?= e(t('installer.back')) ?></a>
         </div>
     </form>
 
@@ -826,10 +844,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
     ============================================================ -->
     <?php elseif ($step === 4): ?>
 
-    <p class="section-title">Rechnungsabsender (eigene Firma)</p>
+    <p class="section-title"><?= e(t('installer.companyTitle')) ?></p>
     <p style="font-size:13px;color:#6b7280;margin-bottom:20px">
-        Diese Angaben erscheinen auf Ihren Rechnungen. Sie können alle Felder auch später
-        unter <strong>Administration → Konfiguration</strong> ändern.
+        <?= t('installer.companyIntro') ?>
     </p>
 
     <form method="post">
@@ -847,12 +864,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
         ?>
         <div class="form-row">
             <div class="form-group">
-                <label for="<?= $key ?>"><?= e($meta['label']) ?></label>
+                <label for="<?= $key ?>"><?= e(t($meta['label'])) ?></label>
                 <input type="<?= e($meta['type']) ?>" id="<?= $key ?>" name="<?= $key ?>"
                        value="<?= $fFirma[$key] ?>" autocomplete="off">
             </div>
             <div class="form-group">
-                <label for="<?= $key2 ?>"><?= e($meta2['label']) ?></label>
+                <label for="<?= $key2 ?>"><?= e(t($meta2['label'])) ?></label>
                 <input type="<?= e($meta2['type']) ?>" id="<?= $key2 ?>" name="<?= $key2 ?>"
                        value="<?= $fFirma[$key2] ?>" autocomplete="off">
             </div>
@@ -875,15 +892,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
         <div class="form-group" style="margin-top:8px">
             <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer">
                 <input type="checkbox" name="create_demo" value="1" style="width:auto"<?= !empty($_POST['create_demo']) ? ' checked' : '' ?>>
-                <span>Demo-Daten anlegen (Beispiel-Kunde mit Arbeitszeiten, Rechnung und Aufträgen)</span>
+                <span><?= e(t('installer.demoCheckbox')) ?></span>
             </label>
-            <p class="form-hint">Praktisch zum Ausprobieren – lässt sich später unter <strong>Administration → Konfiguration</strong> jederzeit wieder löschen.</p>
+            <p class="form-hint"><?= t('installer.demoHint') ?></p>
         </div>
 
         <div class="btn-row">
-            <button type="submit" class="btn btn-primary">Weiter →</button>
+            <button type="submit" class="btn btn-primary"><?= e(t('installer.next')) ?></button>
         </div>
-        <p class="skip-hint">Alle Felder sind optional – Sie können diese Angaben jederzeit in der Administration nachholen.</p>
+        <p class="skip-hint"><?= e(t('installer.allOptional')) ?></p>
     </form>
 
     <!-- ============================================================
@@ -898,28 +915,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-s
             <path d="M8 12l3 3 5-6"/>
         </svg>
     </div>
-    <p class="done-title">Installation abgeschlossen!</p>
-    <p class="done-sub">Time Manager wurde erfolgreich eingerichtet.</p>
+    <p class="done-title"><?= e(t('installer.doneTitle')) ?></p>
+    <p class="done-sub"><?= e(t('installer.doneSub')) ?></p>
 
     <ul class="done-list">
-        <li>Alle Datenbanktabellen wurden angelegt</li>
-        <li>Die Standardkonfiguration wurde eingetragen</li>
-        <li>Ihr Administrator-Konto wurde erstellt</li>
-        <li>Ihre Firmendaten wurden gespeichert</li>
-        <li>Die Datei <code>config.php</code> wurde geschrieben</li>
+        <li><?= e(t('installer.done.tables')) ?></li>
+        <li><?= e(t('installer.done.config')) ?></li>
+        <li><?= e(t('installer.done.admin')) ?></li>
+        <li><?= e(t('installer.done.company')) ?></li>
+        <li><?= t('installer.done.configFile') ?></li>
         <?php if (!empty($_SESSION['inst_demo'])): ?>
-        <li>Demo-Daten wurden angelegt (später in der Konfiguration löschbar)</li>
+        <li><?= e(t('installer.done.demo')) ?></li>
         <?php endif; ?>
     </ul>
     <?php unset($_SESSION['inst_demo']); ?>
 
     <div class="alert alert-info" style="margin-bottom:24px">
-        <strong>Sicherheitshinweis:</strong> Löschen oder schützen Sie das Verzeichnis
-        <code>_installer/</code> nach der Installation, damit Dritte den Installer nicht erneut aufrufen können.
+        <?= t('installer.securityNotice') ?>
     </div>
 
     <div style="text-align:center">
-        <a href="../index.php" class="btn btn-success">Zum Login →</a>
+        <a href="../index.php" class="btn btn-success"><?= e(t('installer.toLogin')) ?></a>
     </div>
 
     <?php endif; ?>

@@ -13,11 +13,11 @@ $stmt = db()->query(
 );
 $customers = $stmt->fetchAll();
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kunden – Administration</title>
+<title><?= h(t('customers.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -183,45 +183,45 @@ $customers = $stmt->fetchAll();
 
     <div class="admin-header">
         <div>
-            <h1>Kunden</h1>
+            <h1><?= h(t('customers.heading')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Kunden
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('customers.heading')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
-        <h2>Neuen Kunden anlegen</h2>
+        <h2><?= h(t('customers.addNew')) ?></h2>
         <div id="addMsg"></div>
         <div class="add-form">
-            <input type="text" id="newCustomerName" placeholder="Kundenname" maxlength="255">
-            <button class="btn btn--primary" id="addBtn">Hinzufügen</button>
+            <input type="text" id="newCustomerName" placeholder="<?= h(t('customers.customerName')) ?>" maxlength="255">
+            <button class="btn btn--primary" id="addBtn"><?= h(t('customers.add')) ?></button>
         </div>
     </div>
 
     <div class="admin-section" id="customerListSection">
-        <h2>Alle Kunden</h2>
+        <h2><?= h(t('customers.allCustomers')) ?></h2>
         <div class="table-controls">
-            <input type="search" id="customerSearch" placeholder="Kunden suchen…">
+            <input type="search" id="customerSearch" placeholder="<?= h(t('customers.searchPlaceholder')) ?>">
             <select id="statusFilter">
-                <option value="">Alle Status</option>
-                <option value="1" selected>Aktiv</option>
-                <option value="0">Inaktiv</option>
+                <option value=""><?= h(t('customers.allStatus')) ?></option>
+                <option value="1" selected><?= h(t('customers.active')) ?></option>
+                <option value="0"><?= h(t('customers.inactive')) ?></option>
             </select>
         </div>
         <div class="table-wrapper">
             <table class="entries-table" id="customerTable">
                 <thead>
                     <tr>
-                        <th style="width:32px;text-align:center"><input type="checkbox" id="selectAll" title="Alle auswählen"></th>
-                        <th class="sortable" data-col="0">Anzeigename <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="1">Nachname <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="2">E-Mail <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="3">Status <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="4">Berechenbar <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="5">Projekte <span class="sort-icon"></span></th>
-                        <th class="sortable" data-col="6">Stundensatz <span class="sort-icon"></span></th>
+                        <th style="width:32px;text-align:center"><input type="checkbox" id="selectAll" title="<?= h(t('customers.selectAll')) ?>"></th>
+                        <th class="sortable" data-col="0"><?= h(t('customers.colName')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="1"><?= h(t('customers.colLastName')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="2"><?= h(t('customers.colEmail')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="3"><?= h(t('customers.colStatus')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="4"><?= h(t('customers.colBillable')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="5"><?= h(t('customers.colProjects')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="6"><?= h(t('customers.colRate')) ?> <span class="sort-icon"></span></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -244,7 +244,7 @@ $customers = $stmt->fetchAll();
                         <td id="clastname-<?= (int)$c['id'] ?>" style="font-size:12px"><?= h($c['contact_last_name'] ?? '') ?></td>
                         <td id="cemail-<?= (int)$c['id'] ?>" style="font-size:12px;color:var(--text-muted)"><?= h($c['billing_email'] ?? '') ?></td>
                         <td>
-                            <label class="toggle-switch" title="<?= $c['active'] ? 'Aktiv – klicken zum Deaktivieren' : 'Inaktiv – klicken zum Aktivieren' ?>">
+                            <label class="toggle-switch" title="<?= h($c['active'] ? t('customers.toggleActive') : t('customers.toggleInactive')) ?>">
                                 <input type="checkbox" id="ctoggle-<?= (int)$c['id'] ?>"
                                        onchange="toggleCustomer(<?= (int)$c['id'] ?>)"
                                        <?= $c['active'] ? 'checked' : '' ?>>
@@ -253,7 +253,7 @@ $customers = $stmt->fetchAll();
                         </td>
                         <td>
                             <span class="badge <?= $billable ? 'badge--active' : 'badge--inactive' ?>" id="cbillable-<?= (int)$c['id'] ?>">
-                                <?= $billable ? 'Ja' : 'Nein' ?>
+                                <?= h($billable ? t('common.yes') : t('common.no')) ?>
                             </span>
                         </td>
                         <td id="cprojectnames-<?= (int)$c['id'] ?>" style="color:var(--text-muted);font-size:12px"><?= h($projectNames) ?></td>
@@ -261,18 +261,18 @@ $customers = $stmt->fetchAll();
                             <?php if ($rate !== ''): ?>
                                 <?= h($rate) ?> €
                             <?php else: ?>
-                                <span style="color:var(--text-muted)">Standard</span>
+                                <span style="color:var(--text-muted)"><?= h(t('customers.default')) ?></span>
                             <?php endif; ?>
                         </td>
                         <td>
-                            <button class="btn-icon" title="Bearbeiten" onclick="openEdit(<?= (int)$c['id'] ?>)">
+                            <button class="btn-icon" title="<?= h(t('common.edit')) ?>" onclick="openEdit(<?= (int)$c['id'] ?>)">
                                 <svg viewBox="0 0 24 24" width="15" height="15"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($customers)): ?>
-                    <tr><td colspan="9" class="empty-message">Keine Kunden vorhanden.</td></tr>
+                    <tr><td colspan="9" class="empty-message"><?= h(t('customers.empty')) ?></td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
@@ -282,126 +282,130 @@ $customers = $stmt->fetchAll();
         <div id="bulkBar" class="bulk-bar hidden">
             <div id="bulkNormal" class="bulk-normal">
                 <span id="bulkCount"></span>
-                <button class="btn btn--danger" id="bulkDeleteBtn" type="button">Löschen</button>
+                <button class="btn btn--danger" id="bulkDeleteBtn" type="button"><?= h(t('common.delete')) ?></button>
             </div>
             <div id="bulkConfirm" class="bulk-confirm hidden">
                 <span id="bulkConfirmText"></span>
-                <button class="btn btn--danger" id="bulkConfirmYes" type="button">Ja, löschen</button>
-                <button class="btn" id="bulkConfirmNo" type="button">Abbrechen</button>
+                <button class="btn btn--danger" id="bulkConfirmYes" type="button"><?= h(t('customers.confirmYesDelete')) ?></button>
+                <button class="btn" id="bulkConfirmNo" type="button"><?= h(t('common.cancel')) ?></button>
             </div>
         </div>
     </div>
 
     <div class="admin-section hidden" id="customerEditSection">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-            <h2 id="editTitle" style="margin:0">Kunde bearbeiten</h2>
-            <button class="btn" type="button" onclick="closeEdit()">&#8592; Zurück zur Liste</button>
+            <h2 id="editTitle" style="margin:0"><?= h(t('customers.editTitle')) ?></h2>
+            <button class="btn" type="button" onclick="closeEdit()"><?= h(t('customers.backToList')) ?></button>
         </div>
         <div id="editMsg" style="margin-bottom:12px"></div>
         <div class="stamm-grid">
-            <div><label>Anzeigename *</label><input type="text" id="e-name" maxlength="255"></div>
-            <div><label>Firmenname (Rechnung)</label><input type="text" id="e-billing-name" maxlength="255"></div>
-            <div class="full"><label>Straße &amp; Hausnummer</label><input type="text" id="e-street" maxlength="255"></div>
-            <div><label>PLZ</label><input type="text" id="e-zip" maxlength="20"></div>
-            <div><label>Ort</label><input type="text" id="e-city" maxlength="100"></div>
-            <div><label>E-Mail (Rechnung)</label><input type="email" id="e-email" maxlength="255"></div>
-            <div class="full"><label>E-Mails Rechnung Kopie Empfänger (kommagetrennt)</label><input type="text" id="e-email-cc" maxlength="500" placeholder="kopie1@example.com, kopie2@example.com"></div>
-            <div><label>Steuernummer / USt-IdNr.</label><input type="text" id="e-tax-id" maxlength="50"></div>
-            <div><label>Festnetz</label><input type="text" id="e-phone-landline" maxlength="50"></div>
-            <div><label>Mobil</label><input type="text" id="e-phone-mobile" maxlength="50"></div>
-            <div><label>Ansprechpartner Vorname</label><input type="text" id="e-contact-first" maxlength="100"></div>
-            <div><label>Ansprechpartner Nachname</label><input type="text" id="e-contact-last" maxlength="100"></div>
-            <div><label>Stundensatz (€, leer = Standard)</label><input type="text" id="e-rate" placeholder="<?= h(number_format((float)cfg('invoice_hourly_rate', '85.00'), 2, ',', '.')) ?>"></div>
+            <div><label><?= h(t('customers.fName')) ?></label><input type="text" id="e-name" maxlength="255"></div>
+            <div><label><?= h(t('customers.fCompany')) ?></label><input type="text" id="e-billing-name" maxlength="255"></div>
+            <div class="full"><label><?= h(t('customers.fStreet')) ?></label><input type="text" id="e-street" maxlength="255"></div>
+            <div><label><?= h(t('customers.fZip')) ?></label><input type="text" id="e-zip" maxlength="20"></div>
+            <div><label><?= h(t('customers.fCity')) ?></label><input type="text" id="e-city" maxlength="100"></div>
+            <div><label><?= h(t('customers.fEmail')) ?></label><input type="email" id="e-email" maxlength="255"></div>
+            <div class="full"><label><?= h(t('customers.fEmailCc')) ?></label><input type="text" id="e-email-cc" maxlength="500" placeholder="kopie1@example.com, kopie2@example.com"></div>
+            <div><label><?= h(t('customers.fTaxId')) ?></label><input type="text" id="e-tax-id" maxlength="50"></div>
+            <div><label><?= h(t('customers.fLandline')) ?></label><input type="text" id="e-phone-landline" maxlength="50"></div>
+            <div><label><?= h(t('customers.fMobile')) ?></label><input type="text" id="e-phone-mobile" maxlength="50"></div>
+            <div><label><?= h(t('customers.fContactFirst')) ?></label><input type="text" id="e-contact-first" maxlength="100"></div>
+            <div><label><?= h(t('customers.fContactLast')) ?></label><input type="text" id="e-contact-last" maxlength="100"></div>
+            <div><label><?= h(t('customers.fRate')) ?></label><input type="text" id="e-rate" placeholder="<?= h(number_format((float)cfg('invoice_hourly_rate', '85.00'), 2, ',', '.')) ?>"></div>
             <div class="full" style="display:flex;align-items:center;gap:8px;padding-top:4px">
                 <input type="checkbox" id="e-contact-on-invoice">
-                <label for="e-contact-on-invoice" style="margin:0;cursor:pointer">Ansprechpartner auf der Rechnung angeben</label>
+                <label for="e-contact-on-invoice" style="margin:0;cursor:pointer"><?= h(t('customers.fContactOnInvoice')) ?></label>
             </div>
             <div class="full" style="display:flex;align-items:center;gap:8px;padding-top:4px">
                 <input type="checkbox" id="e-billable">
-                <label for="e-billable" style="margin:0;cursor:pointer">Berechenbar (erscheint in der Abrechnung)</label>
+                <label for="e-billable" style="margin:0;cursor:pointer"><?= h(t('customers.fBillable')) ?></label>
             </div>
             <div class="full">
-                <label>Rechnungsdarstellung</label>
+                <label><?= h(t('customers.fInvoiceMode')) ?></label>
                 <select id="e-invoice-mode" onchange="toggleInvoiceMode()">
-                    <option value="entries">Arbeitszeit in Rechnung auflisten</option>
-                    <option value="text">Standard Text für Rechnung</option>
+                    <option value="entries"><?= h(t('customers.invoiceModeEntries')) ?></option>
+                    <option value="text"><?= h(t('customers.invoiceModeText')) ?></option>
                 </select>
             </div>
             <div class="full" id="e-invoice-text-wrap">
-                <label>Rechnungstext (Platzhalter: {project})</label>
+                <label><?= h(t('customers.fInvoiceText')) ?></label>
                 <textarea id="e-invoice-text" rows="3" maxlength="1000"
                           style="width:100%;padding:7px 10px;border:1px solid var(--card-border);border-radius:var(--radius);font-family:var(--font);font-size:13px;resize:vertical;color:var(--text)"></textarea>
             </div>
             <div class="full">
-                <label>Mailvorlage Rechnung HTML (Platzhalter: {time}, {work})</label>
+                <label><?= h(t('customers.fMailHtml')) ?></label>
                 <div class="rte-wrap">
                     <div class="rte-toolbar">
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="rteLink(this)">Link</button>
-                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                        <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="<?= h(t('orders.removeFormat')) ?>">&#10005;</button>
                     </div>
                     <div class="rte-body" id="e-mail-tmpl-html" contenteditable="true"></div>
                 </div>
             </div>
             <div class="full">
-                <label>Mailvorlage Rechnung Plain Text (Platzhalter: {time}, {work})</label>
+                <label><?= h(t('customers.fMailPlain')) ?></label>
                 <textarea id="e-mail-tmpl-plain" rows="4"
                           style="width:100%;padding:7px 10px;border:1px solid var(--card-border);border-radius:var(--radius);font-family:var(--font);font-size:13px;resize:vertical;color:var(--text)"></textarea>
             </div>
         </div>
-        <h3 style="margin:20px 0 10px;font-size:14px;font-weight:600">Projekte</h3>
+        <h3 style="margin:20px 0 10px;font-size:14px;font-weight:600"><?= h(t('customers.projects')) ?></h3>
         <ul class="project-list" id="e-plist"></ul>
         <div class="project-add-row">
-            <input type="text" id="e-pnew" placeholder="Neues Projekt" maxlength="255">
-            <button class="btn" type="button" onclick="editAddProject()">Hinzufügen</button>
+            <input type="text" id="e-pnew" placeholder="<?= h(t('customers.newProject')) ?>" maxlength="255">
+            <button class="btn" type="button" onclick="editAddProject()"><?= h(t('customers.add')) ?></button>
         </div>
 
-        <h3 style="margin:20px 0 6px;font-size:14px;font-weight:600">Auto-Regeln für neue Einträge</h3>
+        <h3 style="margin:20px 0 6px;font-size:14px;font-weight:600"><?= h(t('customers.autoRules')) ?></h3>
         <p class="rule-help">
-            Neue Einträge mit dieser Kombination aus Tätigkeit und Kommentar werden beim Speichern automatisch
-            als nicht berechenbar markiert. Kommentar leer = exakt leerer Kommentar.
-            Die Regeln gelten nur für künftige Einträge — bestehende Einträge bleiben unverändert.
+            <?= h(t('customers.autoRulesHelp')) ?>
         </p>
         <ul class="rule-list" id="e-rlist"></ul>
         <div class="rule-add-row">
             <select id="e-rnew-act">
-                <option value="">— Tätigkeit wählen —</option>
+                <option value=""><?= h(t('customers.chooseActivity')) ?></option>
                 <?php foreach (getActivities(db()) as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
                 <?php endforeach; ?>
             </select>
-            <input type="text" id="e-rnew-cmt" placeholder="Kommentar (optional)" maxlength="255">
-            <button class="btn" type="button" onclick="editAddRule()">Hinzufügen</button>
+            <input type="text" id="e-rnew-cmt" placeholder="<?= h(t('customers.commentOptional')) ?>" maxlength="255">
+            <button class="btn" type="button" onclick="editAddRule()"><?= h(t('customers.add')) ?></button>
         </div>
 
-        <h3 style="margin:24px 0 6px;font-size:14px;font-weight:600">Bestehende Einträge nachträglich markieren</h3>
+        <h3 style="margin:24px 0 6px;font-size:14px;font-weight:600"><?= h(t('customers.markExisting')) ?></h3>
         <p class="rule-help">
-            Findet alle bereits vorhandenen, berechenbaren Einträge dieses Kunden mit der angegebenen Kombination
-            und markiert sie auf Wunsch als nicht berechenbar. Wirkt nur auf bestehende Einträge — keine Auto-Regel.
+            <?= h(t('customers.markExistingHelp')) ?>
         </p>
         <div class="rule-add-row">
             <select id="e-search-act">
-                <option value="">— Tätigkeit wählen —</option>
+                <option value=""><?= h(t('customers.chooseActivity')) ?></option>
                 <?php foreach (getActivities(db()) as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
                 <?php endforeach; ?>
             </select>
-            <input type="text" id="e-search-cmt" placeholder="Kommentar (optional)" maxlength="255">
-            <button class="btn" type="button" onclick="editSearchEntries()">Suchen</button>
+            <input type="text" id="e-search-cmt" placeholder="<?= h(t('customers.commentOptional')) ?>" maxlength="255">
+            <button class="btn" type="button" onclick="editSearchEntries()"><?= h(t('customers.search')) ?></button>
         </div>
         <div id="e-search-result" class="search-result hidden"></div>
 
         <div style="display:flex;gap:8px;margin-top:20px">
-            <button class="btn btn--primary" type="button" onclick="saveFullCustomer()">Speichern</button>
-            <button class="btn" type="button" onclick="closeEdit()">Abbrechen</button>
+            <button class="btn btn--primary" type="button" onclick="saveFullCustomer()"><?= h(t('common.save')) ?></button>
+            <button class="btn" type="button" onclick="closeEdit()"><?= h(t('common.cancel')) ?></button>
         </div>
     </div>
 
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 let pidCounter   = Date.now();
 let editCid      = null;
@@ -437,7 +441,7 @@ function rteLink(btn) {
     const body = btn.closest('.rte-wrap').querySelector('.rte-body');
     const sel  = window.getSelection();
     let range  = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
-    const url  = prompt('URL:', 'https://');
+    const url  = prompt(t('customers.urlPrompt'), 'https://');
     if (!url) return;
     body.focus();
     if (range) { sel.removeAllRanges(); sel.addRange(range); }
@@ -450,10 +454,10 @@ function rteLink(btn) {
 async function openEdit(cid) {
     editCid = cid;
     const res = await api('get_customer', { id: cid });
-    if (!res.success) { Dialog.alert('Fehler beim Laden.'); return; }
+    if (!res.success) { Dialog.alert(t('customers.loadError')); return; }
     const c = res.data;
 
-    document.getElementById('editTitle').textContent         = 'Kunde bearbeiten: ' + c.name;
+    document.getElementById('editTitle').textContent         = t('customers.editTitleName', { name: c.name });
     document.getElementById('e-name').value                  = c.name               || '';
     document.getElementById('e-billing-name').value          = c.billing_name        || '';
     document.getElementById('e-street').value                = c.billing_street      || '';
@@ -507,7 +511,7 @@ function closeEdit() {
 function renderEditProjectList() {
     const ul = document.getElementById('e-plist');
     if (editProjects.length === 0) {
-        ul.innerHTML = '<li><span class="project-name" style="color:var(--text-muted)">Noch keine Projekte.</span></li>';
+        ul.innerHTML = '<li><span class="project-name" style="color:var(--text-muted)">' + escHtml(t('customers.noProjects')) + '</span></li>';
         return;
     }
     ul.innerHTML = '';
@@ -517,13 +521,13 @@ function renderEditProjectList() {
         li.innerHTML =
             '<span class="project-name" id="epname-' + p.id + '">' + escHtml(p.name) + '</span>' +
             '<input type="text" class="project-edit-input hidden" id="epinput-' + p.id + '" value="' + escHtml(p.name) + '" maxlength="255">' +
-            '<button class="btn-icon" title="Umbenennen" onclick="editStartRename(\'' + p.id + '\')">' +
+            '<button class="btn-icon" title="' + escHtml(t('customers.rename')) + '" onclick="editStartRename(\'' + p.id + '\')">' +
                 '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>' +
             '</button>' +
-            '<button class="btn-icon btn-icon--confirm hidden" id="epsave-' + p.id + '" title="Speichern" onclick="editConfirmRename(\'' + p.id + '\')">' +
+            '<button class="btn-icon btn-icon--confirm hidden" id="epsave-' + p.id + '" title="' + escHtml(t('common.save')) + '" onclick="editConfirmRename(\'' + p.id + '\')">' +
                 '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>' +
             '</button>' +
-            '<button class="btn-icon btn-icon--danger" title="Projekt löschen" onclick="editDeleteProject(\'' + p.id + '\')">' +
+            '<button class="btn-icon btn-icon--danger" title="' + escHtml(t('customers.deleteProject')) + '" onclick="editDeleteProject(\'' + p.id + '\')">' +
                 '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' +
             '</button>';
         ul.appendChild(li);
@@ -567,7 +571,7 @@ function editDeleteProject(pid) {
 function renderEditRuleList() {
     const ul = document.getElementById('e-rlist');
     if (editRules.length === 0) {
-        ul.innerHTML = '<li><span class="rule-act" style="color:var(--text-muted);grid-column:1/-1">Keine Regeln definiert.</span></li>';
+        ul.innerHTML = '<li><span class="rule-act" style="color:var(--text-muted);grid-column:1/-1">' + escHtml(t('customers.noRules')) + '</span></li>';
         return;
     }
     ul.innerHTML = '';
@@ -576,11 +580,11 @@ function renderEditRuleList() {
         li.id = 'eritem-' + r.id;
         const cmtCell = r.comment
             ? '<span class="rule-cmt">' + escHtml(r.comment) + '</span>'
-            : '<span class="rule-cmt rule-cmt-empty">— leer —</span>';
+            : '<span class="rule-cmt rule-cmt-empty">' + escHtml(t('customers.emptyComment')) + '</span>';
         li.innerHTML =
             '<span class="rule-act">' + escHtml(r.activity) + '</span>' +
             cmtCell +
-            '<button class="btn-icon btn-icon--danger" title="Regel löschen" onclick="editDeleteRule(\'' + r.id + '\')">' +
+            '<button class="btn-icon btn-icon--danger" title="' + escHtml(t('customers.deleteRule')) + '" onclick="editDeleteRule(\'' + r.id + '\')">' +
                 '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' +
             '</button>';
         ul.appendChild(li);
@@ -599,7 +603,7 @@ function editAddRule() {
             && (r.comment || '').toLowerCase() === cmt.toLowerCase();
     });
     if (dup) {
-        showMsg(document.getElementById('editMsg'), 'Diese Regel existiert bereits.', false);
+        showMsg(document.getElementById('editMsg'), t('customers.ruleExists'), false);
         return;
     }
 
@@ -639,7 +643,7 @@ async function editSearchEntries() {
     if (!act) { actEl.focus(); return; }
 
     resEl.classList.remove('hidden');
-    resEl.innerHTML = '<span class="search-empty">Suche läuft…</span>';
+    resEl.innerHTML = '<span class="search-empty">' + escHtml(t('customers.searching')) + '</span>';
 
     try {
         const data = await api('find_unbilled_matches', {
@@ -648,21 +652,23 @@ async function editSearchEntries() {
             comment:     cmt,
         });
         if (!data.success) {
-            resEl.innerHTML = '<span class="search-empty">Fehler: ' + escHtml(data.error || 'Suche fehlgeschlagen.') + '</span>';
+            resEl.innerHTML = '<span class="search-empty">' + escHtml(t('common.error') + ': ' + (data.error || t('customers.searchFailed'))) + '</span>';
             return;
         }
 
         const d = data.data;
         if (d.count === 0) {
-            resEl.innerHTML = '<span class="search-empty">Keine berechenbaren Einträge mit dieser Kombination gefunden.</span>';
+            resEl.innerHTML = '<span class="search-empty">' + escHtml(t('customers.noMatches')) + '</span>';
             return;
         }
 
         let html =
-            '<h4>' + d.count + ' Eintr' + (d.count === 1 ? 'ag' : 'äge') +
-            ' gefunden (' + escHtml(fmtHoursMin(d.minutes)) + ')</h4>' +
+            '<h4>' + escHtml(t(d.count === 1 ? 'customers.entriesFoundOne' : 'customers.entriesFoundMany',
+                { n: d.count, min: fmtHoursMin(d.minutes) })) + '</h4>' +
             '<table><thead><tr>' +
-                '<th>Datum</th><th>Tätigkeit</th><th>Kommentar</th><th class="right">Dauer</th>' +
+                '<th>' + escHtml(t('customers.colDate')) + '</th><th>' + escHtml(t('common.activity')) +
+                '</th><th>' + escHtml(t('customers.colComment')) + '</th><th class="right">' +
+                escHtml(t('customers.colDuration')) + '</th>' +
             '</tr></thead><tbody>';
 
         d.preview.forEach(function(e) {
@@ -676,25 +682,25 @@ async function editSearchEntries() {
         html += '</tbody></table>';
 
         if (d.count > d.preview.length) {
-            html += '<p class="search-empty">… und ' + (d.count - d.preview.length) + ' weitere.</p>';
+            html += '<p class="search-empty">' + escHtml(t('customers.andMore', { n: d.count - d.preview.length })) + '</p>';
         }
 
         html += '<div class="search-result-actions">' +
             '<button class="btn btn--primary" type="button" onclick="editConvertEntries(' +
                 "'" + act.replace(/'/g, "\\'") + "', '" + cmt.replace(/'/g, "\\'") + "'" +
-            ')">Jetzt in nicht berechenbar ändern</button>' +
-            '<button class="btn" type="button" onclick="document.getElementById(\'e-search-result\').classList.add(\'hidden\')">Schließen</button>' +
+            ')">' + escHtml(t('customers.convertNow')) + '</button>' +
+            '<button class="btn" type="button" onclick="document.getElementById(\'e-search-result\').classList.add(\'hidden\')">' + escHtml(t('orders.close')) + '</button>' +
         '</div>';
 
         resEl.innerHTML = html;
     } catch(err) {
-        resEl.innerHTML = '<span class="search-empty">Serverfehler.</span>';
+        resEl.innerHTML = '<span class="search-empty">' + escHtml(t('config.serverError')) + '</span>';
     }
 }
 
 async function editConvertEntries(act, cmt) {
     const resEl = document.getElementById('e-search-result');
-    if (!await Dialog.confirm('Wirklich alle gefundenen Einträge als nicht berechenbar markieren?')) return;
+    if (!await Dialog.confirm(t('customers.confirmConvert'))) return;
 
     try {
         const data = await api('mark_entries_unbillable', {
@@ -703,14 +709,15 @@ async function editConvertEntries(act, cmt) {
             comment:     cmt,
         });
         if (data.success) {
-            resEl.innerHTML = '<span style="color:var(--success)">✓ ' + data.data.updated +
-                ' Eintr' + (data.data.updated === 1 ? 'ag' : 'äge') + ' wurden auf nicht berechenbar gesetzt.</span>';
+            resEl.innerHTML = '<span style="color:var(--success)">' +
+                escHtml(t(data.data.updated === 1 ? 'customers.convertedOne' : 'customers.convertedMany',
+                    { n: data.data.updated })) + '</span>';
             document.getElementById('e-search-cmt').value = '';
         } else {
-            resEl.innerHTML = '<span class="search-empty">Fehler: ' + escHtml(data.error || 'Aktion fehlgeschlagen.') + '</span>';
+            resEl.innerHTML = '<span class="search-empty">' + escHtml(t('common.error') + ': ' + (data.error || t('customers.actionFailed'))) + '</span>';
         }
     } catch(err) {
-        resEl.innerHTML = '<span class="search-empty">Serverfehler.</span>';
+        resEl.innerHTML = '<span class="search-empty">' + escHtml(t('config.serverError')) + '</span>';
     }
 }
 
@@ -742,12 +749,12 @@ async function saveFullCustomer() {
     };
     try {
         const stampRes = await api('update_customer_billing', params);
-        if (!stampRes.success) { showMsg(msgEl, stampRes.error || 'Fehler beim Speichern.', false); return; }
+        if (!stampRes.success) { showMsg(msgEl, stampRes.error || t('common.saveError'), false); return; }
 
         const projRes = await api('save_customer_projects', {
             id: editCid, projects: JSON.stringify(editProjects)
         });
-        if (!projRes.success) { showMsg(msgEl, projRes.error || 'Fehler beim Speichern der Projekte.', false); return; }
+        if (!projRes.success) { showMsg(msgEl, projRes.error || t('customers.saveProjectsError'), false); return; }
 
         const rulesPayload = editRules.map(function(r) {
             return { activity: r.activity, comment: r.comment };
@@ -755,7 +762,7 @@ async function saveFullCustomer() {
         const ruleRes = await api('save_customer_rules', {
             id: editCid, rules: JSON.stringify(rulesPayload)
         });
-        if (!ruleRes.success) { showMsg(msgEl, ruleRes.error || 'Fehler beim Speichern der Regeln.', false); return; }
+        if (!ruleRes.success) { showMsg(msgEl, ruleRes.error || t('customers.saveRulesError'), false); return; }
 
         const nameCell = document.getElementById('cname-' + editCid);
         if (nameCell) {
@@ -770,20 +777,20 @@ async function saveFullCustomer() {
         if (rateCell) {
             rateCell.innerHTML = params.hourly_rate !== ''
                 ? escHtml(params.hourly_rate) + ' €'
-                : '<span style="color:var(--text-muted)">Standard</span>';
+                : '<span style="color:var(--text-muted)">' + escHtml(t('customers.default')) + '</span>';
         }
         const billBadge = document.getElementById('cbillable-' + editCid);
         if (billBadge) {
             billBadge.className   = 'badge ' + (billable ? 'badge--active' : 'badge--inactive');
-            billBadge.textContent = billable ? 'Ja' : 'Nein';
+            billBadge.textContent = billable ? t('common.yes') : t('common.no');
         }
         const projNames = document.getElementById('cprojectnames-' + editCid);
         if (projNames) projNames.textContent = editProjects.map(function(p) { return p.name; }).join(', ');
 
         closeEdit();
-        showMsg(document.getElementById('addMsg'), 'Gespeichert.', true);
+        showMsg(document.getElementById('addMsg'), t('common.saved'), true);
     } catch(e) {
-        showMsg(msgEl, 'Serverfehler. Bitte erneut versuchen.', false);
+        showMsg(msgEl, t('config.serverErrorRetry'), false);
     }
 }
 
@@ -794,7 +801,7 @@ document.getElementById('addBtn').addEventListener('click', async function() {
     const input = document.getElementById('newCustomerName');
     const msgEl = document.getElementById('addMsg');
     const name  = input.value.trim();
-    if (!name) { showMsg(msgEl, 'Bitte einen Namen eingeben.', false); return; }
+    if (!name) { showMsg(msgEl, t('customers.enterName'), false); return; }
 
     const btn = document.getElementById('addBtn');
     btn.disabled = true;
@@ -812,24 +819,24 @@ document.getElementById('addBtn').addEventListener('click', async function() {
                     '<td id="cname-' + id + '"><span class="cname-main">' + escHtml(data.data.name) + '</span></td>' +
                     '<td id="clastname-' + id + '" style="font-size:12px"></td>' +
                     '<td id="cemail-' + id + '" style="font-size:12px;color:var(--text-muted)"></td>' +
-                    '<td><label class="toggle-switch" title="Aktiv – klicken zum Deaktivieren"><input type="checkbox" id="ctoggle-' + id + '" onchange="toggleCustomer(' + id + ')" checked><span class="toggle-slider"></span></label></td>' +
-                    '<td><span class="badge badge--active" id="cbillable-' + id + '">Ja</span></td>' +
+                    '<td><label class="toggle-switch" title="' + escHtml(t('customers.toggleActive')) + '"><input type="checkbox" id="ctoggle-' + id + '" onchange="toggleCustomer(' + id + ')" checked><span class="toggle-slider"></span></label></td>' +
+                    '<td><span class="badge badge--active" id="cbillable-' + id + '">' + escHtml(t('common.yes')) + '</span></td>' +
                     '<td id="cprojectnames-' + id + '" style="color:var(--text-muted);font-size:12px"></td>' +
-                    '<td id="crate-' + id + '" style="white-space:nowrap;font-size:12px"><span style="color:var(--text-muted)">Standard</span></td>' +
+                    '<td id="crate-' + id + '" style="white-space:nowrap;font-size:12px"><span style="color:var(--text-muted)">' + escHtml(t('customers.default')) + '</span></td>' +
                     '<td style="white-space:nowrap">' +
-                        '<button class="btn-icon" title="Bearbeiten" onclick="openEdit(' + id + ')">' +
+                        '<button class="btn-icon" title="' + escHtml(t('common.edit')) + '" onclick="openEdit(' + id + ')">' +
                             '<svg viewBox="0 0 24 24" width="15" height="15"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>' +
                         '</button>' +
                     '</td>' +
                 '</tr>'
             );
             input.value = '';
-            showMsg(msgEl, 'Kunde wurde angelegt.', true);
+            showMsg(msgEl, t('customers.created'), true);
         } else {
-            showMsg(msgEl, data.error || 'Fehler beim Anlegen.', false);
+            showMsg(msgEl, data.error || t('customers.createError'), false);
         }
     } catch(e) {
-        showMsg(msgEl, 'Serverfehler. Bitte erneut versuchen.', false);
+        showMsg(msgEl, t('config.serverErrorRetry'), false);
     }
     btn.disabled = false;
 });
@@ -924,10 +931,10 @@ function updateBulkBar() {
         resetBulkConfirm();
     } else {
         bar.classList.remove('hidden');
-        const label = n === 1 ? ' Kunde ausgewählt' : ' Kunden ausgewählt';
-        document.getElementById('bulkCount').textContent = n + label;
+        document.getElementById('bulkCount').textContent =
+            t(n === 1 ? 'customers.selectedOne' : 'customers.selectedMany', { n: n });
         document.getElementById('bulkConfirmText').textContent =
-            n + (n === 1 ? ' Kunde wirklich löschen?' : ' Kunden wirklich löschen?');
+            t(n === 1 ? 'customers.confirmDeleteOne' : 'customers.confirmDeleteMany', { n: n });
     }
 }
 
@@ -984,17 +991,18 @@ document.getElementById('bulkConfirmYes').addEventListener('click', async functi
             });
             const tbody = document.querySelector('#customerTable tbody');
             if (!tbody.querySelector('tr.entry-row')) {
-                tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Keine Kunden vorhanden.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-message">' + escHtml(t('customers.empty')) + '</td></tr>';
             }
             updateBulkBar();
             updateSelectAll();
-            showMsg(document.getElementById('addMsg'), data.data.deleted + ' Kunde(n) gelöscht.', true);
+            showMsg(document.getElementById('addMsg'),
+                t(data.data.deleted === 1 ? 'customers.deletedOne' : 'customers.deletedMany', { n: data.data.deleted }), true);
         } else {
-            showMsg(document.getElementById('addMsg'), data.error || 'Fehler beim Löschen.', false);
+            showMsg(document.getElementById('addMsg'), data.error || t('customers.deleteError'), false);
             resetBulkConfirm();
         }
     } catch(e) {
-        showMsg(document.getElementById('addMsg'), 'Serverfehler. Bitte erneut versuchen.', false);
+        showMsg(document.getElementById('addMsg'), t('config.serverErrorRetry'), false);
         resetBulkConfirm();
     }
 });

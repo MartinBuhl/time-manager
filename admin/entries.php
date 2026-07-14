@@ -155,11 +155,11 @@ function fmtDate(string $dt): string
     return substr($dt, 8, 2) . '.' . substr($dt, 5, 2) . '.' . substr($dt, 0, 4);
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arbeitszeit – Administration</title>
+<title><?= h(t('adminEntries.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -252,15 +252,15 @@ function fmtDate(string $dt): string
 
     <div class="admin-header">
         <div>
-            <h1>Arbeitszeit</h1>
+            <h1><?= h(t('admin.card.entries')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Arbeitszeit
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.entries')) ?>
             </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-            <button type="button" class="btn" id="btnShowBill" onclick="showBill()">Abgerechnet setzen</button>
-            <button type="button" class="btn" id="btnShowImport" onclick="showImport()">Import</button>
-            <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+            <button type="button" class="btn" id="btnShowBill" onclick="showBill()"><?= h(t('adminEntries.setBilled')) ?></button>
+            <button type="button" class="btn" id="btnShowImport" onclick="showImport()"><?= h(t('adminEntries.import')) ?></button>
+            <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
         </div>
     </div>
 
@@ -271,9 +271,9 @@ function fmtDate(string $dt): string
             <!-- Zeile 1: Kunde, Status, Zeitraum, Sortierung … Pro Seite + Aktionen -->
             <div class="filter-row">
                 <div class="filter-field">
-                    <label for="f-customer">Kunde</label>
+                    <label for="f-customer"><?= h(t('entries.colCustomer')) ?></label>
                     <select id="f-customer" name="customer_id">
-                        <option value="">Alle Kunden</option>
+                        <option value=""><?= h(t('customers.allCustomers')) ?></option>
                         <?php foreach ($customers as $c): ?>
                         <option value="<?= (int)$c['id'] ?>"
                             <?= $customerId === (int)$c['id'] ? 'selected' : '' ?>>
@@ -284,9 +284,9 @@ function fmtDate(string $dt): string
                 </div>
 
                 <div class="filter-field">
-                    <label for="f-project">Projekt</label>
+                    <label for="f-project"><?= h(t('adminEntries.project')) ?></label>
                     <select id="f-project" name="project">
-                        <option value="">Alle Projekte</option>
+                        <option value=""><?= h(t('adminEntries.allProjects')) ?></option>
                         <?php if ($customerId > 0): foreach (($entryProjects[$customerId] ?? []) as $p): ?>
                         <option value="<?= h($p) ?>"<?= $filterProject === $p ? ' selected' : '' ?>><?= h($p) ?></option>
                         <?php endforeach; endif; ?>
@@ -294,43 +294,43 @@ function fmtDate(string $dt): string
                 </div>
 
                 <div class="filter-field">
-                    <label for="f-status">Status</label>
+                    <label for="f-status"><?= h(t('customers.colStatus')) ?></label>
                     <select id="f-status" name="status">
-                        <option value="">Alle Status</option>
-                        <option value="open"   <?= $status === 'open'   ? 'selected' : '' ?>>Nicht abgerechnet</option>
-                        <option value="billed" <?= $status === 'billed' ? 'selected' : '' ?>>Abgerechnet</option>
+                        <option value=""><?= h(t('customers.allStatus')) ?></option>
+                        <option value="open"   <?= $status === 'open'   ? 'selected' : '' ?>><?= h(t('adminEntries.statusOpen')) ?></option>
+                        <option value="billed" <?= $status === 'billed' ? 'selected' : '' ?>><?= h(t('adminEntries.billed')) ?></option>
                     </select>
                 </div>
 
                 <div class="filter-field">
-                    <label>Zeitraum</label>
+                    <label><?= h(t('adminEntries.period')) ?></label>
                     <div class="filter-dates">
-                        <input type="date" name="date_from" value="<?= h($dateFrom) ?>" aria-label="Von">
+                        <input type="date" name="date_from" value="<?= h($dateFrom) ?>" aria-label="<?= h(t('adminEntries.from')) ?>">
                         <span class="filter-sep">–</span>
-                        <input type="date" name="date_to" value="<?= h($dateTo) ?>" aria-label="Bis">
+                        <input type="date" name="date_to" value="<?= h($dateTo) ?>" aria-label="<?= h(t('adminEntries.to')) ?>">
                     </div>
                 </div>
 
                 <div class="filter-field">
-                    <label for="f-sort">Sortierung</label>
+                    <label for="f-sort"><?= h(t('adminEntries.sorting')) ?></label>
                     <select id="f-sort" name="sort">
-                        <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Neueste zuerst</option>
-                        <option value="asc"  <?= $sort === 'asc'  ? 'selected' : '' ?>>Älteste zuerst</option>
+                        <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>><?= h(t('adminEntries.newestFirst')) ?></option>
+                        <option value="asc"  <?= $sort === 'asc'  ? 'selected' : '' ?>><?= h(t('adminEntries.oldestFirst')) ?></option>
                     </select>
                 </div>
 
                 <div class="filter-actions">
                     <div class="filter-field">
-                        <label for="f-perpage">Pro Seite</label>
+                        <label for="f-perpage"><?= h(t('adminEntries.perPage')) ?></label>
                         <select id="f-perpage" name="per_page">
                             <?php foreach ([50, 100, 500, 1000] as $n): ?>
                             <option value="<?= $n ?>" <?= $perPage === $n ? 'selected' : '' ?>><?= $n ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button class="btn btn--primary" type="submit">Filtern</button>
+                    <button class="btn btn--primary" type="submit"><?= h(t('adminEntries.filter')) ?></button>
                     <?php if ($search !== '' || $exclude !== '' || $customerId > 0 || $filterProject !== '' || $dateFrom !== '' || $dateTo !== '' || $status !== ''): ?>
-                    <a href="entries.php" class="btn">Zurücksetzen</a>
+                    <a href="entries.php" class="btn"><?= h(t('adminEntries.reset')) ?></a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -338,17 +338,17 @@ function fmtDate(string $dt): string
             <!-- Zeile 2: Suche + Ausschluss -->
             <div class="filter-row">
                 <div class="filter-field filter-field--search">
-                    <label for="f-q">Suche (Kommentar)</label>
+                    <label for="f-q"><?= h(t('adminEntries.searchComment')) ?></label>
                     <input type="text" id="f-q" name="q"
                            value="<?= h($search) ?>"
-                           placeholder="Kommentar suchen…"
+                           placeholder="<?= h(t('adminEntries.searchPlaceholder')) ?>"
                            autocomplete="off">
                 </div>
                 <div class="filter-field filter-field--search">
-                    <label for="f-exclude">Ausschließen (Kommentar, kommagetrennt)</label>
+                    <label for="f-exclude"><?= h(t('adminEntries.excludeLabel')) ?></label>
                     <input type="text" id="f-exclude" name="exclude"
                            value="<?= h($exclude) ?>"
-                           placeholder="z. B. urlaub, intern, pause"
+                           placeholder="<?= h(t('adminEntries.excludePlaceholder')) ?>"
                            autocomplete="off">
                 </div>
             </div>
@@ -356,30 +356,30 @@ function fmtDate(string $dt): string
 
         <!-- Result info -->
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
-            <?= number_format($total, 0, ',', '.') ?> Einträge
+            <?= h(t('adminEntries.countEntries', ['n' => number_format($total, 0, ',', '.')])) ?>
             <?php if ($totalPages > 1): ?>
-            &nbsp;·&nbsp; Seite <?= $page ?> von <?= $totalPages ?>
+            &nbsp;·&nbsp; <?= h(t('adminEntries.pageOf', ['p' => $page, 't' => $totalPages])) ?>
             <?php endif; ?>
         </div>
 
         <?php if (empty($entries)): ?>
-            <p class="empty-message">Keine Einträge gefunden.</p>
+            <p class="empty-message"><?= h(t('adminEntries.noEntries')) ?></p>
         <?php else: ?>
 
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th class="col-check"><input type="checkbox" id="checkAll" title="Alle auswählen"></th>
-                        <th>Datum</th>
-                        <th>Zeit</th>
-                        <th class="col-dur">Min</th>
-                        <th>Benutzer</th>
-                        <th>Kunde</th>
-                        <th>Projekt</th>
-                        <th>Tätigkeit</th>
-                        <th>Kommentar</th>
-                        <th>Abgerechnet</th>
+                        <th class="col-check"><input type="checkbox" id="checkAll" title="<?= h(t('customers.selectAll')) ?>"></th>
+                        <th><?= h(t('customers.colDate')) ?></th>
+                        <th><?= h(t('entries.colTime')) ?></th>
+                        <th class="col-dur"><?= h(t('entries.colMin')) ?></th>
+                        <th><?= h(t('adminEntries.colUser')) ?></th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('adminEntries.project')) ?></th>
+                        <th><?= h(t('common.activity')) ?></th>
+                        <th><?= h(t('customers.colComment')) ?></th>
+                        <th><?= h(t('adminEntries.billed')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -413,7 +413,7 @@ function fmtDate(string $dt): string
                         <?php if ($e['billed_at']): ?>
                             <span style="color:#27ae60"><?= date('d.m.Y', strtotime($e['billed_at'])) ?></span>
                             <button type="button" onclick="resetBilling(<?= (int)$e['id'] ?>)"
-                                    title="Abrechnung zurücksetzen"
+                                    title="<?= h(t('adminEntries.resetBillingTitle')) ?>"
                                     style="background:none;border:none;cursor:pointer;color:#c0392b;font-size:13px;padding:0 2px;line-height:1">&times;</button>
                         <?php else: ?>
                             <span style="color:var(--text-muted)">—</span>
@@ -423,24 +423,24 @@ function fmtDate(string $dt): string
                         <div class="actions-normal" id="actions-<?= (int)$e['id'] ?>">
                             <button type="button" class="btn-icon"
                                     onclick="showEdit(<?= (int)$e['id'] ?>)"
-                                    title="Bearbeiten">
+                                    title="<?= h(t('common.edit')) ?>">
                                 <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                             </button>
                             <button type="button" class="btn-icon btn-icon--danger"
                                     onclick="showDeleteConfirm(<?= (int)$e['id'] ?>)"
-                                    title="Löschen">
+                                    title="<?= h(t('common.delete')) ?>">
                                 <svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>
                             </button>
                         </div>
                         <div class="actions-confirm hidden" id="actions-confirm-<?= (int)$e['id'] ?>">
                             <button type="button" class="btn-icon btn-icon--confirm"
                                     onclick="confirmDelete(<?= (int)$e['id'] ?>)"
-                                    title="Löschen bestätigen">
+                                    title="<?= h(t('common.confirmDelete')) ?>">
                                 <svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="true"><path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg>
                             </button>
                             <button type="button" class="btn-icon"
                                     onclick="cancelDelete(<?= (int)$e['id'] ?>)"
-                                    title="Abbrechen">
+                                    title="<?= h(t('common.cancel')) ?>">
                                 <svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>
                             </button>
                         </div>
@@ -451,13 +451,13 @@ function fmtDate(string $dt): string
                         <div class="edit-form" style="flex-wrap:wrap;row-gap:6px">
                             <input type="text" class="edit-start"
                                    value="<?= h($e['start_datetime']) ?>"
-                                   placeholder="Start: YYYY-MM-DD HH:MM:SS">
+                                   placeholder="<?= h(t('entries.startPlaceholder')) ?>">
                             <span>–</span>
                             <input type="text" class="edit-end"
                                    value="<?= h($e['end_datetime']) ?>"
-                                   placeholder="Ende: YYYY-MM-DD HH:MM:SS">
+                                   placeholder="<?= h(t('entries.endPlaceholder')) ?>">
                             <select class="edit-customer">
-                                <option value="">— Kein Kunde —</option>
+                                <option value=""><?= h(t('common.noCustomer')) ?></option>
                                 <?php foreach ($customers as $c): ?>
                                 <option value="<?= (int)$c['id'] ?>"
                                     <?= (int)$e['customer_id'] === (int)$c['id'] ? 'selected' : '' ?>>
@@ -467,23 +467,23 @@ function fmtDate(string $dt): string
                             </select>
                             <input type="text" class="edit-activity"
                                    value="<?= h((string)$e['activity']) ?>"
-                                   placeholder="Tätigkeit">
+                                   placeholder="<?= h(t('common.activity')) ?>">
                             <input type="text" class="edit-project"
                                    value="<?= h((string)$e['project']) ?>"
-                                   placeholder="Projekt">
+                                   placeholder="<?= h(t('adminEntries.project')) ?>">
                             <input type="text" class="edit-comment"
                                    value="<?= h((string)$e['comment']) ?>"
-                                   placeholder="Kommentar">
+                                   placeholder="<?= h(t('entries.commentPlaceholder')) ?>">
                             <label style="display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap">
                                 <input type="date" class="edit-billed"
                                        value="<?= $e['billed_at'] ? substr($e['billed_at'], 0, 10) : '' ?>"
                                        style="width:auto">
-                                Abgerechnet
+                                <?= h(t('adminEntries.billed')) ?>
                             </label>
                             <button type="button" class="btn btn--primary"
-                                    onclick="saveEdit(<?= (int)$e['id'] ?>)">Speichern</button>
+                                    onclick="saveEdit(<?= (int)$e['id'] ?>)"><?= h(t('common.save')) ?></button>
                             <button type="button" class="btn"
-                                    onclick="hideEdit(<?= (int)$e['id'] ?>)">Abbrechen</button>
+                                    onclick="hideEdit(<?= (int)$e['id'] ?>)"><?= h(t('common.cancel')) ?></button>
                         </div>
                     </td>
                 </tr>
@@ -494,12 +494,12 @@ function fmtDate(string $dt): string
 
         <!-- Massen-Aktionen für angehakte Einträge -->
         <div id="bulkBar" class="bulk-bar" style="display:none">
-            <span><strong id="bulkCount">0</strong>&nbsp;ausgewählt</span>
+            <span><strong id="bulkCount">0</strong>&nbsp;<?= h(t('adminEntries.selected')) ?></span>
             <select id="bulkAction">
-                <option value="">— Aktion wählen —</option>
-                <option value="assign_project">Projekt zuweisen</option>
-                <option value="assign_customer">Anderem Kunden zuweisen</option>
-                <option value="change_billed">Abrechnungs-Status ändern</option>
+                <option value=""><?= h(t('adminEntries.bulkAction')) ?></option>
+                <option value="assign_project"><?= h(t('adminEntries.bulkAssignProject')) ?></option>
+                <option value="assign_customer"><?= h(t('adminEntries.bulkAssignCustomer')) ?></option>
+                <option value="change_billed"><?= h(t('adminEntries.bulkChangeBilled')) ?></option>
             </select>
             <span id="bulkProjectWrap" style="display:none;align-items:center;gap:10px">
                 <select id="bulkProject"></select>
@@ -507,7 +507,7 @@ function fmtDate(string $dt): string
             </span>
             <span id="bulkCustomerWrap" style="display:none;align-items:center;gap:10px">
                 <select id="bulkCustomer">
-                    <option value="">— Kunde wählen —</option>
+                    <option value=""><?= h(t('adminEntries.chooseCustomer')) ?></option>
                     <?php foreach ($customers as $c): ?>
                     <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -515,12 +515,12 @@ function fmtDate(string $dt): string
             </span>
             <span id="bulkBilledWrap" style="display:none;align-items:center;gap:10px">
                 <select id="bulkBilled">
-                    <option value="">— Status wählen —</option>
-                    <option value="open">Nicht abgerechnet</option>
-                    <option value="billed">Abgerechnet</option>
+                    <option value=""><?= h(t('adminEntries.bulkChooseStatus')) ?></option>
+                    <option value="open"><?= h(t('adminEntries.statusOpen')) ?></option>
+                    <option value="billed"><?= h(t('adminEntries.billed')) ?></option>
                 </select>
             </span>
-            <button type="button" class="btn btn--primary" id="bulkSaveBtn" style="display:none">Speichern</button>
+            <button type="button" class="btn btn--primary" id="bulkSaveBtn" style="display:none"><?= h(t('common.save')) ?></button>
         </div>
 
         <!-- Pagination -->
@@ -562,8 +562,11 @@ function fmtDate(string $dt): string
             <?php endif; ?>
 
             <span class="pager-info">
-                <?= (($page - 1) * $perPage + 1) ?>–<?= min($page * $perPage, $total) ?>
-                von <?= number_format($total, 0, ',', '.') ?>
+                <?= h(t('adminEntries.pagerRange', [
+                    'from'  => ($page - 1) * $perPage + 1,
+                    'to'    => min($page * $perPage, $total),
+                    'total' => number_format($total, 0, ',', '.'),
+                ])) ?>
             </span>
         </div>
         <?php endif; ?>
@@ -574,15 +577,15 @@ function fmtDate(string $dt): string
     <!-- Abgerechnet setzen -->
     <div class="admin-section hidden" id="billSection">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 style="margin:0">Abgerechnet setzen</h2>
-            <button type="button" class="btn" onclick="hideBill()">&#8592; Zurück zur Liste</button>
+            <h2 style="margin:0"><?= h(t('adminEntries.setBilled')) ?></h2>
+            <button type="button" class="btn" onclick="hideBill()"><?= h(t('customers.backToList')) ?></button>
         </div>
 
         <div style="max-width:400px">
             <div style="margin-bottom:12px">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Kunde *</label>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px"><?= h(t('adminEntries.customerReq')) ?></label>
                 <select id="billCustomer" style="width:100%">
-                    <option value="">— Kunde wählen —</option>
+                    <option value=""><?= h(t('adminEntries.chooseCustomer')) ?></option>
                     <?php foreach ($customers as $c): ?>
                     <option value="<?= (int)$c['id'] ?>"><?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -590,25 +593,25 @@ function fmtDate(string $dt): string
             </div>
 
             <div style="margin-bottom:16px">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Abgerechnet bis (einschließlich) *</label>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px"><?= h(t('adminEntries.billedUntil')) ?></label>
                 <input type="date" id="billDate" style="width:100%">
             </div>
 
             <div id="billMsg" style="margin-bottom:12px"></div>
 
-            <button type="button" class="btn btn--primary" id="billBtn" onclick="doBill()">Als abgerechnet markieren</button>
+            <button type="button" class="btn btn--primary" id="billBtn" onclick="doBill()"><?= h(t('adminEntries.markBilledBtn')) ?></button>
         </div>
     </div>
 
     <!-- Import section -->
     <div class="admin-section hidden" id="importSection">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <h2 style="margin:0">Arbeitszeit importieren</h2>
-            <button type="button" class="btn" onclick="hideImport()">&#8592; Zurück zur Liste</button>
+            <h2 style="margin:0"><?= h(t('adminEntries.importHeading')) ?></h2>
+            <button type="button" class="btn" onclick="hideImport()"><?= h(t('customers.backToList')) ?></button>
         </div>
 
         <div style="margin-bottom:12px;max-width:240px">
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Benutzer *</label>
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px"><?= h(t('adminEntries.importUser')) ?></label>
             <select id="importUser">
                 <?php foreach ($importUsers as $u): ?>
                 <option value="<?= (int)$u['id'] ?>"><?= h($u['username']) ?></option>
@@ -617,13 +620,13 @@ function fmtDate(string $dt): string
         </div>
 
         <div style="margin-bottom:4px;font-size:12px;color:var(--text-muted)">
-            Daten einfügen (tabulator-getrennt, eine Zeile pro Eintrag):
+            <?= h(t('adminEntries.importHint')) ?>
             <code style="background:#f0f0f0;padding:1px 5px;border-radius:3px;font-size:11px">
-                Datum&nbsp;&nbsp;Zeitraum&nbsp;&nbsp;Minuten&nbsp;&nbsp;Kundenname&nbsp;&nbsp;Kommentar
+                <?= t('adminEntries.importCols') ?>
             </code>
         </div>
         <div style="margin-bottom:4px;font-size:11px;color:var(--text-muted)">
-            Beispiel: <code style="background:#f0f0f0;padding:1px 5px;border-radius:3px">15.04.2026&nbsp;&nbsp;10:51-11:56&nbsp;&nbsp;65&nbsp;&nbsp;scharferladen&nbsp;&nbsp;PHP Programmierung: Steuerberechnung</code>
+            <?= h(t('adminEntries.importExample')) ?> <code style="background:#f0f0f0;padding:1px 5px;border-radius:3px">15.04.2026&nbsp;&nbsp;10:51-11:56&nbsp;&nbsp;65&nbsp;&nbsp;scharferladen&nbsp;&nbsp;PHP Programmierung: Steuerberechnung</code>
         </div>
 
         <textarea id="importData" rows="14"
@@ -632,12 +635,19 @@ function fmtDate(string $dt): string
 
         <div id="importMsg" style="margin-bottom:12px"></div>
 
-        <button type="button" class="btn btn--primary" id="importBtn" onclick="doImport()">Jetzt importieren</button>
+        <button type="button" class="btn btn--primary" id="importBtn" onclick="doImport()"><?= h(t('adminEntries.importBtn')) ?></button>
     </div>
 
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 const CUSTOMER_PROJECTS = <?= json_encode($customerProjects, JSON_UNESCAPED_UNICODE) ?>;
 const ENTRY_PROJECTS    = <?= json_encode($entryProjects, JSON_UNESCAPED_UNICODE) ?>;
@@ -650,7 +660,7 @@ const ENTRY_PROJECTS    = <?= json_encode($entryProjects, JSON_UNESCAPED_UNICODE
     custSel.addEventListener('change', function() {
         const projects = ENTRY_PROJECTS[this.value] || [];
         const current  = projSel.value;
-        projSel.innerHTML = '<option value="">Alle Projekte</option>';
+        projSel.innerHTML = '<option value="">' + t('adminEntries.allProjects') + '</option>';
         projects.forEach(function(p) {
             const o = document.createElement('option');
             o.value = p; o.textContent = p;
@@ -694,7 +704,7 @@ async function saveEdit(id) {
     if (res.success) {
         location.reload();
     } else {
-        Dialog.alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('adminEntries.saveErrorPrefix') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
@@ -735,11 +745,11 @@ async function doBill() {
     msgEl.innerHTML = '';
 
     if (!customerId) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Bitte einen Kunden wählen.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('orders.chooseCustomerFirst')) + '</div>';
         return;
     }
     if (!cutoffDate) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Bitte ein Datum eingeben.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.enterDate')) + '</div>';
         return;
     }
 
@@ -751,15 +761,15 @@ async function doBill() {
         if (data.success) {
             const n = data.data.marked;
             msgEl.innerHTML = n > 0
-                ? '<div class="admin-msg admin-msg--ok">' + n + ' Eintr&auml;ge als abgerechnet markiert.</div>'
-                : '<div class="admin-msg admin-msg--err">Keine offenen Eintr&auml;ge bis zu diesem Datum gefunden.</div>';
+                ? '<div class="admin-msg admin-msg--ok">' + escHtml(t('adminEntries.markedBilled', { n: n })) + '</div>'
+                : '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.noneToBill')) + '</div>';
             document.getElementById('billCustomer').value = '';
             document.getElementById('billDate').value = '';
         } else {
-            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || 'Fehler.') + '</div>';
+            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || t('common.error')) + '</div>';
         }
     } catch(e) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Serverfehler.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('config.serverError')) + '</div>';
     }
 
     btn.disabled = false;
@@ -795,7 +805,7 @@ async function doImport() {
     msgEl.innerHTML = '';
 
     if (!rawData.trim()) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Bitte Daten eingeben.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.enterData')) + '</div>';
         return;
     }
 
@@ -807,23 +817,23 @@ async function doImport() {
         if (data.success) {
             let html = '';
             if (data.data.imported > 0) {
-                html += '<div class="admin-msg admin-msg--ok">' + data.data.imported + ' Eintr&auml;ge erfolgreich importiert.</div>';
+                html += '<div class="admin-msg admin-msg--ok">' + escHtml(t('adminEntries.imported', { n: data.data.imported })) + '</div>';
                 document.getElementById('importData').value = '';
             }
             if (data.data.errors && data.data.errors.length > 0) {
-                html += '<div class="admin-msg admin-msg--err"><strong>' + data.data.errors.length + ' Fehler:</strong><ul style="margin:6px 0 0 16px;line-height:1.7">';
+                html += '<div class="admin-msg admin-msg--err"><strong>' + escHtml(t('adminEntries.importErrors', { n: data.data.errors.length })) + '</strong><ul style="margin:6px 0 0 16px;line-height:1.7">';
                 data.data.errors.forEach(function(e) { html += '<li>' + escHtml(e) + '</li>'; });
                 html += '</ul></div>';
             }
             if (data.data.imported === 0 && (!data.data.errors || data.data.errors.length === 0)) {
-                html = '<div class="admin-msg admin-msg--err">Keine Eintr&auml;ge importiert. Bitte Daten prüfen.</div>';
+                html = '<div class="admin-msg admin-msg--err">' + escHtml(t('adminEntries.noneImported')) + '</div>';
             }
             msgEl.innerHTML = html;
         } else {
-            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || 'Fehler beim Import.') + '</div>';
+            msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(data.error || t('adminEntries.importError')) + '</div>';
         }
     } catch(e) {
-        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">Serverfehler. Bitte erneut versuchen.</div>';
+        msgEl.innerHTML = '<div class="admin-msg admin-msg--err">' + escHtml(t('config.serverErrorRetry')) + '</div>';
     }
 
     btn.disabled = false;
@@ -835,7 +845,7 @@ async function resetBilling(id) {
         const cell = document.getElementById('billed-cell-' + id);
         if (cell) cell.innerHTML = '<span style="color:var(--text-muted)">—</span>';
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
@@ -847,7 +857,7 @@ async function confirmDelete(id) {
         if (row)     row.remove();
         if (editRow) editRow.remove();
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
         cancelDelete(id);
     }
 }
@@ -891,25 +901,25 @@ function populateProjectSelect() {
 
     if (custIds.length > 1) {
         sel.style.display = 'none';
-        note.textContent  = 'Bitte nur Einträge eines Kunden auswählen.';
+        note.textContent  = t('adminEntries.onlyOneCustomer');
         return;
     }
     if (custIds[0] === '0' || custIds[0] === '' || custIds[0] === undefined) {
         sel.style.display = 'none';
-        note.textContent  = 'Die ausgewählten Einträge haben keinen Kunden.';
+        note.textContent  = t('adminEntries.noCustomerSelected');
         return;
     }
 
     const projects = CUSTOMER_PROJECTS[custIds[0]] || [];
     if (projects.length === 0) {
         sel.style.display = 'none';
-        note.textContent  = 'Für diesen Kunden sind keine Projekte hinterlegt.';
+        note.textContent  = t('adminEntries.noProjectsForCustomer');
         return;
     }
 
     sel.style.display = '';
     const ph = document.createElement('option');
-    ph.value = ''; ph.textContent = '— Projekt wählen —';
+    ph.value = ''; ph.textContent = t('adminEntries.bulkChooseProject');
     sel.appendChild(ph);
     projects.forEach(function(p) {
         const o = document.createElement('option');
@@ -974,23 +984,21 @@ if (document.getElementById('bulkBar')) {
             if (!project) return;
             apiAction  = 'bulk_assign_project';
             params     = { ids: ids.join(','), project };
-            confirmMsg = ids.length + ' Eintrag/Einträgen das Projekt „' + project + '" zuweisen?';
+            confirmMsg = t('adminEntries.confirmAssignProject', { n: ids.length, project: project });
         } else if (action === 'assign_customer') {
             const sel  = document.getElementById('bulkCustomer');
             const cid  = sel.value;
             if (!cid) return;
             apiAction  = 'bulk_assign_customer';
             params     = { ids: ids.join(','), customer_id: cid };
-            confirmMsg = ids.length + ' Eintrag/Einträge dem Kunden „'
-                       + sel.options[sel.selectedIndex].text + '" zuweisen?';
+            confirmMsg = t('adminEntries.confirmAssignCustomer', { n: ids.length, name: sel.options[sel.selectedIndex].text });
         } else if (action === 'change_billed') {
             const sel    = document.getElementById('bulkBilled');
             const status = sel.value;
             if (!status) return;
             apiAction  = 'bulk_set_billed';
             params     = { ids: ids.join(','), status };
-            confirmMsg = ids.length + ' Eintrag/Einträge auf „'
-                       + sel.options[sel.selectedIndex].text + '" setzen?';
+            confirmMsg = t('adminEntries.confirmSetStatus', { n: ids.length, status: sel.options[sel.selectedIndex].text });
         } else {
             return;
         }
@@ -999,12 +1007,12 @@ if (document.getElementById('bulkBar')) {
 
         this.disabled = true;
         const orig = this.textContent;
-        this.textContent = 'Speichere…';
+        this.textContent = t('common.saving');
         const res = await api(apiAction, params);
         if (res.success) {
             location.reload();
         } else {
-            Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
             this.disabled = false;
             this.textContent = orig;
         }

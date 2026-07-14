@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/i18n.php';
+
 class InvoiceGenerator
 {
     private array  $customer;
@@ -16,6 +18,13 @@ class InvoiceGenerator
     private string $invoiceDir;
     private int    $totalMinutes;
     private bool   $isTextMode;
+    private string $docLang;
+
+    /** Übersetzt einen Schlüssel in die Dokumentsprache (global default_lang). */
+    private function td(string $key, array $params = []): string
+    {
+        return tLang($key, $this->docLang, $params);
+    }
 
     private static function hours(int $min): float
     {
@@ -69,6 +78,7 @@ class InvoiceGenerator
         $this->rate        = (float)($customer['hourly_rate'] ?: cfg('invoice_hourly_rate', '85.00'));
 
         $this->isTextMode  = ($customer['invoice_mode'] ?? 'entries') === 'text';
+        $this->docLang     = cfg('default_lang', 'de');
 
         if ($this->isTextMode && $masterTotals !== null) {
             // Text-Modus: Rechnungs-Stammdaten sind Master
@@ -179,7 +189,7 @@ class InvoiceGenerator
             }
 
             $doc->addDocumentPaymentTerm(
-                sprintf('Zahlbar innerhalb von %d Tagen', $this->paymentDays),
+                $this->td('invoiceDoc.paymentTerm', ['days' => $this->paymentDays]),
                 $dueDate
             );
 
@@ -197,7 +207,7 @@ class InvoiceGenerator
                 // So bleibt die XML konsistent, auch wenn Stunden und Betrag in den
                 // Stammdaten unabhängig voneinander gesetzt wurden.
                 $doc->addNewPosition("1");
-                $doc->setDocumentPositionProductDetails($invoiceText !== '' ? $invoiceText : 'Leistung');
+                $doc->setDocumentPositionProductDetails($invoiceText !== '' ? $invoiceText : $this->td('invoiceDoc.service'));
                 $doc->setDocumentPositionNetPrice($this->amountNet);
                 $doc->setDocumentPositionQuantity(1.0, "C62");
                 $doc->addDocumentPositionTax("S", "VAT", (float)$this->taxRate);
@@ -316,7 +326,7 @@ table           { border-collapse: collapse; }
     <?= $esc($c['zip']) ?> <?= $esc($c['city']) ?><br>
     <?php if ($c['email']): ?><?= $esc($c['email']) ?><br><?php endif; ?>
     <?php if ($c['phone']): ?><?= $esc($c['phone']) ?><br><?php endif; ?>
-    <?php if ($c['tax_id']): ?>USt-IdNr.: <?= $esc($c['tax_id']) ?><?php endif; ?>
+    <?php if ($c['tax_id']): ?><?= $esc($this->td('invoiceDoc.vatId')) ?>: <?= $esc($c['tax_id']) ?><?php endif; ?>
   </td>
 </tr>
 </table>
@@ -326,7 +336,7 @@ table           { border-collapse: collapse; }
   <?php
   $contactName = trim(($customer['contact_first_name'] ?? '') . ' ' . ($customer['contact_last_name'] ?? ''));
   if ($customer['contact_on_invoice'] && $contactName): ?>
-  <p>z.&nbsp;Hd. <?= $esc($contactName) ?></p>
+  <p><?= $esc($this->td('invoiceDoc.attn')) ?> <?= $esc($contactName) ?></p>
   <?php else: ?>
   <p>&nbsp;</p>
   <?php endif; ?>
@@ -337,29 +347,29 @@ table           { border-collapse: collapse; }
   <p><?= $esc($plz) ?></p>
   <?php endif; ?>
   <?php if ($customer['billing_tax_id']): ?>
-  <p style="margin-top:6px">USt-IdNr.: <?= $esc($customer['billing_tax_id']) ?></p>
+  <p style="margin-top:6px"><?= $esc($this->td('invoiceDoc.vatId')) ?>: <?= $esc($customer['billing_tax_id']) ?></p>
   <?php endif; ?>
 </div>
 
 <br><br><br>
 <table class="numrow">
 <tr>
-  <td>Rechnung Nr. <?= $esc($this->invoiceNumber) ?></td>
+  <td><?= $esc($this->td('invoiceDoc.invoiceNo')) ?> <?= $esc($this->invoiceNumber) ?></td>
   <td class="right"><?= $todayStr ?></td>
 </tr>
 </table>
 
 <div class="subject">
-  Zeitraum: <?= $esc($periodStart) ?><?= $periodStart !== $periodEnd ? ' – ' . $esc($periodEnd) : '' ?>
+  <?= $esc($this->td('invoiceDoc.period')) ?>: <?= $esc($periodStart) ?><?= $periodStart !== $periodEnd ? ' – ' . $esc($periodEnd) : '' ?>
 </div>
 
 <?php if ($invoiceMode === 'text'): ?>
 <table class="itable">
 <thead>
   <tr>
-    <th>Beschreibung</th>
-    <th class="right">Std.</th>
-    <th class="right">Betrag</th>
+    <th><?= $esc($this->td('invoiceDoc.description')) ?></th>
+    <th class="right"><?= $esc($this->td('invoiceDoc.hours')) ?></th>
+    <th class="right"><?= $esc($this->td('invoiceDoc.amount')) ?></th>
   </tr>
 </thead>
 <tbody>
@@ -374,10 +384,10 @@ table           { border-collapse: collapse; }
 <table class="itable">
 <thead>
   <tr>
-    <th>Datum</th>
-    <th>Tätigkeit &amp; Kommentar</th>
-    <th class="right">Std.</th>
-    <th class="right">Betrag</th>
+    <th><?= $esc($this->td('invoiceDoc.date')) ?></th>
+    <th><?= $esc($this->td('invoiceDoc.activityComment')) ?></th>
+    <th class="right"><?= $esc($this->td('invoiceDoc.hours')) ?></th>
+    <th class="right"><?= $esc($this->td('invoiceDoc.amount')) ?></th>
   </tr>
 </thead>
 <tbody>
@@ -408,15 +418,15 @@ table           { border-collapse: collapse; }
   <td style="border:none; padding:0; width:45%;">
     <table width="100%" style="border-collapse:collapse;">
       <tr>
-        <td style="padding:4px 10px; font-size:12px; color:#333;">Nettobetrag</td>
+        <td style="padding:4px 10px; font-size:12px; color:#333;"><?= $esc($this->td('invoiceDoc.net')) ?></td>
         <td style="padding:4px 10px; font-size:12px; color:#333; text-align:right; font-weight:600;"><?= $eur($amountNet) ?></td>
       </tr>
       <tr>
-        <td style="padding:4px 10px; font-size:12px; color:#333;">zzgl. <?= $taxRate ?>&nbsp;% MwSt.</td>
+        <td style="padding:4px 10px; font-size:12px; color:#333;"><?= $esc($this->td('invoiceDoc.plusVat', ['rate' => $taxRate])) ?></td>
         <td style="padding:4px 10px; font-size:12px; color:#333; text-align:right; font-weight:600;"><?= $eur($taxAmount) ?></td>
       </tr>
       <tr>
-        <td style="padding:8px 10px 4px; font-size:14px; font-weight:700; color:#111; border-top:2px solid #111;">Gesamtbetrag</td>
+        <td style="padding:8px 10px 4px; font-size:14px; font-weight:700; color:#111; border-top:2px solid #111;"><?= $esc($this->td('invoiceDoc.total')) ?></td>
         <td style="padding:8px 10px 4px; font-size:14px; font-weight:700; color:#111; border-top:2px solid #111; text-align:right;"><?= $eur($amountGross) ?></td>
       </tr>
     </table>
@@ -446,15 +456,15 @@ table           { border-collapse: collapse; }
 <table width="100%" style="border-collapse:collapse; border-top:1px solid #ccc; padding-top:6px; font-size:10px; color:#555;">
 <tr>
   <td style="border:none; padding:4px 16px 0 0; vertical-align:top; width:50%;">
-    <strong style="font-weight:600; color:#333;">Bankverbindung</strong><br>
-    <?php if ($c['account_holder']): ?>Kontoinhaber: <?= $esc($c['account_holder']) ?><br><?php endif; ?>
-    Bank: <?= $esc($c['bank']) ?><br>
-    IBAN: <?= $esc($c['iban']) ?><br>
-    BIC: <?= $esc($c['bic']) ?>
+    <strong style="font-weight:600; color:#333;"><?= $esc($this->td('invoiceDoc.bankDetails')) ?></strong><br>
+    <?php if ($c['account_holder']): ?><?= $esc($this->td('invoiceDoc.accountHolder')) ?>: <?= $esc($c['account_holder']) ?><br><?php endif; ?>
+    <?= $esc($this->td('invoiceDoc.bank')) ?>: <?= $esc($c['bank']) ?><br>
+    <?= $esc($this->td('invoiceDoc.iban')) ?>: <?= $esc($c['iban']) ?><br>
+    <?= $esc($this->td('invoiceDoc.bic')) ?>: <?= $esc($c['bic']) ?>
   </td>
   <?php if ($c['tax_number']): ?>
   <td style="border:none; padding:4px 0 0 0; vertical-align:top; width:50%;">
-    <strong style="font-weight:600; color:#333;">Steuernummer</strong><br>
+    <strong style="font-weight:600; color:#333;"><?= $esc($this->td('invoiceDoc.taxNumber')) ?></strong><br>
     <?= $esc($c['tax_number']) ?>
   </td>
   <?php else: ?>

@@ -274,7 +274,7 @@ $postAction = $_POST['action'] ?? '';
 // ---- GitHub-Direktupdate ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'perform') {
     if (!$csrfOk) {
-        $result = ['ok' => false, 'msg' => 'Ungültiger Sicherheitstoken.'];
+        $result = ['ok' => false, 'msg' => t('update.invalidToken')];
     } else {
         set_time_limit(180);
         ignore_user_abort(true);
@@ -332,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'perform') {
 // ---- Update per hochgeladener ZIP-Datei ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $postAction === 'perform_upload') {
     if (!$csrfOk) {
-        $result = ['ok' => false, 'msg' => 'Ungültiger Sicherheitstoken.'];
+        $result = ['ok' => false, 'msg' => t('update.invalidToken')];
     } else {
         set_time_limit(180);
         ignore_user_abort(true);
@@ -383,10 +383,10 @@ $release     = null;
 $fetchError  = null;
 if ($result === null) {
     if (GH_REPO === '') {
-        $fetchError = 'GitHub-Repository nicht konfiguriert. Bitte unter Administration → Konfiguration → System den Wert "GitHub Repository" eintragen (z.B. benutzer/time-manager).';
+        $fetchError = t('update.repoNotConfigured');
     } else {
         $release = fetchRelease();
-        if ($release === null) $fetchError = 'GitHub API nicht erreichbar. Bitte Netzwerkverbindung prüfen.';
+        if ($release === null) $fetchError = t('update.apiUnreachable');
     }
 }
 
@@ -401,11 +401,11 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
     $dlUrl = 'https://github.com/' . GH_REPO . '/archive/refs/tags/' . $release['tag_name'] . '.zip';
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>System-Update – Time Manager</title>
+<title><?= h(t('update.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -445,8 +445,8 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 <div class="admin-page">
 
     <div class="admin-header">
-        <h1>System-Update</h1>
-        <a href="index.php" class="btn-logout">← Administration</a>
+        <h1><?= h(t('update.heading')) ?></h1>
+        <a href="index.php" class="btn-logout"><?= h(t('update.backToAdmin')) ?></a>
     </div>
 
     <div style="padding:24px">
@@ -455,19 +455,20 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
         <!-- ---- Ergebnis nach Update ---- -->
         <?php if ($result['ok']): ?>
         <div class="result-box result-ok">
-            <h3>✓ Update erfolgreich!</h3>
+            <h3><?= h(t('update.successTitle')) ?></h3>
             <p style="font-size:13px;color:#374151">
-                System wurde auf Version <strong><?= h($result['version']) ?></strong> aktualisiert.
-                <?= $result['files'] ?> Dateien wurden eingespielt.
+                <?= t('update.successBody', [
+                    'version' => '<strong>' . h($result['version']) . '</strong>',
+                    'files'   => (int)$result['files'],
+                ]) ?>
             </p>
             <?php if (!empty($result['backup'])): ?>
             <p style="font-size:13px;color:#374151;margin-top:8px">
-                Vor-Update-Sicherung der Datenbank: <strong><?= h($result['backup']) ?></strong>
-                (wiederherstellbar unter Administration → Backup).
+                <?= t('update.backupNote', ['backup' => '<strong>' . h($result['backup']) . '</strong>']) ?>
             </p>
             <?php endif; ?>
             <?php if (!empty($result['migrations'])): ?>
-            <p style="font-size:13px;color:#374151;margin-top:8px">Migrationen ausgeführt:</p>
+            <p style="font-size:13px;color:#374151;margin-top:8px"><?= h(t('update.migrationsRun')) ?></p>
             <ul class="migration-list">
                 <?php foreach ($result['migrations'] as $m): ?>
                 <li><?= h($m) ?></li>
@@ -475,28 +476,28 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
             </ul>
             <?php endif; ?>
         </div>
-        <a href="index.php" class="btn-update" style="text-decoration:none">← Zur Administration</a>
+        <a href="index.php" class="btn-update" style="text-decoration:none"><?= h(t('update.toAdmin')) ?></a>
 
         <?php else: ?>
         <div class="result-box result-fail">
-            <h3>✗ Update fehlgeschlagen</h3>
+            <h3><?= h(t('update.failTitle')) ?></h3>
             <p style="font-size:13px;color:#b91c1c"><?= h($result['msg']) ?></p>
         </div>
-        <a href="update.php" class="btn-update" style="text-decoration:none">Erneut versuchen</a>
+        <a href="update.php" class="btn-update" style="text-decoration:none"><?= h(t('update.retry')) ?></a>
         <?php endif; ?>
 
     <?php else: ?>
         <!-- ---- Versionsinfo & Update-Formular ---- -->
         <div class="update-card">
-            <h2>Versionsübersicht</h2>
+            <h2><?= h(t('update.versionOverview')) ?></h2>
 
             <div class="ver-row">
                 <div class="ver-box">
-                    <div class="label">Installierte Version</div>
+                    <div class="label"><?= h(t('admin.installedVersion')) ?></div>
                     <div class="val"><?= h(APP_VERSION) ?></div>
                 </div>
                 <div class="ver-box">
-                    <div class="label">Aktuelle Version (GitHub)</div>
+                    <div class="label"><?= h(t('update.currentVersionGithub')) ?></div>
                     <div class="val"><?= $latestTag !== '' ? h($latestTag) : '–' ?></div>
                 </div>
             </div>
@@ -505,15 +506,15 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
                 <span class="badge badge-error">⚠ <?= h($fetchError) ?></span>
 
             <?php elseif ($upToDate): ?>
-                <span class="badge badge-ok">✓ System ist aktuell</span>
+                <span class="badge badge-ok">✓ <?= h(t('admin.upToDate')) ?></span>
 
             <?php elseif ($hasUpdate): ?>
-                <span class="badge badge-update">↑ Update verfügbar: v<?= h($latestTag) ?></span>
+                <span class="badge badge-update">↑ <?= h(t('admin.updateAvailable')) ?>: v<?= h($latestTag) ?></span>
                 <form method="post" id="updateForm" style="margin-top:20px">
                     <input type="hidden" name="action"     value="perform">
                     <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
                     <button type="submit" class="btn-update" id="updateBtn">
-                        ↑ Jetzt auf v<?= h($latestTag) ?> updaten
+                        ↑ <?= h(t('admin.updateNow', ['v' => $latestTag])) ?>
                     </button>
                 </form>
             <?php endif; ?>
@@ -521,9 +522,9 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 
         <?php if ($hasUpdate && $dlUrl !== ''): ?>
         <div class="update-card" style="font-size:12px;color:#6b7280">
-            <strong>Release-Name:</strong> <?= h($release['name'] ?? '') ?><br>
+            <strong><?= h(t('update.releaseName')) ?></strong> <?= h($release['name'] ?? '') ?><br>
             <?php if (!empty($release['body'])): ?>
-            <strong>Änderungen:</strong><br>
+            <strong><?= h(t('update.changes')) ?></strong><br>
             <pre style="white-space:pre-wrap;font-size:12px;margin-top:4px"><?= h($release['body']) ?></pre>
             <?php endif; ?>
         </div>
@@ -531,13 +532,14 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 
         <!-- ---- Alternative: Update per Datei hochladen ---- -->
         <div class="update-card">
-            <h2>Update per Datei einspielen</h2>
+            <h2><?= h(t('update.uploadHeading')) ?></h2>
             <p style="font-size:12px;color:#6b7280;margin-bottom:16px">
-                Für Systeme ohne GitHub-Zugriff: Release-ZIP von der
-                <?php if (GH_REPO !== ''): ?><a href="https://github.com/<?= h(GH_REPO) ?>/releases" target="_blank" rel="noopener">GitHub-Releases-Seite</a><?php else: ?>GitHub-Releases-Seite<?php endif; ?>
-                herunterladen (auf einem Rechner mit Internetzugang) und hier hochladen.
-                Vor dem Einspielen wird automatisch ein Datenbank-Backup erstellt; geschützte Ordner
-                (<code>config.php</code>, <code>invoices</code>, <code>backups</code>, <code>log</code>) bleiben unberührt.
+                <?php
+                    $releasesLink = GH_REPO !== ''
+                        ? '<a href="https://github.com/' . h(GH_REPO) . '/releases" target="_blank" rel="noopener">' . h(t('update.releasesPage')) . '</a>'
+                        : h(t('update.releasesPage'));
+                    echo t('update.uploadInfo', ['link' => $releasesLink]);
+                ?>
             </p>
             <form method="post" id="uploadForm" enctype="multipart/form-data">
                 <input type="hidden" name="action"     value="perform_upload">
@@ -546,9 +548,9 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
                        style="display:block;margin-bottom:12px;font-size:13px">
                 <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;margin-bottom:16px;cursor:pointer">
                     <input type="checkbox" name="allow_downgrade" value="1" style="width:auto">
-                    <span>Downgrade / gleiche Version zulassen (z.&nbsp;B. zum Reparieren)</span>
+                    <span><?= h(t('update.allowDowngrade')) ?></span>
                 </label>
-                <button type="submit" class="btn-update" id="uploadBtn">↑ ZIP hochladen und einspielen</button>
+                <button type="submit" class="btn-update" id="uploadBtn"><?= h(t('update.uploadBtn')) ?></button>
             </form>
         </div>
 
@@ -558,15 +560,22 @@ if ($dlUrl === '' && ($release['tag_name'] ?? '') !== '') {
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 document.getElementById('updateForm')?.addEventListener('submit', function() {
     const btn = document.getElementById('updateBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Update wird eingespielt…';
+    btn.innerHTML = '<span class="spinner"></span> ' + t('update.spinnerText');
 });
 document.getElementById('uploadForm')?.addEventListener('submit', function() {
     const btn = document.getElementById('uploadBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Update wird eingespielt…';
+    btn.innerHTML = '<span class="spinner"></span> ' + t('update.spinnerText');
 });
 </script>
 </body>

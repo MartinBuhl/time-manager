@@ -267,7 +267,7 @@ switch ($action) {
         }
 
         $stmt = db()->prepare(
-            'SELECT id FROM tm_users WHERE email = ? LIMIT 1'
+            'SELECT id, lang FROM tm_users WHERE email = ? LIMIT 1'
         );
         $stmt->execute([$email]);
         $user = $stmt->fetch();
@@ -288,8 +288,12 @@ switch ($action) {
             $stmt->execute([$token, $user['id'], $expires]);
 
             require_once __DIR__ . '/includes/mail.php';
-            $link = rtrim(cfg('site_url'), '/') . '/reset_password.php?token=' . $token;
-            sendPasswordResetMail($email, $link);
+            $link    = rtrim(cfg('site_url'), '/') . '/reset_password.php?token=' . $token;
+            $usrLang = $user['lang'] ?? null;
+            if ($usrLang === null || $usrLang === '') {
+                $usrLang = cfg('default_lang', 'de');
+            }
+            sendPasswordResetMail($email, $link, $usrLang);
         }
 
         // Immer OK zurückgeben – verhindert E-Mail-Enumeration

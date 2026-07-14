@@ -1,6 +1,18 @@
 'use strict';
 
 /* ------------------------------------------------------------------
+   Übersetzung: liest aus window.I18N (vom Server gesetzt); fehlt ein
+   Schlüssel, wird der Schlüssel selbst zurückgegeben. Platzhalter {name}.
+------------------------------------------------------------------ */
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) {
+        for (const k in params) { s = s.split('{' + k + '}').join(params[k]); }
+    }
+    return s;
+}
+
+/* ------------------------------------------------------------------
    API helper – sends POST to api.php with CSRF token header
 ------------------------------------------------------------------ */
 async function api(action, data = {}) {
@@ -39,12 +51,12 @@ function escHtml(s) {
    Aufträge – Detailansicht (per onclick global erreichbar)
 ------------------------------------------------------------------ */
 function orderFileListHtml(orderId, files) {
-    if (!files || !files.length) return '<span class="order-hint">Keine Dateien.</span>';
+    if (!files || !files.length) return '<span class="order-hint">' + escHtml(t('orders.noFiles')) + '</span>';
     return files.map(f =>
         '<div class="order-file-item">'
         + '<a href="order_file.php?id=' + f.id + '" target="_blank" rel="noopener">'
         + escHtml(f.original_name) + '</a>'
-        + '<button type="button" class="order-file-del" title="Datei löschen" '
+        + '<button type="button" class="order-file-del" title="' + escHtml(t('orders.deleteFileTitle')) + '" '
         + 'onclick="deleteOrderFile(' + orderId + ',' + f.id + ')">&times;</button>'
         + '</div>'
     ).join('');
@@ -56,7 +68,7 @@ async function showOrderEdit(id) {
     if (!editRow) return;
     editRow.classList.remove('hidden');
     const res = await api('get_order', { id });
-    if (!res.success) { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); return; }
+    if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError'))); return; }
     const o = res.data;
     document.getElementById('oeditBody-' + id).innerHTML  = o.body || '';
     document.getElementById('oeditFiles-' + id).innerHTML = orderFileListHtml(id, o.files || []);
@@ -70,19 +82,19 @@ function hideOrderEdit(id) {
 }
 
 async function deleteOrderFile(orderId, fileId) {
-    if (!await Dialog.confirm('Diese Datei löschen?', { danger: true })) return;
+    if (!await Dialog.confirm(t('orders.confirmDeleteFile'), { danger: true })) return;
     const res = await api('delete_order_file', { id: fileId });
     if (res.success) {
         const g = await api('get_order', { id: orderId });
         if (g.success) document.getElementById('oeditFiles-' + orderId).innerHTML = orderFileListHtml(orderId, g.data.files || []);
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
 async function saveOrderInline(id) {
     const msg = document.getElementById('oeditMsg-' + id);
-    msg.className = 'order-msg'; msg.textContent = 'Speichern …';
+    msg.className = 'order-msg'; msg.textContent = t('common.saving');
 
     const fd = new FormData();
     fd.append('id', id);
@@ -95,17 +107,17 @@ async function saveOrderInline(id) {
         nf.value = '';
         const g = await api('get_order', { id });
         if (g.success) document.getElementById('oeditFiles-' + id).innerHTML = orderFileListHtml(id, g.data.files || []);
-        msg.textContent = 'Gespeichert.'; msg.classList.add('ok');
+        msg.textContent = t('common.saved'); msg.classList.add('ok');
     } else {
-        msg.textContent = res.error || 'Fehler beim Speichern.'; msg.classList.add('err');
+        msg.textContent = res.error || t('common.saveError'); msg.classList.add('err');
     }
 }
 
 async function completeOrderInline(id) {
-    if (!await Dialog.confirm('Auftrag als erledigt markieren?')) return;
+    if (!await Dialog.confirm(t('orders.confirmDone'))) return;
     const res = await api('complete_order', { id });
     if (res.success) location.reload();
-    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
 /* Zwei-Schritt-Löschen eines Auftrags in der Kunden-Unterliste */
@@ -125,10 +137,10 @@ async function confirmSubDelete(id) {
         if (el) el.remove();
         // Bleibt die Unterliste leer, kurzen Hinweis zeigen (Liste bleibt offen)
         if (list && !list.querySelector('.suborder')) {
-            list.innerHTML = '<div class="order-hint" style="padding:6px">Keine offenen Aufträge.</div>';
+            list.innerHTML = '<div class="order-hint" style="padding:6px">' + escHtml(t('orders.none')) + '</div>';
         }
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
         cancelSubDelete(id);
     }
 }
@@ -145,7 +157,7 @@ async function markWorked(ev, id) {
     ev.stopPropagation();
     const res = await api('mark_order_worked', { id });
     if (res.success) location.reload();
-    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
 /* Liste der heute bearbeiteten Kunden auf-/zuklappen */
@@ -161,7 +173,7 @@ function toggleWorkedList() {
 async function resetWorked(customerId) {
     const res = await api('reset_order_worked', { customer_id: customerId });
     if (res.success) location.reload();
-    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
 /* ------------------------------------------------------------------
@@ -185,7 +197,7 @@ function startCountdown() {
         updateCountdownDisplay();
         if (countdownValue <= 0) {
             clearInterval(countdownInterval);
-            Dialog.alert('Zeit läuft noch');
+            Dialog.alert(t('tracker.timeRunning'));
             countdownValue = 1800;
             updateCountdownDisplay();
             startCountdown();
@@ -245,7 +257,7 @@ async function saveEdit(id) {
     if (res.success) {
         location.reload();
     } else {
-        Dialog.alert('Fehler beim Speichern: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.saveError') + ' ' + (res.error || t('common.unknownError')));
     }
 }
 
@@ -270,7 +282,7 @@ async function confirmDelete(id) {
         if (row)     row.remove();
         if (editRow) editRow.remove();
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
         cancelDelete(id);
     }
 }
@@ -336,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 location.reload();
             } else {
                 const errEl = document.getElementById('loginError');
-                errEl.textContent = json.error || 'Anmeldung fehlgeschlagen.';
+                errEl.textContent = json.error || t('login.failed');
                 errEl.classList.remove('hidden');
             }
         });
@@ -370,13 +382,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Lokale Vorprüfung
             if (!email) {
                 msgEl.className   = 'login-error';
-                msgEl.textContent = 'Bitte E-Mail-Adresse eingeben.';
+                msgEl.textContent = t('login.enterEmail');
                 msgEl.classList.remove('hidden');
                 return;
             }
 
             btn.disabled        = true;
-            btn.textContent     = 'Sende …';
+            btn.textContent     = t('login.sending');
             msgEl.classList.add('hidden');
 
             try {
@@ -390,19 +402,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 msgEl.classList.remove('hidden');
                 if (json.success) {
                     msgEl.className   = 'success-message';
-                    msgEl.textContent = 'Falls ein Konto mit dieser Adresse existiert, wurde ein Link gesendet.';
+                    msgEl.textContent = t('login.resetSent');
                     emailInput.value  = '';
                 } else {
                     msgEl.className   = 'login-error';
-                    msgEl.textContent = json.error || 'Fehler beim Senden.';
+                    msgEl.textContent = json.error || t('login.sendError');
                 }
             } catch (err) {
                 msgEl.classList.remove('hidden');
                 msgEl.className   = 'login-error';
-                msgEl.textContent = 'Verbindungsfehler – bitte erneut versuchen.';
+                msgEl.textContent = t('login.connError');
             } finally {
                 btn.disabled    = false;
-                btn.textContent = 'Link senden';
+                btn.textContent = t('login.sendLink');
             }
         });
 
@@ -522,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
 
         if (projects.length > 1) {
-            selectProject.innerHTML = '<option value="">-- Projekt wählen --</option>';
+            selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
             projects.forEach(function(p) {
                 const o = document.createElement('option');
                 o.value = p.name;
@@ -595,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.success) {
             location.reload();
         } else {
-            Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+            Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
             startCountdown();
         }
     });
@@ -624,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Projekt wiederherstellen falls mehrere vorhanden
         const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
         if (projects.length > 1) {
-            selectProject.innerHTML = '<option value="">-- Projekt wählen --</option>';
+            selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
             projects.forEach(function(p) {
                 const o = document.createElement('option');
                 o.value = p.name;
@@ -736,18 +748,18 @@ document.addEventListener('DOMContentLoaded', () => {
             orderMsg.className = 'order-msg';
 
             if (!customerId) {
-                orderMsg.textContent = 'Bitte einen Kunden wählen.';
+                orderMsg.textContent = t('orders.chooseCustomerFirst');
                 orderMsg.classList.add('err');
                 return;
             }
             if (!bodyText && orderFilesInput.files.length === 0) {
-                orderMsg.textContent = 'Bitte Text eingeben oder eine Datei anhängen.';
+                orderMsg.textContent = t('orders.enterTextOrFile');
                 orderMsg.classList.add('err');
                 return;
             }
 
             orderSaveBtn.disabled = true;
-            orderMsg.textContent  = 'Speichern …';
+            orderMsg.textContent  = t('common.saving');
 
             const fd = new FormData();
             fd.append('customer_id', customerId);
@@ -759,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 location.reload();
             } else {
                 orderSaveBtn.disabled = false;
-                orderMsg.textContent  = res.error || 'Fehler beim Speichern.';
+                orderMsg.textContent  = res.error || t('common.saveError');
                 orderMsg.classList.add('err');
             }
         });
@@ -772,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const projectSel = form && form.querySelector('.edit-project');
         if (!projectSel) return;
         const projects   = (window.CUSTOMER_PROJECTS || {})[e.target.value] || [];
-        projectSel.innerHTML = '<option value="">— Kein Projekt —</option>';
+        projectSel.innerHTML = '<option value="">' + escHtml(t('common.noProject')) + '</option>';
         projects.forEach(p => {
             const o = document.createElement('option');
             o.value = p.name;

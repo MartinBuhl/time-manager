@@ -64,11 +64,11 @@ function fmtH(int $min): string  { return number_format($min / 60, 2, ',', '.') 
 function fmtEur(float $a): string { return number_format($a, 2, ',', '.') . ' €'; }
 function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt)) : ''; }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rechnungen – Administration</title>
+<title><?= h(t('invoices.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -123,12 +123,12 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 
     <div class="admin-header">
         <div>
-            <h1>Rechnungen</h1>
+            <h1><?= h(t('admin.card.invoices')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Rechnungen
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.invoices')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
@@ -137,55 +137,55 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
         <div class="inv-tabs">
             <a href="invoices.php<?= $customerFilter > 0 ? '?customer_id=' . $customerFilter : '' ?>"
                class="<?= $view === 'active' ? 'active' : '' ?>">
-                Aktiv (<?= (int)$tabCounts['active_cnt'] ?>)
+                <?= h(t('invoices.tabActive')) ?> (<?= (int)$tabCounts['active_cnt'] ?>)
             </a>
             <a href="invoices.php?view=archive<?= $custQ ?>"
                class="<?= $view === 'archive' ? 'active' : '' ?>">
-                Archiv (<?= (int)$tabCounts['archive_cnt'] ?>)
+                <?= h(t('invoices.tabArchive')) ?> (<?= (int)$tabCounts['archive_cnt'] ?>)
             </a>
         </div>
 
         <form method="get" action="invoices.php" class="filter-bar">
             <input type="hidden" name="view" value="<?= h($view) ?>">
             <select name="customer_id">
-                <option value="">Alle Kunden</option>
+                <option value=""><?= h(t('customers.allCustomers')) ?></option>
                 <?php foreach ($customers as $c): ?>
                 <option value="<?= (int)$c['id'] ?>" <?= $customerFilter === (int)$c['id'] ? 'selected' : '' ?>>
                     <?= h($c['name']) ?>
                 </option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn btn--primary">Filtern</button>
+            <button type="submit" class="btn btn--primary"><?= h(t('adminEntries.filter')) ?></button>
             <?php if ($customerFilter > 0): ?>
-            <a href="invoices.php<?= $view === 'archive' ? '?view=archive' : '' ?>" class="btn">Zurücksetzen</a>
+            <a href="invoices.php<?= $view === 'archive' ? '?view=archive' : '' ?>" class="btn"><?= h(t('adminEntries.reset')) ?></a>
             <?php endif; ?>
         </form>
 
         <div class="summary-bar">
-            <span><strong><?= (int)$sum['cnt'] ?></strong> Rechnungen</span>
-            <span>Netto: <strong><?= fmtEur((float)$sum['net']) ?></strong></span>
-            <span>Brutto: <strong><?= fmtEur((float)$sum['gross']) ?></strong></span>
+            <span><strong><?= (int)$sum['cnt'] ?></strong> <?= h(t('admin.card.invoices')) ?></span>
+            <span><?= h(t('invoices.net')) ?>: <strong><?= fmtEur((float)$sum['net']) ?></strong></span>
+            <span><?= h(t('invoices.gross')) ?>: <strong><?= fmtEur((float)$sum['gross']) ?></strong></span>
         </div>
 
         <?php if (empty($invoices)): ?>
             <p class="empty-message">
-                <?= $view === 'archive' ? 'Keine archivierten Rechnungen vorhanden.' : 'Keine Rechnungen vorhanden.' ?>
+                <?= h($view === 'archive' ? t('invoices.emptyArchive') : t('invoices.empty')) ?>
             </p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Datum</th>
-                        <th>Nummer</th>
-                        <th>Kunde</th>
-                        <th class="col-dur">Einträge</th>
-                        <th class="col-dur">Stunden</th>
-                        <th class="col-dur">Netto</th>
-                        <th class="col-dur">Brutto</th>
-                        <th>Status</th>
-                        <th>Mail</th>
-                        <th>Dateien</th>
+                        <th><?= h(t('customers.colDate')) ?></th>
+                        <th><?= h(t('invoices.colNumber')) ?></th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.colEntries')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.colHours')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.net')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.gross')) ?></th>
+                        <th><?= h(t('customers.colStatus')) ?></th>
+                        <th><?= h(t('invoices.colMail')) ?></th>
+                        <th><?= h(t('invoices.colFiles')) ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -202,20 +202,20 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                             <?php
                                 $st = $inv['status'] ?? 'erstellt';
                                 $stLabels = [
-                                    'erstellt'         => 'Erstellt',
-                                    'pdf_erstellt'     => 'PDF erstellt',
-                                    'mail_vorbereitet' => 'Mail vorbereitet',
+                                    'erstellt'         => t('invoices.statusErstellt'),
+                                    'pdf_erstellt'     => t('invoices.statusPdf'),
+                                    'mail_vorbereitet' => t('invoices.statusMail'),
                                 ];
                                 $stLabel = $stLabels[$st] ?? $st;
                             ?>
-                            <span class="inv-status inv-status-<?= h($st) ?>"><?= $stLabel ?></span>
+                            <span class="inv-status inv-status-<?= h($st) ?>"><?= h($stLabel) ?></span>
                         </td>
                         <td>
                             <?php if ($inv['mail_id']): ?>
                                 <?php if ($inv['sent_at']): ?>
-                                    <a href="mailspool.php?filter=sent" class="mail-status-sent">Versendet <?= h(fmtDt($inv['sent_at'])) ?></a>
+                                    <a href="mailspool.php?filter=sent" class="mail-status-sent"><?= h(t('invoices.mailSent', ['dt' => fmtDt($inv['sent_at'])])) ?></a>
                                 <?php else: ?>
-                                    <a href="mailspool.php?filter=pending" class="mail-status-pending">Im Spool</a>
+                                    <a href="mailspool.php?filter=pending" class="mail-status-pending"><?= h(t('invoices.inSpool')) ?></a>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <span class="mail-status-none">—</span>
@@ -223,9 +223,9 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                         </td>
                         <td style="white-space:nowrap" id="files-<?= (int)$inv['id'] ?>">
                             <a href="invoice_items.php?invoice_id=<?= (int)$inv['id'] ?>"
-                               class="btn" style="font-size:11px;padding:2px 8px">Bearbeiten</a>
+                               class="btn" style="font-size:11px;padding:2px 8px"><?= h(t('common.edit')) ?></a>
                             <a href="invoice_view.php?invoice_id=<?= (int)$inv['id'] ?>"
-                               class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px">Vorschau</a>
+                               class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px"><?= h(t('invoices.preview')) ?></a>
                             <?php if ($inv['pdf_file']): ?>
                                 <a href="invoice_download.php?type=pdf&file=<?= urlencode($inv['pdf_file']) ?>"
                                    class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px"
@@ -236,15 +236,15 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
                                     data-id="<?= (int)$inv['id'] ?>"
                                     data-number="<?= h($inv['invoice_number']) ?>"
                                     style="font-size:11px;padding:2px 8px;margin-left:4px">
-                                Mail vorbereiten
+                                <?= h(t('invoices.prepareMail')) ?>
                             </button>
                             <?php endif; ?>
                             <button type="button" class="btn btn--danger reverse-btn"
                                     data-id="<?= (int)$inv['id'] ?>"
                                     data-number="<?= h($inv['invoice_number']) ?>"
                                     style="font-size:11px;padding:2px 8px;margin-left:4px"
-                                    title="Abrechnung rückgängig machen">
-                                Rückgängig
+                                    title="<?= h(t('invoices.reverseTitle')) ?>">
+                                <?= h(t('invoices.reverse')) ?>
                             </button>
                         </td>
                     </tr>
@@ -258,6 +258,13 @@ function fmtDt($dt): string       { return $dt ? date('d.m.Y H:i', strtotime($dt
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 
 async function handleReverse(ev) {
@@ -265,12 +272,12 @@ async function handleReverse(ev) {
     const id     = btn.dataset.id;
     const number = btn.dataset.number;
 
-    if (!await Dialog.confirm('Abrechnung „' + number + '" rückgängig machen?\n\nDie Einträge werden wieder als nicht abgerechnet markiert, die Rechnung und die PDF-Datei werden gelöscht.', { danger: true })) {
+    if (!await Dialog.confirm(t('invoices.confirmReverse', { number: number }), { danger: true })) {
         return;
     }
 
     btn.disabled    = true;
-    btn.textContent = 'Wird zurückgesetzt…';
+    btn.textContent = t('invoices.resetting');
 
     try {
         const body = new URLSearchParams({ action: 'reverse_invoice', invoice_id: id });
@@ -280,14 +287,14 @@ async function handleReverse(ev) {
         if (data.success) {
             document.getElementById('row-inv-' + id)?.remove();
         } else {
-            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
             btn.disabled    = false;
-            btn.textContent = 'Rückgängig';
+            btn.textContent = t('invoices.reverse');
         }
     } catch (e) {
-        Dialog.alert('Serverfehler.');
+        Dialog.alert(t('config.serverError'));
         btn.disabled    = false;
-        btn.textContent = 'Rückgängig';
+        btn.textContent = t('invoices.reverse');
     }
 }
 
@@ -300,10 +307,10 @@ async function handleSpool(ev) {
     const id     = btn.dataset.id;
     const number = btn.dataset.number;
 
-    if (!await Dialog.confirm('Rechnung „' + number + '" in den Mail-Spool legen?\nDie Mail kann danach unter Mail-Spool geprüft und versendet werden.')) return;
+    if (!await Dialog.confirm(t('invoices.confirmSpool', { number: number }))) return;
 
     btn.disabled    = true;
-    btn.textContent = 'Wird vorbereitet…';
+    btn.textContent = t('invoices.preparing');
 
     try {
         const body = new URLSearchParams({ action: 'spool_invoice', invoice_id: id });
@@ -333,7 +340,7 @@ async function handleSpool(ev) {
             spoolLink.href      = 'mailspool.php';
             spoolLink.className = 'mail-status-pending';
             spoolLink.style.cssText = 'font-size:12px;margin-left:6px';
-            spoolLink.textContent   = 'Im Spool';
+            spoolLink.textContent   = t('invoices.inSpool');
             cell.appendChild(spoolLink);
 
             // Update status badge
@@ -341,17 +348,17 @@ async function handleSpool(ev) {
             const badge = row?.querySelector('.inv-status');
             if (badge) {
                 badge.className   = 'inv-status inv-status-mail_vorbereitet';
-                badge.textContent = 'Mail vorbereitet';
+                badge.textContent = t('invoices.statusMail');
             }
         } else {
-            Dialog.alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+            Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
             btn.disabled    = false;
-            btn.textContent = 'Mail vorbereiten';
+            btn.textContent = t('invoices.prepareMail');
         }
     } catch (e) {
-        Dialog.alert('Serverfehler.');
+        Dialog.alert(t('config.serverError'));
         btn.disabled    = false;
-        btn.textContent = 'Mail vorbereiten';
+        btn.textContent = t('invoices.prepareMail');
     }
 }
 

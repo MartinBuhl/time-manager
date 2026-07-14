@@ -30,11 +30,11 @@ function fmtDur(int $min): string
     return sprintf('%d:%02d h', intdiv($min, 60), $min % 60);
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Papierkorb – Administration</title>
+<title><?= h(t('trash.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -44,29 +44,29 @@ function fmtDur(int $min): string
 
     <div class="admin-header">
         <div>
-            <h1>Papierkorb</h1>
+            <h1><?= h(t('admin.card.trash')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Papierkorb
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.trash')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
-        <h2>Gelöschte Einträge</h2>
+        <h2><?= h(t('trash.deletedEntries')) ?></h2>
         <div id="trashMsg"></div>
         <div class="table-wrapper">
             <table class="entries-table" id="trashTable">
                 <thead>
                     <tr>
-                        <th>Mitarbeiter</th>
-                        <th>Datum</th>
-                        <th>Zeitraum</th>
-                        <th>Dauer</th>
-                        <th>Kunde</th>
-                        <th>Tätigkeit</th>
-                        <th>Kommentar</th>
-                        <th>Gelöscht am</th>
+                        <th><?= h(t('users.roleMitarbeiter')) ?></th>
+                        <th><?= h(t('customers.colDate')) ?></th>
+                        <th><?= h(t('adminEntries.period')) ?></th>
+                        <th><?= h(t('customers.colDuration')) ?></th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('common.activity')) ?></th>
+                        <th><?= h(t('customers.colComment')) ?></th>
+                        <th><?= h(t('trash.colDeletedAt')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -86,13 +86,13 @@ function fmtDur(int $min): string
                         <td class="col-time"><?= h(date('d.m.Y H:i', strtotime($e['deleted_at']))) ?></td>
                         <td>
                             <button class="btn" onclick="restoreEntry(<?= (int)$e['id'] ?>)">
-                                Wiederherstellen
+                                <?= h(t('trash.restore')) ?>
                             </button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($entries)): ?>
-                    <tr id="emptyRow"><td colspan="9" class="empty-message">Papierkorb ist leer.</td></tr>
+                    <tr id="emptyRow"><td colspan="9" class="empty-message"><?= h(t('trash.emptyEntries')) ?></td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
@@ -100,15 +100,15 @@ function fmtDur(int $min): string
     </div>
 
     <div class="admin-section">
-        <h2>Gelöschte Aufträge</h2>
+        <h2><?= h(t('trash.deletedOrders')) ?></h2>
         <div id="trashOrderMsg"></div>
         <div class="table-wrapper">
             <table class="entries-table" id="trashOrdersTable">
                 <thead>
                     <tr>
-                        <th>Kunde</th>
-                        <th>Erfasst</th>
-                        <th>Gelöscht am</th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('adminOrders.colCreated')) ?></th>
+                        <th><?= h(t('trash.colDeletedAt')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -119,13 +119,13 @@ function fmtDur(int $min): string
                         <td class="col-time"><?= h(date('d.m.Y H:i', strtotime($o['created_at']))) ?></td>
                         <td class="col-time"><?= h(date('d.m.Y H:i', strtotime($o['deleted_at']))) ?></td>
                         <td style="white-space:nowrap;text-align:right">
-                            <button class="btn" onclick="restoreOrder(<?= (int)$o['id'] ?>)">Wiederherstellen</button>
-                            <button class="btn btn--danger" onclick="purgeOrder(<?= (int)$o['id'] ?>)">Endgültig löschen</button>
+                            <button class="btn" onclick="restoreOrder(<?= (int)$o['id'] ?>)"><?= h(t('trash.restore')) ?></button>
+                            <button class="btn btn--danger" onclick="purgeOrder(<?= (int)$o['id'] ?>)"><?= h(t('trash.purge')) ?></button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($deletedOrders)): ?>
-                    <tr id="emptyOrderRow"><td colspan="4" class="empty-message">Keine gelöschten Aufträge.</td></tr>
+                    <tr id="emptyOrderRow"><td colspan="4" class="empty-message"><?= h(t('trash.emptyOrders')) ?></td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
@@ -136,6 +136,13 @@ function fmtDur(int $min): string
 
 <script src="../assets/dialog.js"></script>
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 
 async function restoreEntry(id) {
@@ -155,18 +162,18 @@ async function restoreEntry(id) {
             if (!tbody.querySelector('tr:not(#emptyRow), tr')) {
                 const tr = document.createElement('tr');
                 tr.id = 'emptyRow';
-                tr.innerHTML = '<td colspan="9" class="empty-message">Papierkorb ist leer.</td>';
+                tr.innerHTML = '<td colspan="9" class="empty-message">' + t('trash.emptyEntries') + '</td>';
                 tbody.appendChild(tr);
             }
             msgEl.className = 'admin-msg admin-msg--ok';
-            msgEl.textContent = 'Eintrag wurde wiederhergestellt.';
+            msgEl.textContent = t('trash.entryRestored');
         } else {
             msgEl.className = 'admin-msg admin-msg--err';
-            msgEl.textContent = data.error || 'Fehler beim Wiederherstellen.';
+            msgEl.textContent = data.error || t('trash.restoreError');
         }
     } catch (e) {
         msgEl.className = 'admin-msg admin-msg--err';
-        msgEl.textContent = 'Serverfehler. Bitte erneut versuchen.';
+        msgEl.textContent = t('config.serverErrorRetry');
     }
 }
 
@@ -187,34 +194,34 @@ async function restoreOrder(id) {
             const row = document.getElementById('otrow-' + id);
             if (row) row.remove();
             msgEl.className = 'admin-msg admin-msg--ok';
-            msgEl.textContent = 'Auftrag wurde wiederhergestellt.';
+            msgEl.textContent = t('trash.orderRestored');
         } else {
             msgEl.className = 'admin-msg admin-msg--err';
-            msgEl.textContent = data.error || 'Fehler beim Wiederherstellen.';
+            msgEl.textContent = data.error || t('trash.restoreError');
         }
     } catch (e) {
         msgEl.className = 'admin-msg admin-msg--err';
-        msgEl.textContent = 'Serverfehler. Bitte erneut versuchen.';
+        msgEl.textContent = t('config.serverErrorRetry');
     }
 }
 
 async function purgeOrder(id) {
     const msgEl = document.getElementById('trashOrderMsg');
-    if (!await Dialog.confirm('Auftrag mit allen Dateien endgültig löschen? Das kann nicht rückgängig gemacht werden.', { danger: true })) return;
+    if (!await Dialog.confirm(t('trash.confirmPurge'), { danger: true })) return;
     try {
         const data = await orderAction('purge_order', id);
         if (data.success) {
             const row = document.getElementById('otrow-' + id);
             if (row) row.remove();
             msgEl.className = 'admin-msg admin-msg--ok';
-            msgEl.textContent = 'Auftrag wurde endgültig gelöscht.';
+            msgEl.textContent = t('trash.orderPurged');
         } else {
             msgEl.className = 'admin-msg admin-msg--err';
-            msgEl.textContent = data.error || 'Fehler beim Löschen.';
+            msgEl.textContent = data.error || t('customers.deleteError');
         }
     } catch (e) {
         msgEl.className = 'admin-msg admin-msg--err';
-        msgEl.textContent = 'Serverfehler. Bitte erneut versuchen.';
+        msgEl.textContent = t('config.serverErrorRetry');
     }
 }
 </script>

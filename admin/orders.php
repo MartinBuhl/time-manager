@@ -35,11 +35,11 @@ $orders = $stmt->fetchAll();
 function fmtDt($dt): string { return $dt ? date('d.m.Y H:i', strtotime($dt)) : ''; }
 function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'; }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aufträge – Administration</title>
+<title><?= h(t('adminOrders.pageTitle')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -57,19 +57,19 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
 
     <div class="admin-header">
         <div>
-            <h1>Aufträge</h1>
+            <h1><?= h(t('admin.card.orders')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo; Aufträge
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('admin.card.orders')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
 
         <form method="get" action="orders.php" class="filter-bar">
             <select name="customer_id" onchange="this.form.submit()">
-                <option value="">Alle Kunden</option>
+                <option value=""><?= h(t('customers.allCustomers')) ?></option>
                 <?php foreach ($customers as $c): ?>
                 <option value="<?= (int)$c['id'] ?>" <?= $customerFilter === (int)$c['id'] ? 'selected' : '' ?>>
                     <?= h($c['name']) ?>
@@ -77,22 +77,22 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
                 <?php endforeach; ?>
             </select>
             <?php if ($customerFilter > 0): ?>
-            <a href="orders.php" class="btn">Zurücksetzen</a>
+            <a href="orders.php" class="btn"><?= h(t('adminEntries.reset')) ?></a>
             <?php endif; ?>
         </form>
 
         <?php if (empty($orders)): ?>
-            <p class="empty-message">Keine Aufträge vorhanden.</p>
+            <p class="empty-message"><?= h(t('adminOrders.empty')) ?></p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Kunde</th>
-                        <th>Erfasst</th>
-                        <th>Status</th>
-                        <th>Zuletzt bearbeitet</th>
-                        <th class="col-dur">Dateien</th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('adminOrders.colCreated')) ?></th>
+                        <th><?= h(t('customers.colStatus')) ?></th>
+                        <th><?= h(t('adminOrders.colLastWorked')) ?></th>
+                        <th class="col-dur"><?= h(t('invoices.colFiles')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -103,14 +103,14 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
                         <td style="white-space:nowrap"><?= h(fmtDt($o['created_at'])) ?></td>
                         <td>
                             <span class="ord-status ord-status-<?= h($o['status']) ?>">
-                                <?= $o['status'] === 'erledigt' ? 'Erledigt' : 'Offen' ?>
+                                <?= h($o['status'] === 'erledigt' ? t('orders.markDone') : t('adminOrders.statusOffen')) ?>
                             </span>
                         </td>
                         <td style="white-space:nowrap"><?= h(fmtD($o['last_worked_date'])) ?></td>
                         <td class="col-dur"><?= (int)$o['file_count'] ?></td>
                         <td style="white-space:nowrap;text-align:right">
-                            <button type="button" class="btn" onclick="openOrder(<?= (int)$o['id'] ?>)">Bearbeiten</button>
-                            <button type="button" class="btn btn--danger" onclick="deleteOrder(<?= (int)$o['id'] ?>)">Löschen</button>
+                            <button type="button" class="btn" onclick="openOrder(<?= (int)$o['id'] ?>)"><?= h(t('common.edit')) ?></button>
+                            <button type="button" class="btn btn--danger" onclick="deleteOrder(<?= (int)$o['id'] ?>)"><?= h(t('common.delete')) ?></button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -126,8 +126,8 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
 <div id="orderView" class="settings-view hidden">
     <div class="settings-inner">
         <div class="settings-topbar">
-            <strong id="orderViewTitle">Auftrag</strong>
-            <button type="button" class="btn" id="orderViewClose">Schließen</button>
+            <strong id="orderViewTitle"><?= h(t('adminOrders.orderTitle')) ?></strong>
+            <button type="button" class="btn" id="orderViewClose"><?= h(t('orders.close')) ?></button>
         </div>
         <div class="order-view-meta" id="orderViewMeta"></div>
 
@@ -136,8 +136,8 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
                 <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
                 <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
                 <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')">&bull; Liste</button>
-                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="Formatierung entfernen">&#10005;</button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')"><?= t('orders.rteList') ?></button>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="<?= h(t('orders.removeFormat')) ?>">&#10005;</button>
             </div>
             <div class="rte-body" id="orderViewBody" contenteditable="true"></div>
         </div>
@@ -147,18 +147,25 @@ function fmtD($dt): string  { return $dt ? date('d.m.Y', strtotime($dt)) : '—'
         <div class="order-upload" style="margin-top:10px">
             <input type="file" id="orderViewNewFiles" multiple
                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv">
-            <span class="order-hint">weitere Dateien anhängen</span>
+            <span class="order-hint"><?= h(t('orders.attachMore')) ?></span>
         </div>
 
         <div class="order-view-actions">
-            <button type="button" class="btn btn--primary" id="orderSaveEditBtn">Speichern</button>
-            <button type="button" class="btn" id="orderCompleteBtn">Erledigt</button>
+            <button type="button" class="btn btn--primary" id="orderSaveEditBtn"><?= h(t('common.save')) ?></button>
+            <button type="button" class="btn" id="orderCompleteBtn"><?= h(t('orders.markDone')) ?></button>
             <span id="orderViewMsg" class="order-msg"></span>
         </div>
     </div>
 </div>
 
 <script>
+window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
+window.LANG = <?= json_encode(currentLang()) ?>;
+function t(key, params) {
+    let s = (window.I18N && window.I18N[key]) || key;
+    if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
+    return s;
+}
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
 let currentOrderId = null;
 
@@ -199,23 +206,23 @@ function fmtCreated(dt) {
 
 function renderOrderFiles(files) {
     const wrap = document.getElementById('orderViewFiles');
-    if (!files || !files.length) { wrap.innerHTML = '<span class="order-hint">Keine Dateien.</span>'; return; }
+    if (!files || !files.length) { wrap.innerHTML = '<span class="order-hint">' + escHtml(t('orders.noFiles')) + '</span>'; return; }
     wrap.innerHTML = files.map(f =>
         '<div class="order-file-item">'
         + '<a href="../order_file.php?id=' + f.id + '" target="_blank" rel="noopener">' + escHtml(f.original_name) + '</a>'
-        + '<button type="button" class="order-file-del" title="Datei löschen" onclick="deleteOrderFile(' + f.id + ')">&times;</button>'
+        + '<button type="button" class="order-file-del" title="' + escHtml(t('orders.deleteFileTitle')) + '" onclick="deleteOrderFile(' + f.id + ')">&times;</button>'
         + '</div>'
     ).join('');
 }
 
 async function openOrder(id) {
     const res = await appApi('get_order', { id });
-    if (!res.success) { Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler')); return; }
+    if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError'))); return; }
     const o = res.data;
     currentOrderId = o.id;
-    document.getElementById('orderViewTitle').textContent = o.customer_name || 'Auftrag';
-    document.getElementById('orderViewMeta').textContent  = 'Erfasst: ' + fmtCreated(o.created_at)
-        + (o.status === 'erledigt' ? ' · erledigt' : '');
+    document.getElementById('orderViewTitle').textContent = o.customer_name || t('adminOrders.orderTitle');
+    document.getElementById('orderViewMeta').textContent  = t('adminOrders.colCreated') + ': ' + fmtCreated(o.created_at)
+        + (o.status === 'erledigt' ? t('adminOrders.doneSuffix') : '');
     document.getElementById('orderViewBody').innerHTML     = o.body || '';
     renderOrderFiles(o.files || []);
     const msg = document.getElementById('orderViewMsg');
@@ -230,20 +237,20 @@ function closeOrderView() {
 }
 
 async function deleteOrderFile(fileId) {
-    if (!await Dialog.confirm('Diese Datei löschen?', { danger: true })) return;
+    if (!await Dialog.confirm(t('orders.confirmDeleteFile'), { danger: true })) return;
     const res = await appApi('delete_order_file', { id: fileId });
     if (res.success && currentOrderId) openOrder(currentOrderId);
-    else if (!res.success) Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    else if (!res.success) Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
 async function deleteOrder(id) {
-    if (!await Dialog.confirm('Auftrag in den Papierkorb verschieben?', { danger: true })) return;
+    if (!await Dialog.confirm(t('adminOrders.confirmTrash'), { danger: true })) return;
     const res = await adminApi('delete_order', { id });
     if (res.success) {
         const row = document.getElementById('orow-' + id);
         if (row) row.remove();
     } else {
-        Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+        Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
     }
 }
 
@@ -253,7 +260,7 @@ document.getElementById('orderSaveEditBtn').addEventListener('click', async () =
     if (!currentOrderId) return;
     const btn = document.getElementById('orderSaveEditBtn');
     const msg = document.getElementById('orderViewMsg');
-    btn.disabled = true; msg.className = 'order-msg'; msg.textContent = 'Speichern …';
+    btn.disabled = true; msg.className = 'order-msg'; msg.textContent = t('common.saving');
 
     const fd = new FormData();
     fd.append('id', currentOrderId);
@@ -264,18 +271,18 @@ document.getElementById('orderSaveEditBtn').addEventListener('click', async () =
     btn.disabled = false;
     if (res.success) {
         await openOrder(currentOrderId);
-        msg.textContent = 'Gespeichert.'; msg.classList.add('ok');
+        msg.textContent = t('common.saved'); msg.classList.add('ok');
     } else {
-        msg.textContent = res.error || 'Fehler.'; msg.classList.add('err');
+        msg.textContent = res.error || t('common.error'); msg.classList.add('err');
     }
 });
 
 document.getElementById('orderCompleteBtn').addEventListener('click', async () => {
     if (!currentOrderId) return;
-    if (!await Dialog.confirm('Auftrag als erledigt markieren?')) return;
+    if (!await Dialog.confirm(t('orders.confirmDone'))) return;
     const res = await appApi('complete_order', { id: currentOrderId });
     if (res.success) location.reload();
-    else Dialog.alert('Fehler: ' + (res.error || 'Unbekannter Fehler'));
+    else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 });
 </script>
 </body>

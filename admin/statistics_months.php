@@ -44,11 +44,8 @@ if ($year && $month) {
     $totalMin = (int)array_sum(array_column($entries, 'duration_minutes'));
 }
 
-$monthNames = [
-    1  => 'Januar',  2 => 'Februar',  3  => 'März',     4  => 'April',
-    5  => 'Mai',     6 => 'Juni',     7  => 'Juli',     8  => 'August',
-    9  => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Dezember',
-];
+$monthNames = [];
+for ($mn = 1; $mn <= 12; $mn++) { $monthNames[$mn] = t('stats.month.' . $mn); }
 
 function fmtTime(string $dt): string { return substr($dt, 11, 5); }
 function fmtDate(string $dt): string {
@@ -70,11 +67,11 @@ function statsUrl(array $overrides = []): string {
     return 'statistics_months.php' . ($p ? '?' . http_build_query($p) : '');
 }
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Monats-Statistik – Administration</title>
+<title><?= h(t('stats.pageTitleMonths')) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -105,20 +102,20 @@ function statsUrl(array $overrides = []): string {
 
     <div class="admin-header">
         <div>
-            <h1>Monats-Statistik</h1>
+            <h1><?= h(t('stats.headingMonths')) ?></h1>
             <div class="admin-breadcrumb">
-                <a href="index.php">Administration</a> &rsaquo;
-                <a href="statistics.php">Statistik</a> &rsaquo; Monate
+                <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo;
+                <a href="statistics.php"><?= h(t('admin.card.statistics')) ?></a> &rsaquo; <?= h(t('stats.cardMonths')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
     </div>
 
     <div class="admin-section">
 
         <form method="get" action="statistics_months.php" class="filter-bar">
             <select name="year">
-                <option value="">— Jahr wählen —</option>
+                <option value=""><?= h(t('stats.chooseYear')) ?></option>
                 <?php foreach ($years as $y): ?>
                 <option value="<?= (int)$y['y'] ?>" <?= $year === (int)$y['y'] ? 'selected' : '' ?>>
                     <?= (int)$y['y'] ?>
@@ -127,7 +124,7 @@ function statsUrl(array $overrides = []): string {
             </select>
 
             <select name="month">
-                <option value="">— Monat wählen —</option>
+                <option value=""><?= h(t('stats.chooseMonth')) ?></option>
                 <?php foreach ($monthNames as $mNum => $mName): ?>
                 <option value="<?= $mNum ?>" <?= $month === $mNum ? 'selected' : '' ?>>
                     <?= h($mName) ?>
@@ -136,39 +133,39 @@ function statsUrl(array $overrides = []): string {
             </select>
 
             <select name="sort">
-                <option value="time"     <?= $sort === 'time'     ? 'selected' : '' ?>>Sortieren nach Zeit</option>
-                <option value="customer" <?= $sort === 'customer' ? 'selected' : '' ?>>Sortieren nach Kunde</option>
+                <option value="time"     <?= $sort === 'time'     ? 'selected' : '' ?>><?= h(t('stats.sortByTime')) ?></option>
+                <option value="customer" <?= $sort === 'customer' ? 'selected' : '' ?>><?= h(t('stats.sortByCustomer')) ?></option>
             </select>
 
-            <button class="btn btn--primary" type="submit">Anzeigen</button>
+            <button class="btn btn--primary" type="submit"><?= h(t('stats.show')) ?></button>
 
             <?php if ($year || $month): ?>
-            <a href="statistics_months.php" class="btn">Zurücksetzen</a>
+            <a href="statistics_months.php" class="btn"><?= h(t('adminEntries.reset')) ?></a>
             <?php endif; ?>
         </form>
 
         <?php if (!$year || !$month): ?>
-            <p class="empty-message">Bitte Jahr und Monat wählen.</p>
+            <p class="empty-message"><?= h(t('stats.chooseYearMonth')) ?></p>
         <?php elseif (empty($entries)): ?>
-            <p class="empty-message">Keine Einträge für <?= h($monthNames[$month]) ?> <?= $year ?>.</p>
+            <p class="empty-message"><?= h(t('stats.noEntriesFor', ['month' => $monthNames[$month], 'year' => $year])) ?></p>
         <?php else: ?>
 
         <div class="summary-bar">
             <span><strong><?= h($monthNames[$month]) ?> <?= $year ?></strong></span>
-            <span><strong><?= count($entries) ?></strong> Einträge</span>
-            <span>Gesamt: <strong><?= h(fmtH($totalMin)) ?></strong></span>
+            <span><strong><?= count($entries) ?></strong> <?= h(t('invoices.colEntries')) ?></span>
+            <span><?= h(t('stats.total')) ?>: <strong><?= h(fmtH($totalMin)) ?></strong></span>
         </div>
 
         <div class="table-wrapper">
             <table class="entries-table">
                 <thead>
                     <tr>
-                        <th>Datum</th>
-                        <th>Zeit</th>
-                        <th class="col-dur">Min</th>
-                        <th>Kunde</th>
-                        <th>Tätigkeit</th>
-                        <th>Kommentar</th>
+                        <th><?= h(t('customers.colDate')) ?></th>
+                        <th><?= h(t('entries.colTime')) ?></th>
+                        <th class="col-dur"><?= h(t('entries.colMin')) ?></th>
+                        <th><?= h(t('entries.colCustomer')) ?></th>
+                        <th><?= h(t('common.activity')) ?></th>
+                        <th><?= h(t('customers.colComment')) ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -182,7 +179,7 @@ function statsUrl(array $overrides = []): string {
                 ?>
                     <tr style="background:var(--hover-bg,#f5f5f5);font-weight:600;font-size:12px">
                         <td colspan="6" style="color:var(--text-muted);padding-left:8px">
-                            Gesamt <?= h($currentCustomer ?: '—') ?>: <?= h(fmtH($customerMin)) ?>
+                            <?= h(t('stats.customerTotal', ['name' => $currentCustomer ?: '—', 'hours' => fmtH($customerMin)])) ?>
                         </td>
                     </tr>
                     <tr style="height:14px"><td colspan="6" style="border:none;padding:0;background:transparent">&nbsp;</td></tr>
@@ -211,7 +208,7 @@ function statsUrl(array $overrides = []): string {
                 <?php if ($sort === 'customer' && $currentCustomer !== null): ?>
                     <tr style="background:var(--hover-bg,#f5f5f5);font-weight:600;font-size:12px">
                         <td colspan="6" style="color:var(--text-muted);padding-left:8px">
-                            Gesamt <?= h($currentCustomer ?: '—') ?>: <?= h(fmtH($customerMin)) ?>
+                            <?= h(t('stats.customerTotal', ['name' => $currentCustomer ?: '—', 'hours' => fmtH($customerMin)])) ?>
                         </td>
                     </tr>
                 <?php endif; ?>

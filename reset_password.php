@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/i18n.php';
 
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
@@ -16,6 +17,19 @@ $token   = trim($_REQUEST['token'] ?? '');
 $error   = '';
 $success = false;
 
+// Sprache des Benutzers über das Token ermitteln (Fallback: globaler Default)
+$resetLang = null;
+if ($token !== '') {
+    $ls = db()->prepare(
+        'SELECT u.lang FROM tm_password_resets r
+         JOIN tm_users u ON u.id = r.user_id
+         WHERE r.token = ? LIMIT 1'
+    );
+    $ls->execute([$token]);
+    $resetLang = $ls->fetchColumn() ?: null;
+}
+i18nInit(i18nResolve($resetLang, null, cfg('default_lang', 'de')));
+
 /* ------------------------------------------------------------------
    POST – neues Passwort speichern
 ------------------------------------------------------------------ */
@@ -25,9 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirm  = $_POST['password_confirm'] ?? '';
 
     if (strlen($password) < 8) {
-        $error = 'Das Passwort muss mindestens 8 Zeichen lang sein.';
+        $error = t('resetpw.tooShort');
     } elseif ($password !== $confirm) {
-        $error = 'Die Passwörter stimmen nicht überein.';
+        $error = t('resetpw.mismatch');
     } else {
         $stmt = db()->prepare('
             SELECT user_id
@@ -39,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reset = $stmt->fetch();
 
         if (!$reset) {
-            $error = 'Der Link ist ungültig oder abgelaufen. Bitte fordern Sie einen neuen an.';
+            $error = t('resetpw.invalidExpired');
             $token = '';
         } else {
             $pdo  = db();
@@ -64,35 +78,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ');
     $stmt->execute([$token]);
     if (!$stmt->fetch()) {
-        $error = 'Der Link ist ungültig oder bereits abgelaufen.';
+        $error = t('resetpw.invalidExpired2');
         $token = '';
     }
 } else {
-    $error = 'Kein gültiger Link angegeben.';
+    $error = t('resetpw.noLink');
 }
 ?>
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Passwort zurücksetzen – Time Manager</title>
+    <title><?= h(t('resetpw.pageTitle')) ?></title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
 <div class="login-overlay">
     <div class="login-card">
-        <h1>Passwort zurücksetzen</h1>
+        <h1><?= h(t('resetpw.heading')) ?></h1>
 
         <?php if ($success): ?>
             <p class="success-message">
-                Ihr Passwort wurde erfolgreich geändert.
+                <?= h(t('resetpw.success')) ?>
             </p>
             <a href="index.php"
                class="btn btn--primary"
                style="display:block;text-align:center;margin-top:14px;">
-                Zum Login
+                <?= h(t('resetpw.toLogin')) ?>
             </a>
 
         <?php elseif ($error !== '' && $token === ''): ?>
@@ -100,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="index.php"
                class="btn"
                style="display:block;text-align:center;margin-top:10px;">
-                Zurück zum Login
+                <?= h(t('resetpw.backToLoginPlain')) ?>
             </a>
 
         <?php else: ?>
@@ -111,20 +125,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="hidden" name="token" value="<?= h($token) ?>">
                 <input type="password"
                        name="password"
-                       placeholder="Neues Passwort (min. 8 Zeichen)"
+                       placeholder="<?= h(t('resetpw.newPassword')) ?>"
                        autocomplete="new-password"
                        required>
                 <input type="password"
                        name="password_confirm"
-                       placeholder="Passwort bestätigen"
+                       placeholder="<?= h(t('resetpw.confirmPassword')) ?>"
                        autocomplete="new-password"
                        required>
                 <button type="submit" class="btn btn--primary">
-                    Passwort speichern
+                    <?= h(t('resetpw.save')) ?>
                 </button>
             </form>
             <div class="login-switch">
-                <a href="index.php">← Zurück zum Login</a>
+                <a href="index.php"><?= h(t('resetpw.backToLogin')) ?></a>
             </div>
         <?php endif; ?>
     </div>

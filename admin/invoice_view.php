@@ -82,12 +82,17 @@ function fmtEur(float $v): string { return number_format($v, 2, ',', '.') . ' �
 function hoursOf(int $min): float { return $min / 60; }
 function fmtH(int $min): string { return number_format(hoursOf($min), 2, ',', '.'); }
 function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) : ''; }
+
+// Dokumentsprache (global): Rechnungspapier immer in default_lang, unabhängig
+// von der Admin-Oberfläche. td() übersetzt die Papier-Labels entsprechend.
+$docLang = cfg('default_lang', 'de');
+$td = fn(string $k, array $p = []): string => tLang($k, $docLang, $p);
 ?><!DOCTYPE html>
-<html lang="de">
+<html lang="<?= h(currentLang()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rechnung <?= h($invoice['invoice_number']) ?> – Vorschau</title>
+<title><?= h(t('invView.pageTitle', ['num' => $invoice['invoice_number']])) ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <script src="../assets/theme-init.js"></script>
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
@@ -208,15 +213,15 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
 <div class="invoice-wrap">
 
     <div class="invoice-actions">
-        <a href="invoices.php" class="btn">&#8592; Rechnungen</a>
-        <a href="invoice_items.php?invoice_id=<?= (int)$invoiceId ?>" class="btn">Posten bearbeiten</a>
+        <a href="invoices.php" class="btn">&#8592; <?= h(t('admin.card.invoices')) ?></a>
+        <a href="invoice_items.php?invoice_id=<?= (int)$invoiceId ?>" class="btn"><?= h(t('invView.editItems')) ?></a>
         <?php if ($invoice['pdf_file']): ?>
         <a href="invoice_download.php?type=pdf&file=<?= urlencode($invoice['pdf_file']) ?>"
-           class="btn btn--primary" target="_blank" rel="noopener">PDF herunterladen</a>
+           class="btn btn--primary" target="_blank" rel="noopener"><?= h(t('invView.downloadPdf')) ?></a>
         <?php endif; ?>
-        <button class="btn" onclick="window.print()">&#128438; Drucken</button>
+        <button class="btn" onclick="window.print()">&#128438; <?= h(t('invView.print')) ?></button>
         <span style="font-size:12px;color:var(--text-muted);margin-left:4px">
-            Rechnung <?= h($invoice['invoice_number']) ?>
+            <?= h(t('invView.invoiceLabel', ['num' => $invoice['invoice_number']])) ?>
         </span>
     </div>
 
@@ -229,7 +234,7 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
                 <?= h($invZip) ?> <?= h($invCity) ?><br>
                 <?php if ($invEmail): ?><?= h($invEmail) ?><br><?php endif; ?>
                 <?php if ($invPhone): ?><?= h($invPhone) ?><br><?php endif; ?>
-                <?php if ($invTaxId): ?>USt-IdNr.: <?= h($invTaxId) ?><?php endif; ?>
+                <?php if ($invTaxId): ?><?= h($td('invoiceDoc.vatId')) ?>: <?= h($invTaxId) ?><?php endif; ?>
             </div>
         </div>
 
@@ -239,7 +244,7 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
                 $contactName = trim(($invoice['contact_first_name'] ?? '') . ' ' . ($invoice['contact_last_name'] ?? ''));
                 if ($invoice['contact_on_invoice'] && $contactName !== ''):
             ?>
-                <p>z.&nbsp;Hd. <?= h($contactName) ?></p>
+                <p><?= h($td('invoiceDoc.attn')) ?> <?= h($contactName) ?></p>
             <?php endif; ?>
             <?php if ($invoice['billing_street']): ?>
                 <p><?= h($invoice['billing_street']) ?></p>
@@ -248,12 +253,12 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
                 <p><?= h(trim($invoice['billing_zip'] . ' ' . $invoice['billing_city'])) ?></p>
             <?php endif; ?>
             <?php if ($invoice['billing_tax_id']): ?>
-                <p style="margin-top:6px">USt-IdNr.: <?= h($invoice['billing_tax_id']) ?></p>
+                <p style="margin-top:6px"><?= h($td('invoiceDoc.vatId')) ?>: <?= h($invoice['billing_tax_id']) ?></p>
             <?php endif; ?>
         </div>
 
         <div class="inv-number-row">
-            <span>Rechnung Nr. <?= h($invoice['invoice_number']) ?></span>
+            <span><?= h($td('invoiceDoc.invoiceNo')) ?> <?= h($invoice['invoice_number']) ?></span>
             <span><?= $invoiceDate ?></span>
         </div>
 
@@ -270,21 +275,21 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
             }
         ?>
         <div class="inv-subject">
-            Leistungen Zeitraum: <?= $periodStart ?><?= $periodStart !== $periodEnd ? ' – ' . $periodEnd : '' ?>
+            <?= h($td('invoiceDoc.servicesPeriod')) ?>: <?= $periodStart ?><?= $periodStart !== $periodEnd ? ' – ' . $periodEnd : '' ?>
         </div>
 
         <?php if ($invoiceMode === 'text'): ?>
         <table class="inv-table">
             <thead>
                 <tr>
-                    <th>Beschreibung</th>
-                    <th class="right">Std.</th>
-                    <th class="right">Betrag</th>
+                    <th><?= h($td('invoiceDoc.description')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.hours')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.amount')) ?></th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><?= h($invoiceText ?: 'Erbrachte Leistungen') ?></td>
+                    <td><?= h($invoiceText ?: $td('invoiceDoc.servicesRendered')) ?></td>
                     <td class="right"><?= fmtH((int)$invoice['total_minutes']) ?></td>
                     <td class="right"><?= fmtEur($amountNet) ?></td>
                 </tr>
@@ -294,10 +299,10 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
         <table class="inv-table">
             <thead>
                 <tr>
-                    <th>Datum</th>
-                    <th>Tätigkeit &amp; Kommentar</th>
-                    <th class="right">Std.</th>
-                    <th class="right">Betrag</th>
+                    <th><?= h($td('invoiceDoc.date')) ?></th>
+                    <th><?= h($td('invoiceDoc.activityComment')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.hours')) ?></th>
+                    <th class="right"><?= h($td('invoiceDoc.amount')) ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -320,14 +325,14 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
             </tbody>
         </table>
         <?php else: ?>
-        <p style="color:#666;font-size:13px">Keine Positionen erfasst.</p>
+        <p style="color:#666;font-size:13px"><?= h($td('invoiceDoc.noItems')) ?></p>
         <?php endif; ?>
 
         <div class="inv-totals">
             <table>
-                <tr><td>Nettobetrag</td><td><?= fmtEur($amountNet) ?></td></tr>
-                <tr><td>zzgl. MwSt.</td><td><?= fmtEur($taxAmount) ?></td></tr>
-                <tr class="total-row"><td>Gesamtbetrag</td><td><?= fmtEur($amountGross) ?></td></tr>
+                <tr><td><?= h($td('invoiceDoc.net')) ?></td><td><?= fmtEur($amountNet) ?></td></tr>
+                <tr><td><?= h($td('invoiceDoc.plusVatNoRate')) ?></td><td><?= fmtEur($taxAmount) ?></td></tr>
+                <tr class="total-row"><td><?= h($td('invoiceDoc.total')) ?></td><td><?= fmtEur($amountGross) ?></td></tr>
             </table>
         </div>
 
@@ -338,15 +343,15 @@ function fmtDate(?string $d): string { return $d ? date('d.m.Y', strtotime($d)) 
         <div class="inv-push"></div>
         <div class="inv-footer">
             <div>
-                <strong>Bankverbindung</strong>
-                <?php if ($invAccountHolder): ?>Kontoinhaber: <?= h($invAccountHolder) ?><br><?php endif; ?>
-                Bank: <?= h($invBank) ?><br>
-                IBAN: <?= h($invIban) ?><br>
-                BIC:  <?= h($invBic) ?>
+                <strong><?= h($td('invoiceDoc.bankDetails')) ?></strong>
+                <?php if ($invAccountHolder): ?><?= h($td('invoiceDoc.accountHolder')) ?>: <?= h($invAccountHolder) ?><br><?php endif; ?>
+                <?= h($td('invoiceDoc.bank')) ?>: <?= h($invBank) ?><br>
+                <?= h($td('invoiceDoc.iban')) ?>: <?= h($invIban) ?><br>
+                <?= h($td('invoiceDoc.bic')) ?>:  <?= h($invBic) ?>
             </div>
             <?php if ($invTaxNumber): ?>
             <div>
-                <strong>Steuernummer</strong>
+                <strong><?= h($td('invoiceDoc.taxNumber')) ?></strong>
                 <?= h($invTaxNumber) ?>
             </div>
             <?php endif; ?>

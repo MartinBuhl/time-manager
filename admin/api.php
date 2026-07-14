@@ -242,6 +242,7 @@ switch ($action) {
             'mail_signature_html', 'mail_signature_plain',
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_encryption',
             'imap_save_sent', 'imap_host', 'imap_port', 'imap_encryption', 'imap_sent_folder',
+            'default_lang',
         ];
         $stmt = db()->prepare(
             'UPDATE tm_configuration
