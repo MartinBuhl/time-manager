@@ -334,6 +334,7 @@ $customers = $stmt->fetchAll();
             </div>
             <div class="full">
                 <label><?= h(t('customers.fMailHtml')) ?></label>
+                <button type="button" class="btn" style="margin-bottom:6px" onclick="applyGlobalMailHtml()"><?= h(t('customers.applyGlobalTemplate')) ?></button>
                 <div class="rte-wrap">
                     <div class="rte-toolbar">
                         <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
@@ -347,6 +348,7 @@ $customers = $stmt->fetchAll();
             </div>
             <div class="full">
                 <label><?= h(t('customers.fMailPlain')) ?></label>
+                <button type="button" class="btn" style="margin-bottom:6px" onclick="applyGlobalMailPlain()"><?= h(t('customers.applyGlobalTemplate')) ?></button>
                 <textarea id="e-mail-tmpl-plain" rows="4"
                           style="width:100%;padding:7px 10px;border:1px solid var(--card-border);border-radius:var(--radius);font-family:var(--font);font-size:13px;resize:vertical;color:var(--text)"></textarea>
             </div>
@@ -506,6 +508,25 @@ async function openEdit(cid) {
 function closeEdit() {
     document.getElementById('customerEditSection').classList.add('hidden');
     document.getElementById('customerListSection').classList.remove('hidden');
+}
+
+/* Allgemeine (globale) Mailvorlagen aus der Konfiguration – koennen per
+   Button in die Kundenfelder uebernommen werden. */
+const GLOBAL_MAIL_HTML  = <?= json_encode(cfg('invoice_mail_template_html', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+const GLOBAL_MAIL_PLAIN = <?= json_encode(cfg('invoice_mail_template_plain', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
+async function applyGlobalMailHtml() {
+    if (!GLOBAL_MAIL_HTML.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
+    const el = document.getElementById('e-mail-tmpl-html');
+    if (el.innerHTML.trim() !== '' && !await Dialog.confirm(t('customers.applyGlobalConfirm'))) return;
+    el.innerHTML = GLOBAL_MAIL_HTML;
+}
+
+async function applyGlobalMailPlain() {
+    if (!GLOBAL_MAIL_PLAIN.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
+    const el = document.getElementById('e-mail-tmpl-plain');
+    if (el.value.trim() !== '' && !await Dialog.confirm(t('customers.applyGlobalConfirm'))) return;
+    el.value = GLOBAL_MAIL_PLAIN;
 }
 
 function renderEditProjectList() {
