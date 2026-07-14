@@ -27,11 +27,9 @@ class MailHelper
             cfg('invoice_mail_subject', 'Rechnung {project} {time}')
         );
 
-        $workHtml  = '';
-        $workPlain = '';
+        $workHtml = '';
         if (($customer['invoice_mode'] ?? 'entries') === 'text') {
-            $workHtml  = self::buildWorkList($items, 'html');
-            $workPlain = self::buildWorkList($items, 'text');
+            $workHtml = self::buildWorkList($items, 'html');
         }
 
         $htmlTpl = trim((string)($customer['mail_template_html'] ?? ''));
@@ -45,16 +43,9 @@ class MailHelper
             $html .= '<br><hr style="border:none;border-top:1px solid #ddd;margin:16px 0">' . $sigHtml;
         }
 
-        $plainTpl = trim((string)($customer['mail_template_plain'] ?? ''));
-        if ($plainTpl !== '') {
-            $plain = str_replace(['{project}', '{time}', '{work}'], [$project, $time, $workPlain], $plainTpl);
-        } else {
-            $plain = self::defaultPlain($invoiceNumber, $amountGross, $time);
-        }
-        $sigPlain = trim(cfg('mail_signature_plain'));
-        if ($sigPlain !== '') {
-            $plain .= "\n\n-- \n" . $sigPlain;
-        }
+        // Der Plaintext (AltBody) wird automatisch aus dem HTML erzeugt –
+        // es gibt keine separaten Plain-Vorlagen mehr.
+        $plain = self::htmlToPlain($html);
 
         return compact('subject', 'html', 'plain');
     }
@@ -281,13 +272,39 @@ class MailHelper
              . "<p>$clos<br>$s</p>";
     }
 
-    private static function defaultPlain(string $invoiceNumber, float $amountGross, string $time): string
+    /**
+     * Erzeugt aus dem HTML-Body eine lesbare Plaintext-Fassung (AltBody).
+     * Block-Elemente werden zu Zeilenumbrüchen, Links zu "Text (URL)".
+     */
+    private static function htmlToPlain(string $html): string
     {
-        $lang = self::docLang();
-        $a = number_format($amountGross, 2, ',', '.');
-        return tLang('invoiceMail.salutation', $lang) . "\n\n"
-             . tLang('invoiceMail.bodyPlain', $lang, ['number' => $invoiceNumber, 'time' => $time, 'amount' => $a]) . "\n\n"
-             . tLang('invoiceMail.closingPlain', $lang) . "\n"
-             . cfg('invoice_company');
+        $s = $html;
+        // Links: <a href="url">text</a> -> "text (url)"
+        $s = preg_replace_callback(
+            '/<a\b[^>]*\bhref\s*=\s*["\']([^"\']*)["\'][^>]*>(.*?)<\/a>/is',
+            function ($m) {
+                $url = trim($m[1]);
+                $txt = trim(strip_tags($m[2]));
+                if ($url === '' || $url === $txt) { return $txt !== '' ? $txt : $url; }
+                return $txt !== '' ? $txt . ' (' . $url . ')' : $url;
+            },
+            $s
+        );
+        // Listen-Einträge einleiten
+        $s = preg_replace('/<li\b[^>]*>/i', "\n- ", $s);
+        // Zeilen-/Blockenden zu Umbruch (Absätze/Überschriften mit Leerzeile)
+        $s = preg_replace('/<br\s*\/?>/i', "\n", $s);
+        $s = preg_replace('/<\/(p|h[1-6])>/i', "\n\n", $s);
+        $s = preg_replace('/<\/(div|li|tr|table)>/i', "\n", $s);
+        $s = preg_replace('/<hr\s*\/?>/i', "\n", $s);
+        // restliche Tags entfernen, Entities dekodieren
+        $s = strip_tags($s);
+        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $s = str_replace("\xC2\xA0", ' ', $s); // &nbsp; -> Leerzeichen
+        // Whitespace normalisieren
+        $s = preg_replace('/[ \t]+/', ' ', $s);
+        $s = preg_replace('/ *\n */', "\n", $s);
+        $s = preg_replace('/\n{3,}/', "\n\n", $s);
+        return trim($s);
     }
 }

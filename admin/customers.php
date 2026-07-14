@@ -347,12 +347,6 @@ $customers = $stmt->fetchAll();
                     <div class="rte-body" id="e-mail-tmpl-html" contenteditable="true"></div>
                 </div>
             </div>
-            <div class="full">
-                <label><?= h(t('customers.fMailPlain')) ?></label>
-                <button type="button" class="btn" style="margin-bottom:6px" onclick="applyGlobalMailPlain()"><?= h(t('customers.applyGlobalTemplate')) ?></button>
-                <textarea id="e-mail-tmpl-plain" rows="4"
-                          style="width:100%;padding:7px 10px;border:1px solid var(--card-border);border-radius:var(--radius);font-family:var(--font);font-size:13px;resize:vertical;color:var(--text)"></textarea>
-            </div>
         </div>
         <h3 style="margin:20px 0 10px;font-size:14px;font-weight:600"><?= h(t('customers.projects')) ?></h3>
         <ul class="project-list" id="e-plist"></ul>
@@ -480,7 +474,6 @@ async function openEdit(cid) {
     document.getElementById('e-invoice-mode').value       = c.invoice_mode       || 'entries';
     document.getElementById('e-invoice-text').value       = c.invoice_text       || '';
     document.getElementById('e-mail-tmpl-html').innerHTML = c.mail_template_html  || '';
-    document.getElementById('e-mail-tmpl-plain').value    = c.mail_template_plain || '';
     toggleInvoiceMode();
 
     try { editProjects = JSON.parse(c.projects || '[]'); } catch(e) { editProjects = []; }
@@ -515,7 +508,6 @@ function closeEdit() {
    Button in die Kundenfelder uebernommen werden. */
 const GLOBAL_INVOICE_TEXT = <?= json_encode(cfg('invoice_text_template', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 const GLOBAL_MAIL_HTML  = <?= json_encode(cfg('invoice_mail_template_html', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
-const GLOBAL_MAIL_PLAIN = <?= json_encode(cfg('invoice_mail_template_plain', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 
 async function applyGlobalInvoiceText() {
     if (!GLOBAL_INVOICE_TEXT.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
@@ -529,13 +521,6 @@ async function applyGlobalMailHtml() {
     const el = document.getElementById('e-mail-tmpl-html');
     if (el.innerHTML.trim() !== '' && !await Dialog.confirm(t('customers.applyGlobalConfirm'))) return;
     el.innerHTML = GLOBAL_MAIL_HTML;
-}
-
-async function applyGlobalMailPlain() {
-    if (!GLOBAL_MAIL_PLAIN.trim()) { Dialog.alert(t('customers.applyGlobalEmpty')); return; }
-    const el = document.getElementById('e-mail-tmpl-plain');
-    if (el.value.trim() !== '' && !await Dialog.confirm(t('customers.applyGlobalConfirm'))) return;
-    el.value = GLOBAL_MAIL_PLAIN;
 }
 
 function renderEditProjectList() {
@@ -775,7 +760,6 @@ async function saveFullCustomer() {
         invoice_mode:        document.getElementById('e-invoice-mode').value,
         invoice_text:        document.getElementById('e-invoice-text').value.trim(),
         mail_template_html:  document.getElementById('e-mail-tmpl-html').innerHTML,
-        mail_template_plain: document.getElementById('e-mail-tmpl-plain').value,
     };
     try {
         const stampRes = await api('update_customer_billing', params);

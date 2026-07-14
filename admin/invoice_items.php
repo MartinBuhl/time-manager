@@ -29,7 +29,6 @@ $taxRate = $invoice['stored_tax'] !== null
 $invoiceMode       = $invoice['invoice_mode']       ?? 'entries';
 $invoiceText       = $invoice['invoice_text']       ?? '';
 $mailTemplateHtml  = $invoice['mail_template_html']  ?? '';
-$mailTemplatePlain = $invoice['mail_template_plain'] ?? '';
 
 $stmt = db()->prepare(
     'SELECT id, date, activity, comment, duration_minutes, sort_order, visible
@@ -265,10 +264,6 @@ tr.item-hidden td:first-child { opacity:1; }
                     </div>
                     <div class="rte-body" id="metaMailHtml" contenteditable="true"><?= $mailTemplateHtml ?></div>
                 </div>
-            </div>
-            <div style="margin-bottom:8px">
-                <label style="font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px"><?= h(t('invItems.mailPlain')) ?></label>
-                <textarea id="metaMailPlain" style="width:100%;box-sizing:border-box;min-height:60px"><?= h($mailTemplatePlain) ?></textarea>
             </div>
             <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
                 <button class="btn btn--primary" id="metaSaveBtn"><?= h(t('invItems.saveMeta')) ?></button>
@@ -649,7 +644,6 @@ document.getElementById('metaSaveBtn').addEventListener('click', async function(
         invoice_mode:        mode,
         invoice_text:        document.getElementById('metaText').value,
         mail_template_html:  document.getElementById('metaMailHtml').innerHTML,
-        mail_template_plain: document.getElementById('metaMailPlain').value,
         tax_rate:            document.getElementById('metaTax').value,
         hourly_rate:         document.getElementById('metaRate').value,
     };

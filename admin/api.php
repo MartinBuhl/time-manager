@@ -278,7 +278,6 @@ switch ($action) {
         $invoiceMode        = ($_POST['invoice_mode'] ?? '') === 'text' ? 'text' : 'entries';
         $invoiceText        = trim($_POST['invoice_text']        ?? '') ?: null;
         $mailTemplateHtml   = trim($_POST['mail_template_html']  ?? '') ?: null;
-        $mailTemplatePlain  = trim($_POST['mail_template_plain'] ?? '') ?: null;
 
         if (!$id)       { jsonErr('Ungültige ID.'); }
         if ($name === '') { jsonErr('Name darf nicht leer sein.'); }
@@ -310,7 +309,7 @@ switch ($action) {
              phone_landline=?, phone_mobile=?,
              contact_first_name=?, contact_last_name=?, contact_on_invoice=?,
              hourly_rate=?, invoice_mode=?, invoice_text=?,
-             mail_template_html=?, mail_template_plain=? WHERE id=?'
+             mail_template_html=? WHERE id=?'
         );
         $stmt->execute([
             $name,
@@ -331,7 +330,6 @@ switch ($action) {
             $invoiceMode,
             $invoiceText,
             $mailTemplateHtml,
-            $mailTemplatePlain,
             $id,
         ]);
         jsonOk(['name' => $name, 'billable' => $billable]);
