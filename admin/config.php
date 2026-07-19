@@ -193,7 +193,10 @@ $groups = [
                 <a href="index.php"><?= h(t('admin.title')) ?></a> &rsaquo; <?= h(t('config.title')) ?>
             </div>
         </div>
-        <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
+        <div style="display:flex;gap:8px;align-items:center">
+            <a href="index.php" class="btn"><?= h(t('admin.back')) ?></a>
+            <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
+        </div>
     </div>
 
     <div id="globalMsg"></div>

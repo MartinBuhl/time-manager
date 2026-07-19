@@ -38,7 +38,10 @@ tr.act-inactive td.act-actions { opacity: 1; }
                 <a href="index.php">Administration</a> &rsaquo; Tätigkeiten
             </div>
         </div>
-        <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        <div style="display:flex;gap:8px;align-items:center">
+            <a href="index.php" class="btn"><?= h(t('admin.back')) ?></a>
+            <a href="../index.php" class="btn-logout">&#8592; Zur App</a>
+        </div>
     </div>
 
     <div class="admin-section">

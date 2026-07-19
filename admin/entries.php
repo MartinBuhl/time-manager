@@ -260,6 +260,7 @@ function fmtDate(string $dt): string
         <div style="display:flex;gap:8px;align-items:center">
             <button type="button" class="btn" id="btnShowBill" onclick="showBill()"><?= h(t('adminEntries.setBilled')) ?></button>
             <button type="button" class="btn" id="btnShowImport" onclick="showImport()"><?= h(t('adminEntries.import')) ?></button>
+            <a href="index.php" class="btn"><?= h(t('admin.back')) ?></a>
             <a href="../index.php" class="btn-logout"><?= h(t('admin.toApp')) ?></a>
         </div>
     </div>

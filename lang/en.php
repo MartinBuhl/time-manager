@@ -104,6 +104,7 @@ return [
     // Admin – Dashboard
     'admin.title'           => 'Administration',
     'admin.toApp'           => '← To the app',
+    'admin.back'            => '← Back',
     'admin.favorites'       => 'Favorites',
     'admin.more'            => 'More',
     'admin.infoTitle'       => 'Time Manager – Info',
