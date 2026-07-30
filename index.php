@@ -220,10 +220,20 @@ function fmtTime(string $dt): string
     return substr($dt, 11, 5);
 }
 
-function orderPreview(?string $body): string
+/**
+ * Zerlegt den (Rich-Text-)Auftragstext in einzelne Zeilen. Block-Elemente
+ * und <br> werden zu Zeilenumbrüchen, Tags entfernt, leere Zeilen verworfen.
+ */
+function orderBodyLines(?string $body): array
 {
-    $txt = trim(preg_replace('/\s+/', ' ', strip_tags((string) $body)));
-    return mb_substr($txt, 0, 70);
+    $s = (string) $body;
+    $s = preg_replace('/<br\s*\/?>/i', "\n", $s);
+    $s = preg_replace('#</(div|p|li|h[1-6]|tr)>#i', "\n", $s);
+    $s = strip_tags($s);
+    $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $s = str_replace(["\r\n", "\r", "\xC2\xA0"], ["\n", "\n", ' '], $s);
+    $lines = array_map('trim', explode("\n", $s));
+    return array_values(array_filter($lines, static fn($l) => $l !== ''));
 }
 
 function fmtDate(string $dt): string
@@ -731,11 +741,21 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                     <tr id="osub-<?= $oid ?>" class="edit-row hidden">
                         <td colspan="2">
                             <div class="suborder-list">
-                                <?php foreach ($custOrders as $so): $soid = (int)$so['id']; ?>
+                                <?php foreach ($custOrders as $so):
+                                    $soid   = (int)$so['id'];
+                                    $olines = orderBodyLines($so['body']);
+                                    $ofirst = $olines[0] ?? '';
+                                    $omulti = count($olines) > 1;
+                                ?>
                                 <div class="suborder" id="suborder-<?= $soid ?>">
                                     <div class="suborder-head">
                                         <span class="suborder-date"><?= h(date('d.m.', strtotime($so['created_at']))) ?></span>
-                                        <span class="suborder-preview"><?= h(orderPreview($so['body'])) ?: '<i>' . h(t('orders.noText')) . '</i>' ?></span>
+                                        <?php if ($omulti): ?>
+                                        <button type="button" class="suborder-expand" id="soexpand-<?= $soid ?>"
+                                                onclick="toggleSuborderFull(event, <?= $soid ?>)"
+                                                title="<?= h(t('orders.expand')) ?>" aria-expanded="false">&#9656;</button>
+                                        <?php endif; ?>
+                                        <span class="suborder-preview"><?= $ofirst !== '' ? h($ofirst) : '<i>' . h(t('orders.noText')) . '</i>' ?></span>
                                         <span class="actions-normal" id="soactions-<?= $soid ?>">
                                             <button type="button" class="btn-icon" onclick="showOrderEdit(<?= $soid ?>)" title="<?= h(t('common.edit')) ?>"><?= $icoPencil ?></button>
                                             <button type="button" class="btn-icon btn-icon--danger" onclick="showSubDeleteConfirm(<?= $soid ?>)" title="<?= h(t('common.delete')) ?>"><?= $icoTrash ?></button>
@@ -745,6 +765,9 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                                             <button type="button" class="btn-icon" onclick="cancelSubDelete(<?= $soid ?>)" title="<?= h(t('common.cancel')) ?>"><?= $icoX ?></button>
                                         </span>
                                     </div>
+                                    <?php if ($omulti): ?>
+                                    <div class="suborder-full hidden" id="sofull-<?= $soid ?>"><?= nl2br(h(implode("\n", $olines))) ?></div>
+                                    <?php endif; ?>
                                     <div id="oedit-<?= $soid ?>" class="suborder-edit hidden">
                                         <?php $renderOrderEditor($soid); ?>
                                     </div>

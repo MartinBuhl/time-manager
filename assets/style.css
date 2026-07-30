@@ -477,6 +477,9 @@ select:focus {
 .suborder-head { display: flex; align-items: center; gap: 8px; }
 .suborder-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 .suborder-preview { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suborder-expand { flex: none; background: none; border: none; padding: 0 2px; cursor: pointer; color: var(--text-muted); font-size: 11px; line-height: 1; transition: transform .15s; }
+.suborder-expand.open { transform: rotate(90deg); }
+.suborder-full { font-size: 12px; color: var(--text); white-space: pre-wrap; word-break: break-word; margin: 4px 0 2px 20px; }
 .suborder-edit { margin-top: 8px; }
 @media (max-width: 575px) {
     .orders-table .ord-cust { width: 80px; }

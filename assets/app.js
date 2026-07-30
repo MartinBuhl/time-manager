@@ -152,6 +152,20 @@ function toggleCustomerOrders(ev, oid) {
     if (row) row.classList.toggle('hidden');
 }
 
+/* Mehrzeiligen Auftragstext auf-/zuklappen */
+function toggleSuborderFull(ev, id) {
+    if (ev) ev.stopPropagation();
+    const full = document.getElementById('sofull-' + id);
+    const btn  = document.getElementById('soexpand-' + id);
+    if (!full) return;
+    const willOpen = full.classList.contains('hidden');
+    full.classList.toggle('hidden', !willOpen);
+    if (btn) {
+        btn.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
+}
+
 /* „Bearbeitet" – Auftrag heute als bearbeitet markieren (bis morgen ausblenden) */
 async function markWorked(ev, id) {
     ev.stopPropagation();

@@ -90,6 +90,7 @@ return [
     'orders.workedTitle'        => 'Worked on today – hide until tomorrow',
     'orders.worked'             => 'Worked on',
     'orders.showCustomer'       => "Show this customer's orders",
+    'orders.expand'             => 'Expand/collapse order text',
     'orders.noText'             => '(no text)',
     'orders.workedCustomers'    => 'Customers worked on today',
     'orders.resetStatus'        => 'Reset status',

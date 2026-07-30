@@ -90,6 +90,7 @@ return [
     'orders.workedTitle'        => 'Heute bearbeitet – bis morgen ausblenden',
     'orders.worked'             => 'Bearbeitet',
     'orders.showCustomer'       => 'Aufträge des Kunden anzeigen',
+    'orders.expand'             => 'Auftragstext ein-/ausklappen',
     'orders.noText'             => '(kein Text)',
     'orders.workedCustomers'    => 'Heute bearbeitete Kunden',
     'orders.resetStatus'        => 'Status zurücksetzen',
