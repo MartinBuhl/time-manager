@@ -817,3 +817,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+/* ================================================================
+   Auftrags-Bearbeitungsliste per Drag & Drop sortieren.
+   Jede Zeile besteht aus der order-row plus (versteckter) osub-Zeile;
+   nach dem Verschieben werden die Paare wieder zusammengefuehrt.
+   ================================================================ */
+function normalizeOrderRows(tbody) {
+    tbody.querySelectorAll('tr.order-row').forEach(row => {
+        const sub = document.getElementById('osub-' + row.dataset.id);
+        if (sub) row.after(sub);
+    });
+}
+
+function persistOrderOrder(tbody) {
+    const ids = [...tbody.querySelectorAll('tr.order-row')].map(r => r.dataset.id);
+    api('reorder_orders', { ids: ids.join(',') });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('ordersTbody');
+    if (!tbody) return;
+    let dragged = null;
+
+    tbody.addEventListener('dragstart', e => {
+        const handle = e.target.closest('.order-drag');
+        if (!handle) { e.preventDefault(); return; }
+        dragged = handle.closest('tr.order-row');
+        if (!dragged) return;
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', dragged.dataset.id); } catch (_) {}
+        setTimeout(() => dragged.classList.add('dragging'), 0);
+    });
+
+    tbody.addEventListener('dragend', () => {
+        if (dragged) dragged.classList.remove('dragging');
+        tbody.querySelectorAll('.drag-over-top').forEach(r => r.classList.remove('drag-over-top'));
+        dragged = null;
+    });
+
+    tbody.addEventListener('dragover', e => {
+        if (!dragged) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const row = e.target.closest('tr.order-row');
+        tbody.querySelectorAll('.drag-over-top').forEach(r => r.classList.remove('drag-over-top'));
+        if (row && row !== dragged) row.classList.add('drag-over-top');
+    });
+
+    tbody.addEventListener('drop', e => {
+        if (!dragged) return;
+        e.preventDefault();
+        const row = e.target.closest('tr.order-row');
+        tbody.querySelectorAll('.drag-over-top').forEach(r => r.classList.remove('drag-over-top'));
+        if (row && row !== dragged) {
+            const rect  = row.getBoundingClientRect();
+            const after = (e.clientY - rect.top) > rect.height / 2;
+            tbody.insertBefore(dragged, after ? row.nextElementSibling : row);
+        }
+        normalizeOrderRows(tbody);
+        persistOrderOrder(tbody);
+    });
+});

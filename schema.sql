@@ -286,6 +286,7 @@ CREATE TABLE IF NOT EXISTS `tm_orders` (
     `customer_id`      INT          NOT NULL,
     `body`             MEDIUMTEXT   DEFAULT NULL,
     `status`           ENUM('offen','erledigt') NOT NULL DEFAULT 'offen',
+    `sort_order`       INT          NOT NULL DEFAULT 0,
     `last_worked_date` DATE         DEFAULT NULL,
     `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `completed_at`     DATETIME     DEFAULT NULL,

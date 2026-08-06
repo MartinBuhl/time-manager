@@ -91,6 +91,7 @@ return [
     'orders.worked'             => 'Bearbeitet',
     'orders.showCustomer'       => 'Aufträge des Kunden anzeigen',
     'orders.expand'             => 'Auftragstext ein-/ausklappen',
+    'orders.dragReorder'        => 'Zum Sortieren ziehen',
     'orders.noText'             => '(kein Text)',
     'orders.workedCustomers'    => 'Heute bearbeitete Kunden',
     'orders.resetStatus'        => 'Status zurücksetzen',

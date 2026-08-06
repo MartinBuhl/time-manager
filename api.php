@@ -435,6 +435,35 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    case 'reorder_orders':
+        requireAuth();
+        verifyCsrf();
+
+        $idsRaw = trim($_POST['ids'] ?? '');
+        $ids    = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
+        if (empty($ids)) jsonErr('Keine Reihenfolge übergeben.');
+
+        // Position kundenweise auf ALLE offenen Aufträge schreiben, damit die
+        // manuelle Reihenfolge auch bleibt, wenn der repräsentative Auftrag
+        // (ältester offener) wechselt.
+        $pdo     = db();
+        $getCust = $pdo->prepare('SELECT customer_id FROM tm_orders WHERE id = ?');
+        $upd     = $pdo->prepare(
+            "UPDATE tm_orders SET sort_order = ?
+             WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
+        );
+        $pos  = 1;
+        $seen = [];
+        foreach ($ids as $oid) {
+            $getCust->execute([$oid]);
+            $cid = $getCust->fetchColumn();
+            if ($cid === false || isset($seen[$cid])) continue;
+            $seen[$cid] = true;
+            $upd->execute([$pos++, $cid]);
+        }
+        jsonOk(['count' => count($seen)]);
+
+    // ----------------------------------------------------------------
     case 'reset_order_worked':
         requireAuth();
         verifyCsrf();

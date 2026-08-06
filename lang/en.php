@@ -91,6 +91,7 @@ return [
     'orders.worked'             => 'Worked on',
     'orders.showCustomer'       => "Show this customer's orders",
     'orders.expand'             => 'Expand/collapse order text',
+    'orders.dragReorder'        => 'Drag to reorder',
     'orders.noText'             => '(no text)',
     'orders.workedCustomers'    => 'Customers worked on today',
     'orders.resetStatus'        => 'Reset status',
