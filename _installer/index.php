@@ -277,7 +277,8 @@ function defaultConfigSql(): string
     ('smtp_port',              '587',                              4,  20),
     ('smtp_user',              '',                                 4,  30),
     ('smtp_password',          '',                                 4,  40),
-    ('smtp_encryption',        'tls',                              4,  50)";
+    ('smtp_encryption',        'tls',                              4,  50),
+    ('app_info_text',          '',                                 0,   0)";
 }
 
 /**

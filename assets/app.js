@@ -819,6 +819,62 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ================================================================
+   Info-Bereich – globaler Freitext mit kleinem WYSIWYG-Editor
+   ================================================================ */
+function renderInfoView() {
+    const view = document.getElementById('infoView');
+    if (!view) return;
+    const html = (window.INFO_TEXT || '').trim();
+    if (html) {
+        view.innerHTML = html;
+        view.classList.remove('info-empty');
+    } else {
+        view.textContent = t('info.empty');
+        view.classList.add('info-empty');
+    }
+}
+
+function showInfoEdit() {
+    const body = document.getElementById('infoBody');
+    if (!body) return;
+    body.innerHTML = window.INFO_TEXT || '';
+    document.getElementById('infoView').classList.add('hidden');
+    document.getElementById('infoEditBtn').classList.add('hidden');
+    document.getElementById('infoEdit').classList.remove('hidden');
+    body.focus();
+}
+
+function hideInfoEdit() {
+    document.getElementById('infoEdit').classList.add('hidden');
+    document.getElementById('infoView').classList.remove('hidden');
+    document.getElementById('infoEditBtn').classList.remove('hidden');
+    const msg = document.getElementById('infoMsg');
+    if (msg) { msg.textContent = ''; msg.className = 'order-msg'; }
+}
+
+async function saveInfo() {
+    const body = document.getElementById('infoBody');
+    const msg  = document.getElementById('infoMsg');
+    if (!body) return;
+    const html = body.innerHTML.trim();
+    try {
+        const res = await api('save_info_text', { text: html });
+        if (res.success) {
+            window.INFO_TEXT = html;
+            renderInfoView();
+            hideInfoEdit();
+        } else if (msg) {
+            msg.textContent = res.error || t('common.saveError');
+            msg.className = 'order-msg err';
+        }
+    } catch (e) {
+        if (msg) { msg.textContent = t('common.saveError'); msg.className = 'order-msg err'; }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', renderInfoView);
+
+/* ================================================================
    Auftrags-Bearbeitungsliste per Drag & Drop sortieren.
    Jede Zeile besteht aus der order-row plus (versteckter) osub-Zeile;
    nach dem Verschieben werden die Paare wieder zusammengefuehrt.

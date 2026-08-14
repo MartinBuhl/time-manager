@@ -464,6 +464,19 @@ switch ($action) {
         jsonOk(['count' => count($seen)]);
 
     // ----------------------------------------------------------------
+    case 'save_info_text':
+        requireAuth();
+        verifyCsrf();
+
+        $text = (string)($_POST['text'] ?? '');
+        if (mb_strlen($text) > 60000) jsonErr('Infotext ist zu lang.');
+        db()->prepare(
+            "UPDATE tm_configuration SET configuration_value = ?
+             WHERE configuration_key = 'app_info_text'"
+        )->execute([$text]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
     case 'reset_order_worked':
         requireAuth();
         verifyCsrf();

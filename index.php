@@ -323,6 +323,7 @@ function fmtDate(string $dt): string
     window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
     window.USER_STATE = <?= $userState ? json_encode($userState) : 'null' ?>;
     window.SHORTCUTS = <?= json_encode(array_values($shortcuts), JSON_UNESCAPED_UNICODE) ?>;
+    window.INFO_TEXT = <?= json_encode(cfg('app_info_text', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
     window.CUSTOMER_PROJECTS = <?php
         $cp = [];
         foreach ($customers as $c) {
@@ -800,6 +801,35 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                             title="<?= h(t('orders.resetStatusTitle')) ?>"><?= h(t('orders.resetStatus')) ?></button>
                 </div>
                 <?php endforeach; ?>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="orders-section info-section">
+
+        <div class="entries-header">
+            <span class="entries-header-title"><?= h(t('info.title')) ?></span>
+            <button type="button" class="btn-icon" id="infoEditBtn" onclick="showInfoEdit()" title="<?= h(t('common.edit')) ?>"><?= $icoPencil ?></button>
+        </div>
+
+        <div id="infoView" class="info-view"></div>
+
+        <div id="infoEdit" class="info-edit hidden">
+            <div class="rte-wrap">
+                <div class="rte-toolbar">
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><em>I</em></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')"><?= t('orders.rteList') ?></button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')" title="<?= h(t('orders.removeFormat')) ?>">&#10005;</button>
+                </div>
+                <div class="rte-body" id="infoBody" contenteditable="true" data-placeholder="<?= h(t('info.placeholder')) ?>"></div>
+            </div>
+            <div class="order-form-actions" style="margin-top:10px">
+                <button type="button" class="btn btn--primary" onclick="saveInfo()"><?= h(t('common.save')) ?></button>
+                <button type="button" class="btn" onclick="hideInfoEdit()"><?= h(t('orders.close')) ?></button>
+                <span id="infoMsg" class="order-msg"></span>
             </div>
         </div>
 
