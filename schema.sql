@@ -323,6 +323,7 @@ CREATE TABLE IF NOT EXISTS `tm_bookmarks` (
     `id`         INT          NOT NULL AUTO_INCREMENT,
     `parent_id`  INT          DEFAULT NULL,
     `type`       ENUM('folder','link') NOT NULL DEFAULT 'link',
+    `active`     TINYINT(1)   NOT NULL DEFAULT 1,
     `title`      VARCHAR(500) NOT NULL DEFAULT '',
     `url`        TEXT         DEFAULT NULL,
     `sort_order` INT          NOT NULL DEFAULT 0,

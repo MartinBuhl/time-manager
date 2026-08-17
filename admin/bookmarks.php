@@ -17,7 +17,7 @@ $curFolderId = null; // aktueller Ordner (nur im Ordner-Modus)
 if ($parentParam === 'loose') {
     $mode = 'loose';
     $rows = $db->query(
-        "SELECT id, type, title, url FROM tm_bookmarks
+        "SELECT id, type, active, title, url FROM tm_bookmarks
          WHERE parent_id IS NULL AND type='link' ORDER BY sort_order, id"
     )->fetchAll();
 } elseif ($parentParam !== '' && ctype_digit((string)$parentParam)) {
@@ -36,7 +36,7 @@ if ($parentParam === 'loose') {
     $mode = 'folder';
     $curFolderId = $parentId;
     $st = $db->prepare(
-        "SELECT id, type, title, url,
+        "SELECT id, type, active, title, url,
                 (SELECT COUNT(*) FROM tm_bookmarks c WHERE c.parent_id = tm_bookmarks.id) AS child_count
          FROM tm_bookmarks WHERE parent_id = ? ORDER BY sort_order, id"
     );
@@ -45,7 +45,7 @@ if ($parentParam === 'loose') {
 } else {
     // Wurzel: oberste Ordner + Anzahl loser Links
     $rows = $db->query(
-        "SELECT id, type, title, url,
+        "SELECT id, type, active, title, url,
                 (SELECT COUNT(*) FROM tm_bookmarks c WHERE c.parent_id = tm_bookmarks.id) AS child_count
          FROM tm_bookmarks
          WHERE parent_id IS NULL AND type='folder' ORDER BY sort_order, id"
@@ -59,8 +59,10 @@ $renderRow = function (array $r) use ($icoFolder, $icoLink) {
     $id = (int)$r['id'];
     $isFolder = $r['type'] === 'folder';
     $folderEmpty = $isFolder && (int)($r['child_count'] ?? 0) === 0;
+    $active = (int)($r['active'] ?? 1) === 1;
     ?>
-    <tr class="entry-row" data-id="<?= $id ?>" data-type="<?= h($r['type']) ?>">
+    <tr class="entry-row<?= $active ? '' : ' bm-inactive' ?>" data-id="<?= $id ?>" data-type="<?= h($r['type']) ?>">
+        <td class="col-check"><input type="checkbox" class="row-check" value="<?= $id ?>"></td>
         <td class="col-order">
             <button type="button" class="btn move-up" title="&uarr;">&uarr;</button>
             <button type="button" class="btn move-down" title="&darr;">&darr;</button>
@@ -73,6 +75,12 @@ $renderRow = function (array $r) use ($icoFolder, $icoLink) {
             <?php else: ?>
                 <input type="text" class="bm-url-input" value="<?= h((string)$r['url']) ?>" maxlength="2000" placeholder="https://…">
             <?php endif; ?>
+        </td>
+        <td class="col-active">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" class="bm-active"<?= $active ? ' checked' : '' ?>>
+                <span class="bm-active-label"><?= h($active ? t('bmAdmin.active') : t('bmAdmin.inactive')) ?></span>
+            </label>
         </td>
         <td class="act-actions">
             <?php if ($isFolder): ?>
@@ -102,7 +110,17 @@ $renderRow = function (array $r) use ($icoFolder, $icoLink) {
     border: 1px solid var(--card-border); border-radius: 6px;
     background: var(--card-bg); color: var(--text); font-size: 13px;
 }
+.col-check { width: 28px; text-align: center; }
+.col-check input { cursor: pointer; }
 .col-order { width: 78px; white-space: nowrap; }
+.col-active { width: 92px; white-space: nowrap; }
+.bulk-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+    background: var(--hover-bg); border: 1px solid var(--card-border); font-size: 13px;
+}
+tr.bm-inactive td { opacity: .5; }
+tr.bm-inactive td.col-active, tr.bm-inactive td.act-actions { opacity: 1; }
 .col-type  { width: 28px; text-align: center; }
 .col-type svg { vertical-align: middle; }
 .bm-muted { color: var(--text-muted); font-size: 12px; }
@@ -186,30 +204,39 @@ $renderRow = function (array $r) use ($icoFolder, $icoLink) {
             <table class="entries-table" id="bmTable">
                 <thead>
                     <tr>
+                        <th class="col-check"><input type="checkbox" id="checkAll"></th>
                         <th class="col-order"><?= h(t('bmAdmin.colOrder')) ?></th>
                         <th class="col-type"></th>
                         <th><?= h(t('bmAdmin.colTitle')) ?></th>
                         <th><?= h(t('bmAdmin.colUrl')) ?></th>
+                        <th class="col-active"><?= h(t('bmAdmin.colActive')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="bmTbody">
                 <?php if (empty($rows) && !($mode === 'root' && $looseCount > 0)): ?>
-                    <tr id="emptyRow"><td colspan="5" class="empty-message"><?= h(t($mode === 'root' ? 'bmAdmin.emptyFolders' : 'bmAdmin.emptyEntries')) ?></td></tr>
+                    <tr id="emptyRow"><td colspan="7" class="empty-message"><?= h(t($mode === 'root' ? 'bmAdmin.emptyFolders' : 'bmAdmin.emptyEntries')) ?></td></tr>
                 <?php else: ?>
                     <?php foreach ($rows as $r) { $renderRow($r); } ?>
                     <?php if ($mode === 'root' && $looseCount > 0): ?>
                     <tr class="entry-row bm-pseudo">
+                        <td class="col-check"></td>
                         <td class="col-order"></td>
                         <td class="col-type"><?= $icoFolder ?></td>
                         <td><span class="bm-muted"><?= h(t('bookmarks.more')) ?></span></td>
                         <td><span class="bm-muted"><?= (int)$looseCount ?>&nbsp;Links</span></td>
+                        <td class="col-active"></td>
                         <td class="act-actions"><a class="btn" href="bookmarks.php?parent=loose"><?= h(t('bmAdmin.details')) ?></a></td>
                     </tr>
                     <?php endif; ?>
                 <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+
+        <div id="bulkBar" class="bulk-bar" style="display:none">
+            <span><strong id="bulkCount">0</strong>&nbsp;<?= h(t('adminEntries.selected')) ?></span>
+            <button type="button" class="btn btn--danger" id="bulkDeleteBtn"><?= h(t('common.delete')) ?></button>
         </div>
     </div>
 
@@ -238,6 +265,16 @@ function attachRowHandlers(row) {
     row.querySelector('.del-btn')?.addEventListener('click', () => deleteRow(row));
     row.querySelector('.move-up')?.addEventListener('click', () => moveRow(row, -1));
     row.querySelector('.move-down')?.addEventListener('click', () => moveRow(row, 1));
+    row.querySelector('.bm-active')?.addEventListener('change', () => toggleActive(row));
+}
+
+async function toggleActive(row) {
+    const data = await apiCall('toggle_bookmark', { id: row.dataset.id });
+    if (!data.success) { Dialog.alert(t('common.error') + ': ' + (data.error || '')); return; }
+    const active = data.data.active === 1;
+    row.classList.toggle('bm-inactive', !active);
+    row.querySelector('.bm-active').checked = active;
+    row.querySelector('.bm-active-label').textContent = active ? t('bmAdmin.active') : t('bmAdmin.inactive');
 }
 
 async function saveRow(row) {
@@ -289,12 +326,50 @@ function flash(row) {
 function ensureNotEmpty() {
     const tbody = document.getElementById('bmTbody');
     if (!tbody.querySelector('tr[data-id]') && !tbody.querySelector('.bm-pseudo')) {
-        tbody.innerHTML = '<tr id="emptyRow"><td colspan="5" class="empty-message">' +
+        tbody.innerHTML = '<tr id="emptyRow"><td colspan="7" class="empty-message">' +
             t('<?= $mode === 'root' ? 'bmAdmin.emptyFolders' : 'bmAdmin.emptyEntries' ?>') + '</td></tr>';
     }
 }
 
 document.querySelectorAll('#bmTbody tr[data-id]').forEach(attachRowHandlers);
+
+/* ---- Mehrfachauswahl + Bulk-Löschen ---- */
+function selectedChecks() {
+    return Array.from(document.querySelectorAll('.row-check:checked'));
+}
+
+function updateBulkBar() {
+    const checked = selectedChecks();
+    document.getElementById('bulkCount').textContent = checked.length;
+    document.getElementById('bulkBar').style.display = checked.length > 0 ? 'flex' : 'none';
+    const all      = document.querySelectorAll('.row-check');
+    const checkAll = document.getElementById('checkAll');
+    checkAll.checked       = all.length > 0 && checked.length === all.length;
+    checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+}
+
+async function bulkDelete() {
+    const checked = selectedChecks();
+    if (!checked.length) return;
+    if (!await Dialog.confirm(t('bmAdmin.confirmBulkDelete', { n: checked.length }), { danger: true })) return;
+    const ids  = checked.map(cb => cb.value).join(',');
+    const data = await apiCall('delete_bookmarks', { ids });
+    if (!data.success) { Dialog.alert(t('common.error') + ': ' + (data.error || '')); return; }
+    checked.forEach(cb => cb.closest('tr').remove());
+    updateBulkBar();
+    ensureNotEmpty();
+}
+
+if (document.getElementById('bulkBar')) {
+    document.getElementById('checkAll').addEventListener('change', function () {
+        document.querySelectorAll('.row-check').forEach(cb => { cb.checked = this.checked; });
+        updateBulkBar();
+    });
+    document.getElementById('bmTbody').addEventListener('change', function (ev) {
+        if (ev.target.classList.contains('row-check')) updateBulkBar();
+    });
+    document.getElementById('bulkDeleteBtn').addEventListener('click', bulkDelete);
+}
 
 /* ---- Anlegen ---- */
 const BM_PARENT = <?= $curFolderId !== null ? (int)$curFolderId : "''" ?>;

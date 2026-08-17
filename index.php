@@ -211,7 +211,7 @@ if ($loggedIn) {
     try {
         foreach ($pdo->query(
             'SELECT id, parent_id, type, title, url FROM tm_bookmarks
-             ORDER BY sort_order ASC, id ASC'
+             WHERE active = 1 ORDER BY sort_order ASC, id ASC'
         ) as $b) {
             $bmByParent[(int)($b['parent_id'] ?? 0)][] = $b;
         }

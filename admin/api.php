@@ -2140,6 +2140,39 @@ switch ($action) {
         jsonOk(['deleted' => count($toDelete)]);
 
     // ----------------------------------------------------------------
+    case 'delete_bookmarks':
+        $ids = array_values(array_filter(array_map('intval', explode(',', $_POST['ids'] ?? ''))));
+        if (empty($ids)) jsonErr('Nichts ausgewählt.');
+
+        // Alle ausgewählten Einträge inkl. Nachkommen (Ordnerinhalte) einsammeln.
+        $childStmt = db()->prepare('SELECT id FROM tm_bookmarks WHERE parent_id = ?');
+        $toDelete  = [];
+        $seen      = [];
+        $queue     = $ids;
+        while ($queue) {
+            $cur = (int)array_shift($queue);
+            if (isset($seen[$cur])) continue;
+            $seen[$cur]  = true;
+            $toDelete[]  = $cur;
+            $childStmt->execute([$cur]);
+            foreach ($childStmt->fetchAll(PDO::FETCH_COLUMN) as $childId) {
+                $queue[] = (int)$childId;
+            }
+        }
+        $in = implode(',', array_map('intval', $toDelete));
+        db()->exec("DELETE FROM tm_bookmarks WHERE id IN ($in)");
+        jsonOk(['deleted' => count($toDelete)]);
+
+    // ----------------------------------------------------------------
+    case 'toggle_bookmark':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_bookmarks SET active = 1 - active WHERE id = ?')->execute([$id]);
+        $st = db()->prepare('SELECT active FROM tm_bookmarks WHERE id = ?');
+        $st->execute([$id]);
+        jsonOk(['active' => (int)$st->fetchColumn()]);
+
+    // ----------------------------------------------------------------
     case 'reorder_bookmarks':
         $ids = array_values(array_filter(array_map('intval', explode(',', $_POST['ids'] ?? ''))));
         if (empty($ids)) jsonErr('Keine Reihenfolge übergeben.');
