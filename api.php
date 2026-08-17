@@ -46,6 +46,25 @@ function verifyCsrf(): void
     }
 }
 
+/**
+ * Normalisiert eine Bookmark-URL: fehlt das Schema, wird https:// vorangestellt;
+ * andere Schemata (javascript:, data: …) werden abgelehnt. Beendet den Request
+ * mit jsonErr bei ungültiger Eingabe.
+ */
+function bmNormalizeUrl(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') jsonErr('Bitte eine URL angeben.');
+    if (!preg_match('~^https?://~i', $url)) {
+        if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $url)) {
+            jsonErr('Nur http(s)-Links sind erlaubt.');
+        }
+        $url = 'https://' . ltrim($url, '/');
+    }
+    if (mb_strlen($url) > 2000) jsonErr('Die URL ist zu lang.');
+    return $url;
+}
+
 function timePattern(): string
 {
     return '/^\d{2}:\d{2}:\d{2}$/';
@@ -475,6 +494,65 @@ switch ($action) {
              WHERE configuration_key = 'app_info_text'"
         )->execute([$text]);
         jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'add_bookmark':
+        requireAuth();
+        verifyCsrf();
+
+        $parentRaw = trim($_POST['parent_id'] ?? '');
+        $parentId  = ($parentRaw === '') ? null : (int)$parentRaw;
+        $url       = trim($_POST['url'] ?? '');
+        $title     = trim($_POST['title'] ?? '');
+
+        $url = bmNormalizeUrl($url);
+        if ($title === '') $title = $url;
+        $title = mb_substr($title, 0, 500);
+
+        $pdo = db();
+        // Parent muss ein existierender Ordner sein (oder NULL = oberste Ebene).
+        if ($parentId !== null) {
+            $chk = $pdo->prepare("SELECT type FROM tm_bookmarks WHERE id = ?");
+            $chk->execute([$parentId]);
+            if ($chk->fetchColumn() !== 'folder') jsonErr('Ordner nicht gefunden.');
+        }
+
+        if ($parentId === null) {
+            $sort = (int)$pdo->query(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id IS NULL"
+            )->fetchColumn();
+        } else {
+            $s = $pdo->prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id = ?");
+            $s->execute([$parentId]);
+            $sort = (int)$s->fetchColumn();
+        }
+
+        $pdo->prepare(
+            "INSERT INTO tm_bookmarks (parent_id, type, title, url, sort_order)
+             VALUES (?, 'link', ?, ?, ?)"
+        )->execute([$parentId, $title, $url, $sort]);
+
+        jsonOk(['id' => (int)$pdo->lastInsertId(), 'title' => $title, 'url' => $url]);
+
+    // ----------------------------------------------------------------
+    case 'add_bookmark_folder':
+        requireAuth();
+        verifyCsrf();
+
+        $title = trim($_POST['title'] ?? '');
+        if ($title === '') jsonErr('Bitte einen Ordnernamen angeben.');
+        $title = mb_substr($title, 0, 500);
+
+        $pdo  = db();
+        $sort = (int)$pdo->query(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id IS NULL"
+        )->fetchColumn();
+        $pdo->prepare(
+            "INSERT INTO tm_bookmarks (parent_id, type, title, url, sort_order)
+             VALUES (NULL, 'folder', ?, NULL, ?)"
+        )->execute([$title, $sort]);
+
+        jsonOk(['id' => (int)$pdo->lastInsertId(), 'title' => $title]);
 
     // ----------------------------------------------------------------
     case 'reset_order_worked':

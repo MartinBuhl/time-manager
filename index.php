@@ -73,6 +73,7 @@ $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
 $workedCustomers = [];
+$bmByParent = [];
 $activities   = ACTIVITIES;
 $customers    = [];
 $userState    = null;
@@ -204,6 +205,16 @@ if ($loggedIn) {
                AND SUM(o.last_worked_date = CURDATE()) > 0
             ORDER BY customer_name ASC, o.customer_id ASC
         ")->fetchAll();
+    } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
+
+    /* Bookmarks-Baum (parent_id 0 = oberste Ebene / Symbolleiste) */
+    try {
+        foreach ($pdo->query(
+            'SELECT id, parent_id, type, title, url FROM tm_bookmarks
+             ORDER BY sort_order ASC, id ASC'
+        ) as $b) {
+            $bmByParent[(int)($b['parent_id'] ?? 0)][] = $b;
+        }
     } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 }
 
@@ -373,6 +384,116 @@ function fmtDate(string $dt): string
 
 <div class="app">
 
+<?php
+/* Renderer für die Bookmark-Leiste und ihre (verschachtelten) Dropdowns. */
+$bmIcoFolder = '<svg viewBox="0 0 512 512" width="13" height="13" aria-hidden="true"><path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L243.2 57.6C231.1 41.5 212.1 32 192 32H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z"/></svg>';
+
+$renderBookmarkNodes = null;
+$renderBookmarkFolder = function (array $it, int $depth) use (&$renderBookmarkNodes, $bmByParent, $bmIcoFolder) {
+    $id = (int)$it['id'];
+    $topCls = $depth === 0 ? ' bm-top' : '';
+    ?>
+    <div class="bm-folder<?= $topCls ?>">
+        <button type="button" class="bm-folder-btn" onclick="bmToggleFolder(event, <?= $id ?>)" title="<?= h($it['title']) ?>">
+            <span class="bm-fico"><?= $bmIcoFolder ?></span><span class="bm-label"><?= h($it['title']) ?></span><span class="bm-caret">&#9662;</span>
+        </button>
+        <div class="bm-menu hidden" id="bm-menu-<?= $id ?>">
+            <?php $renderBookmarkNodes($id, $depth + 1); ?>
+            <?php if (empty($bmByParent[$id])): ?><span class="bm-menu-empty"><?= h(t('bookmarks.emptyFolder')) ?></span><?php endif; ?>
+            <button type="button" class="bm-add" onclick="bmOpenAdd(this, '<?= $id ?>')"><?= h(t('bookmarks.add')) ?></button>
+        </div>
+    </div>
+    <?php
+};
+$renderBookmarkNodes = function (int $parentId, int $depth) use (&$renderBookmarkNodes, &$renderBookmarkFolder, $bmByParent) {
+    foreach ($bmByParent[$parentId] ?? [] as $it) {
+        if ($it['type'] === 'folder') {
+            $renderBookmarkFolder($it, $depth);
+        } else { ?>
+            <a class="bm-link" href="<?= h((string)$it['url']) ?>" target="_blank" rel="noopener noreferrer" title="<?= h($it['title']) ?>"><?= h($it['title']) ?></a>
+        <?php }
+    }
+};
+
+$bmTop       = $bmByParent[0] ?? [];
+$bmTopFolders = array_values(array_filter($bmTop, fn($x) => $x['type'] === 'folder'));
+$bmTopLinks   = array_values(array_filter($bmTop, fn($x) => $x['type'] === 'link'));
+?>
+
+    <!-- ---- BOOKMARKS ------------------------------------------ -->
+    <section class="tracker-card bookmarks-section hidden" id="bookmarksSection">
+        <div class="bm-bar" id="bmBar">
+            <?php foreach ($bmTopFolders as $f): $fid = (int)$f['id']; ?>
+            <button type="button" class="bm-folder-btn bm-top-btn" data-target="<?= $fid ?>" onclick="bmTogglePanel(event, '<?= $fid ?>')" title="<?= h($f['title']) ?>">
+                <span class="bm-fico"><?= $bmIcoFolder ?></span><span class="bm-label"><?= h($f['title']) ?></span><span class="bm-caret">&#9662;</span>
+            </button>
+            <?php endforeach; ?>
+            <?php if (!empty($bmTopLinks)): ?>
+            <button type="button" class="bm-folder-btn bm-top-btn" data-target="loose" onclick="bmTogglePanel(event, 'loose')">
+                <span class="bm-fico"><?= $bmIcoFolder ?></span><span class="bm-label"><?= h(t('bookmarks.more')) ?></span><span class="bm-caret">&#9662;</span>
+            </button>
+            <?php endif; ?>
+            <button type="button" class="bm-newfolder" id="bmAddFolderBtn" onclick="bmOpenAddFolder()" title="<?= h(t('bookmarks.addFolderTitle')) ?>"><?= h(t('bookmarks.addFolderBtn')) ?></button>
+        </div>
+        <div class="bm-panels" id="bmPanels">
+            <?php foreach ($bmTopFolders as $f): $fid = (int)$f['id']; ?>
+            <div class="bm-panel hidden" id="bm-panel-<?= $fid ?>">
+                <?php $renderBookmarkNodes($fid, 1); ?>
+                <?php if (empty($bmByParent[$fid])): ?><span class="bm-menu-empty"><?= h(t('bookmarks.emptyFolder')) ?></span><?php endif; ?>
+                <button type="button" class="bm-add" onclick="bmOpenAdd(this, '<?= $fid ?>')"><?= h(t('bookmarks.add')) ?></button>
+            </div>
+            <?php endforeach; ?>
+            <?php if (!empty($bmTopLinks)): ?>
+            <div class="bm-panel hidden" id="bm-panel-loose">
+                <?php foreach ($bmTopLinks as $l): ?>
+                <a class="bm-link" href="<?= h((string)$l['url']) ?>" target="_blank" rel="noopener noreferrer" title="<?= h($l['title']) ?>"><?= h($l['title']) ?></a>
+                <?php endforeach; ?>
+                <button type="button" class="bm-add" onclick="bmOpenAdd(this, 'loose')"><?= h(t('bookmarks.add')) ?></button>
+            </div>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <!-- Bookmark hinzufügen (Popup) -->
+    <div class="bm-modal hidden" id="bmAddModal">
+        <div class="bm-modal-card">
+            <div class="bm-modal-head">
+                <strong><?= h(t('bookmarks.addTitle')) ?></strong>
+                <button type="button" class="bm-modal-x" onclick="bmCloseAdd()" aria-label="<?= h(t('common.cancel')) ?>">&#x2715;</button>
+            </div>
+            <div class="bm-modal-body">
+                <label for="bmAddUrl"><?= h(t('bookmarks.url')) ?></label>
+                <input type="url" id="bmAddUrl" placeholder="https://…" autocomplete="off" inputmode="url">
+                <label for="bmAddTitle"><?= h(t('bookmarks.titleLabel')) ?></label>
+                <input type="text" id="bmAddTitle" placeholder="<?= h(t('bookmarks.titleOptional')) ?>" autocomplete="off">
+                <div id="bmAddMsg" class="bm-modal-msg"></div>
+            </div>
+            <div class="bm-modal-foot">
+                <button type="button" class="btn" onclick="bmCloseAdd()"><?= h(t('common.cancel')) ?></button>
+                <button type="button" class="btn btn--primary" id="bmAddSaveBtn" onclick="bmSaveAdd()"><?= h(t('common.save')) ?></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ordner anlegen (Popup) -->
+    <div class="bm-modal hidden" id="bmFolderModal">
+        <div class="bm-modal-card">
+            <div class="bm-modal-head">
+                <strong><?= h(t('bookmarks.addFolderTitle')) ?></strong>
+                <button type="button" class="bm-modal-x" onclick="bmCloseFolder()" aria-label="<?= h(t('common.cancel')) ?>">&#x2715;</button>
+            </div>
+            <div class="bm-modal-body">
+                <label for="bmFolderName"><?= h(t('bookmarks.folderName')) ?></label>
+                <input type="text" id="bmFolderName" autocomplete="off">
+                <div id="bmFolderMsg" class="bm-modal-msg"></div>
+            </div>
+            <div class="bm-modal-foot">
+                <button type="button" class="btn" onclick="bmCloseFolder()"><?= h(t('common.cancel')) ?></button>
+                <button type="button" class="btn btn--primary" id="bmFolderSaveBtn" onclick="bmSaveFolder()"><?= h(t('common.save')) ?></button>
+            </div>
+        </div>
+    </div>
+
     <!-- ---- TRACKER -------------------------------------------- -->
     <section class="tracker-card">
 
@@ -385,6 +506,9 @@ function fmtDate(string $dt): string
                 Ø&nbsp;<?= $monthlyStats['avg'] ?>&nbsp;h/d
             </span>
             <div class="tracker-header-icons">
+                <button type="button" class="btn-icon btn-bookmarks" id="btnBookmarks" onclick="bmToggleSection()" title="<?= h(t('bookmarks.toggle')) ?>">
+                    <svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M0 48V487.7C0 501.1 10.9 512 24.3 512c5 0 9.9-1.5 14-4.4L192 400 345.7 507.6c4.1 2.9 9 4.4 14 4.4c13.4 0 24.3-10.9 24.3-24.3V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48z"/></svg>
+                </button>
                 <div class="settings-wrap">
                     <button type="button" class="btn-icon btn-settings" id="btnSettings" title="<?= h(t('settings.title')) ?>">
                         <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm73.3-48C253 51.7 224.8 32 192 32s-61 19.7-73.3 48L32 80C14.3 80 0 94.3 0 112s14.3 32 32 32l86.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 144c17.7 0 32-14.3 32-32s-14.3-32-32-32L265.3 80z"/></svg>

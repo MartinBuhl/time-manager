@@ -52,6 +52,18 @@ function minutesToHours(int $min): float {
     return $min / 60.0;
 }
 
+/** Normalisiert eine Bookmark-URL (nur http(s); fehlt das Schema, https:// voran). */
+function bmNormalizeUrl(string $url): string {
+    $url = trim($url);
+    if ($url === '') jsonErr('Bitte eine URL angeben.');
+    if (!preg_match('~^https?://~i', $url)) {
+        if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $url)) jsonErr('Nur http(s)-Links sind erlaubt.');
+        $url = 'https://' . ltrim($url, '/');
+    }
+    if (mb_strlen($url) > 2000) jsonErr('Die URL ist zu lang.');
+    return $url;
+}
+
 /**
  * SQL-Dump aller Systemtabellen – ausgelagert in includes/db_backup.php,
  * damit dasselbe Format auch das Vor-Update-Backup nutzen kann.
@@ -2081,6 +2093,122 @@ switch ($action) {
             $stmt->execute([$sort++, $aid]);
         }
         jsonOk(['count' => count($ids)]);
+
+    // ----------------------------------------------------------------
+    case 'update_bookmark':
+        $id    = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $title = trim($_POST['title'] ?? '');
+        if (!$id) jsonErr('Ungültige ID.');
+        if ($title === '') jsonErr('Titel darf nicht leer sein.');
+        $title = mb_substr($title, 0, 500);
+
+        $cur = db()->prepare('SELECT type FROM tm_bookmarks WHERE id = ?');
+        $cur->execute([$id]);
+        $type = $cur->fetchColumn();
+        if ($type === false) jsonErr('Eintrag nicht gefunden.');
+
+        if ($type === 'link') {
+            $url = bmNormalizeUrl($_POST['url'] ?? '');
+            db()->prepare('UPDATE tm_bookmarks SET title = ?, url = ? WHERE id = ?')
+                ->execute([$title, $url, $id]);
+            jsonOk(['title' => $title, 'url' => $url]);
+        } else {
+            db()->prepare('UPDATE tm_bookmarks SET title = ? WHERE id = ?')
+                ->execute([$title, $id]);
+            jsonOk(['title' => $title]);
+        }
+
+    // ----------------------------------------------------------------
+    case 'delete_bookmark':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+
+        // Ordner rekursiv mit allen Nachkommen löschen.
+        $toDelete  = [$id];
+        $queue     = [$id];
+        $childStmt = db()->prepare('SELECT id FROM tm_bookmarks WHERE parent_id = ?');
+        while ($queue) {
+            $cur = array_shift($queue);
+            $childStmt->execute([$cur]);
+            foreach ($childStmt->fetchAll(PDO::FETCH_COLUMN) as $childId) {
+                $toDelete[] = (int)$childId;
+                $queue[]    = (int)$childId;
+            }
+        }
+        $in = implode(',', array_map('intval', $toDelete));
+        db()->exec("DELETE FROM tm_bookmarks WHERE id IN ($in)");
+        jsonOk(['deleted' => count($toDelete)]);
+
+    // ----------------------------------------------------------------
+    case 'reorder_bookmarks':
+        $ids = array_values(array_filter(array_map('intval', explode(',', $_POST['ids'] ?? ''))));
+        if (empty($ids)) jsonErr('Keine Reihenfolge übergeben.');
+        $stmt = db()->prepare('UPDATE tm_bookmarks SET sort_order = ? WHERE id = ?');
+        $pos  = 1;
+        foreach ($ids as $bid) { $stmt->execute([$pos++, $bid]); }
+        jsonOk(['count' => count($ids)]);
+
+    // ----------------------------------------------------------------
+    case 'add_bookmark':
+    case 'add_bookmark_folder':
+        $isFolder  = ($action === 'add_bookmark_folder');
+        $parentRaw = trim($_POST['parent_id'] ?? '');
+        $parentId  = ($parentRaw === '') ? null : (int)$parentRaw;
+        $title     = trim($_POST['title'] ?? '');
+
+        if ($isFolder) {
+            if ($title === '') jsonErr('Bitte einen Ordnernamen angeben.');
+        } else {
+            $url = bmNormalizeUrl($_POST['url'] ?? '');
+            if ($title === '') $title = $url;
+        }
+        $title = mb_substr($title, 0, 500);
+
+        // Parent muss ein existierender Ordner sein (oder NULL = oberste Ebene).
+        if ($parentId !== null) {
+            $c = db()->prepare('SELECT type FROM tm_bookmarks WHERE id = ?');
+            $c->execute([$parentId]);
+            if ($c->fetchColumn() !== 'folder') jsonErr('Ordner nicht gefunden.');
+        }
+
+        if ($parentId === null) {
+            $sort = (int)db()->query(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id IS NULL"
+            )->fetchColumn();
+        } else {
+            $s = db()->prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id = ?");
+            $s->execute([$parentId]);
+            $sort = (int)$s->fetchColumn();
+        }
+
+        if ($isFolder) {
+            db()->prepare("INSERT INTO tm_bookmarks (parent_id, type, title, url, sort_order) VALUES (?, 'folder', ?, NULL, ?)")
+                ->execute([$parentId, $title, $sort]);
+            jsonOk(['id' => (int)db()->lastInsertId(), 'title' => $title]);
+        } else {
+            db()->prepare("INSERT INTO tm_bookmarks (parent_id, type, title, url, sort_order) VALUES (?, 'link', ?, ?, ?)")
+                ->execute([$parentId, $title, $url, $sort]);
+            jsonOk(['id' => (int)db()->lastInsertId(), 'title' => $title, 'url' => $url]);
+        }
+
+    // ----------------------------------------------------------------
+    case 'import_bookmarks':
+        if (empty($_FILES['file']['tmp_name'])
+            || ($_FILES['file']['error'] ?? 1) !== UPLOAD_ERR_OK
+            || !is_uploaded_file($_FILES['file']['tmp_name'])) {
+            jsonErr('Keine Datei hochgeladen.');
+        }
+        if (($_FILES['file']['size'] ?? 0) > 25 * 1024 * 1024) {
+            jsonErr('Datei zu groß (max. 25 MB).');
+        }
+        $replace = ($_POST['replace'] ?? '') === '1';
+        require_once dirname(__DIR__) . '/includes/BookmarkImporter.php';
+        try {
+            $res = BookmarkImporter::importFromFile(db(), $_FILES['file']['tmp_name'], $replace);
+        } catch (\Throwable $e) {
+            jsonErr($e->getMessage());
+        }
+        jsonOk($res);
 
     // ----------------------------------------------------------------
     case 'create_demo_data':

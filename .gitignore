@@ -15,6 +15,9 @@
 # Hochgeladene Auftrags-Dateien – pro Installation verschieden
 /orders/
 
+# Bookmark-Importdateien (Firefox-Export) – enthalten private Daten
+/import/
+
 # Windows / macOS / IDE
 Thumbs.db
 .DS_Store

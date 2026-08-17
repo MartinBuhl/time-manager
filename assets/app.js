@@ -819,6 +819,194 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ================================================================
+   Bookmarks – Firefox-artige Lesezeichenleiste
+   ================================================================ */
+function bmToggleSection() {
+    const sec = document.getElementById('bookmarksSection');
+    if (!sec) return;
+    sec.classList.toggle('hidden');
+    const open = !sec.classList.contains('hidden');
+    try { localStorage.setItem('tm_bookmarks_open', open ? '1' : '0'); } catch (e) {}
+    const btn = document.getElementById('btnBookmarks');
+    if (btn) btn.classList.toggle('active', open);
+    if (!open) bmCloseAll();
+}
+
+function bmCloseNested(menu) {
+    if (!menu) return;
+    menu.classList.add('hidden');
+    if (menu.parentElement) menu.parentElement.classList.remove('open');
+    menu.querySelectorAll('.bm-menu').forEach(m => m.classList.add('hidden'));
+    menu.querySelectorAll('.bm-folder.open').forEach(f => f.classList.remove('open'));
+}
+
+function bmCloseAll() {
+    document.querySelectorAll('.bm-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.bm-top-btn.open').forEach(b => b.classList.remove('open'));
+    document.querySelectorAll('.bm-panel .bm-menu').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.bm-folder.open').forEach(f => f.classList.remove('open'));
+}
+
+/* Oberste Ebene: voll-breites Panel unter der Leiste auf-/zuklappen */
+function bmTogglePanel(ev, id) {
+    ev.stopPropagation();
+    const panel = document.getElementById('bm-panel-' + id);
+    const btn   = ev.currentTarget;
+    if (!panel) return;
+    const willOpen = panel.classList.contains('hidden');
+    document.querySelectorAll('.bm-panel').forEach(p => { if (p !== panel) p.classList.add('hidden'); });
+    document.querySelectorAll('.bm-top-btn.open').forEach(b => { if (b !== btn) b.classList.remove('open'); });
+    if (willOpen) { panel.classList.remove('hidden'); if (btn) btn.classList.add('open'); }
+    else { panel.classList.add('hidden'); if (btn) btn.classList.remove('open'); }
+}
+
+/* Unterordner innerhalb eines Panels: inline (Akkordeon) auf-/zuklappen */
+function bmToggleFolder(ev, id) {
+    ev.stopPropagation();
+    const menu = document.getElementById('bm-menu-' + id);
+    if (!menu) return;
+    const folder = menu.parentElement;
+    const willOpen = menu.classList.contains('hidden');
+    const parentMenu = folder.parentElement;
+    if (parentMenu) {
+        parentMenu.querySelectorAll(':scope > .bm-folder > .bm-menu').forEach(m => { if (m !== menu) bmCloseNested(m); });
+    }
+    if (willOpen) { menu.classList.remove('hidden'); folder.classList.add('open'); }
+    else { bmCloseNested(menu); }
+}
+
+document.addEventListener('click', ev => {
+    if (!ev.target.closest('#bookmarksSection')
+        && !ev.target.closest('#bmAddModal')
+        && !ev.target.closest('#bmFolderModal')) bmCloseAll();
+});
+
+/* ---- Neuen Link zu einem Ordner hinzufügen (Popup) ---- */
+let bmAddBtn = null;
+let bmAddParent = null;
+
+function bmOpenAdd(btn, parentId) {
+    bmAddBtn = btn;
+    bmAddParent = parentId;
+    const modal = document.getElementById('bmAddModal');
+    if (!modal) return;
+    document.getElementById('bmAddUrl').value = '';
+    document.getElementById('bmAddTitle').value = '';
+    const msg = document.getElementById('bmAddMsg');
+    if (msg) { msg.textContent = ''; msg.className = 'bm-modal-msg'; }
+    modal.classList.remove('hidden');
+    document.getElementById('bmAddUrl').focus();
+}
+
+function bmCloseAdd() {
+    const modal = document.getElementById('bmAddModal');
+    if (modal) modal.classList.add('hidden');
+    bmAddBtn = null;
+    bmAddParent = null;
+}
+
+async function bmSaveAdd() {
+    const url   = document.getElementById('bmAddUrl').value.trim();
+    const title = document.getElementById('bmAddTitle').value.trim();
+    const msg   = document.getElementById('bmAddMsg');
+    if (!url) {
+        if (msg) { msg.textContent = t('bookmarks.urlRequired'); msg.className = 'bm-modal-msg err'; }
+        return;
+    }
+    const saveBtn = document.getElementById('bmAddSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+        const res = await api('add_bookmark', {
+            parent_id: (bmAddParent === 'loose' ? '' : bmAddParent),
+            url, title,
+        });
+        if (res.success) {
+            bmInsertLink(bmAddBtn, res.data);
+            bmCloseAdd();
+        } else if (msg) {
+            msg.textContent = res.error || t('common.saveError');
+            msg.className = 'bm-modal-msg err';
+        }
+    } catch (e) {
+        if (msg) { msg.textContent = t('common.saveError'); msg.className = 'bm-modal-msg err'; }
+    }
+    if (saveBtn) saveBtn.disabled = false;
+}
+
+function bmInsertLink(addBtn, b) {
+    if (!addBtn || !b) return;
+    const container = addBtn.parentElement;
+    const empty = container.querySelector('.bm-menu-empty');
+    if (empty) empty.remove();
+    const a = document.createElement('a');
+    a.className = 'bm-link';
+    a.href = b.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = b.title;
+    a.textContent = b.title;
+    container.insertBefore(a, addBtn);
+}
+
+/* ---- Neuen Ordner anlegen (Popup) ---- */
+function bmOpenAddFolder() {
+    const modal = document.getElementById('bmFolderModal');
+    if (!modal) return;
+    document.getElementById('bmFolderName').value = '';
+    const msg = document.getElementById('bmFolderMsg');
+    if (msg) { msg.textContent = ''; msg.className = 'bm-modal-msg'; }
+    modal.classList.remove('hidden');
+    document.getElementById('bmFolderName').focus();
+}
+
+function bmCloseFolder() {
+    const modal = document.getElementById('bmFolderModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function bmSaveFolder() {
+    const name = document.getElementById('bmFolderName').value.trim();
+    const msg  = document.getElementById('bmFolderMsg');
+    if (!name) {
+        if (msg) { msg.textContent = t('bookmarks.folderRequired'); msg.className = 'bm-modal-msg err'; }
+        return;
+    }
+    const saveBtn = document.getElementById('bmFolderSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+        const res = await api('add_bookmark_folder', { title: name });
+        if (res.success) {
+            location.reload();
+        } else if (msg) {
+            msg.textContent = res.error || t('common.saveError');
+            msg.className = 'bm-modal-msg err';
+        }
+    } catch (e) {
+        if (msg) { msg.textContent = t('common.saveError'); msg.className = 'bm-modal-msg err'; }
+    }
+    if (saveBtn) saveBtn.disabled = false;
+}
+
+/* Klick auf den Hintergrund eines Popups schliesst es */
+document.addEventListener('click', ev => {
+    if (!ev.target) return;
+    if (ev.target.id === 'bmAddModal')    bmCloseAdd();
+    if (ev.target.id === 'bmFolderModal') bmCloseFolder();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const sec = document.getElementById('bookmarksSection');
+    if (!sec) return;
+    let open = false;
+    try { open = localStorage.getItem('tm_bookmarks_open') === '1'; } catch (e) {}
+    if (open) {
+        sec.classList.remove('hidden');
+        const btn = document.getElementById('btnBookmarks');
+        if (btn) btn.classList.add('active');
+    }
+});
+
+/* ================================================================
    Info-Bereich – globaler Freitext mit kleinem WYSIWYG-Editor
    ================================================================ */
 function renderInfoView() {

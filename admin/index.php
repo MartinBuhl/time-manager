@@ -174,6 +174,10 @@ const CARDS = {
         label: t('admin.card.activities'), href: 'activities.php',
         icon: '<path d="M3 5h2v14H3V5zm4 0h14v3H7V5zm0 5.5h14v3H7v-3zM7 16h14v3H7v-3z"/>',
     },
+    bookmarks: {
+        label: t('admin.card.bookmarks'), href: 'bookmarks.php',
+        icon: '<path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/>',
+    },
     trash: {
         label: t('admin.card.trash'), href: 'trash.php',
         icon: '<path d="M15 4V3H9v1H4v2h1v13c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6h1V4h-5zm2 15H7V6h10v13z"/>',
@@ -210,7 +214,7 @@ const CARDS = {
 
 const DEFAULT_LAYOUT = {
     top:    ['customers', 'billing', 'invoices', 'entries', 'orders'],
-    bottom: ['activities', 'trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'backup', 'info'],
+    bottom: ['activities', 'bookmarks', 'trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'backup', 'info'],
 };
 // ----------------------------------------------------------------
 // Layout laden / speichern
