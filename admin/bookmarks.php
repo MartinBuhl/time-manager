@@ -187,6 +187,10 @@ tr.bm-inactive td.col-active, tr.bm-inactive td.act-actions { opacity: 1; }
             <div class="bm-add-bar">
                 <input type="text" id="newFolderName" style="max-width:280px"
                        placeholder="<?= h($mode === 'folder' ? t('bmAdmin.subfolderNamePh') : t('bookmarks.folderName')) ?>" maxlength="500">
+                <select id="newFolderPos">
+                    <option value="end"><?= h(t('bmAdmin.posEnd')) ?></option>
+                    <option value="start"><?= h(t('bmAdmin.posStart')) ?></option>
+                </select>
                 <button type="button" class="btn btn--primary" id="addFolderBtn"><?= h($mode === 'folder' ? t('bmAdmin.addSubfolder') : t('bmAdmin.addFolder')) ?></button>
             </div>
             <?php endif; ?>
@@ -385,7 +389,8 @@ async function addFolder() {
     const input = document.getElementById('newFolderName');
     const name  = input.value.trim();
     if (!name) { showAddMsg(t('bookmarks.folderRequired'), true); return; }
-    const data = await apiCall('add_bookmark_folder', { parent_id: BM_PARENT, title: name });
+    const position = document.getElementById('newFolderPos')?.value || 'end';
+    const data = await apiCall('add_bookmark_folder', { parent_id: BM_PARENT, title: name, position });
     if (!data.success) { showAddMsg((data.error || t('common.error')), true); return; }
     location.reload();
 }

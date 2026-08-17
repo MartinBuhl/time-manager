@@ -114,6 +114,8 @@ return [
     'bmAdmin.addSubfolder'      => 'Unterordner hinzufügen',
     'bmAdmin.subfolderNamePh'   => 'Unterordnername',
     'bmAdmin.addLink'           => 'Link hinzufügen',
+    'bmAdmin.posEnd'            => 'am Ende',
+    'bmAdmin.posStart'          => 'als erster',
     'bmAdmin.importBtn'         => 'Importieren',
     'bmAdmin.importReplace'     => 'Vorhandene Bookmarks ersetzen',
     'bmAdmin.importHint'        => 'Firefox-JSON oder Bookmark-HTML (Chrome, Edge, Safari, Opera, Firefox …). Ohne „ersetzen" werden die Einträge angehängt.',

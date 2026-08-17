@@ -2204,12 +2204,15 @@ switch ($action) {
             if ($c->fetchColumn() !== 'folder') jsonErr('Ordner nicht gefunden.');
         }
 
+        // Position: ans Ende (Standard) oder an den Anfang (kleinster sort_order - 1).
+        $atStart = ($_POST['position'] ?? 'end') === 'start';
+        $agg = $atStart ? 'COALESCE(MIN(sort_order), 0) - 1' : 'COALESCE(MAX(sort_order), -1) + 1';
         if ($parentId === null) {
             $sort = (int)db()->query(
-                "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id IS NULL"
+                "SELECT $agg FROM tm_bookmarks WHERE parent_id IS NULL"
             )->fetchColumn();
         } else {
-            $s = db()->prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tm_bookmarks WHERE parent_id = ?");
+            $s = db()->prepare("SELECT $agg FROM tm_bookmarks WHERE parent_id = ?");
             $s->execute([$parentId]);
             $sort = (int)$s->fetchColumn();
         }
