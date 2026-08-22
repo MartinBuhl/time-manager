@@ -2289,6 +2289,32 @@ switch ($action) {
         jsonOk(['id' => $id]);
 
     // ----------------------------------------------------------------
+    case 'copy_expense':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        $src = db()->prepare('SELECT * FROM tm_expenses WHERE id = ?');
+        $src->execute([$id]);
+        $e = $src->fetch(PDO::FETCH_ASSOC);
+        if (!$e) jsonErr('Ausgabe nicht gefunden.');
+        db()->prepare(
+            'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, url, username, email, pw_info)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            mb_substr($e['title'] . ' (Kopie)', 0, 255), $e['description'], $e['amount'],
+            $e['period'], $e['currency'], $e['scope'], $e['url'], $e['username'], $e['email'], $e['pw_info'],
+        ]);
+        jsonOk(['id' => (int) db()->lastInsertId()]);
+
+    // ----------------------------------------------------------------
+    case 'toggle_expense':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_expenses SET active = 1 - active WHERE id = ?')->execute([$id]);
+        $st = db()->prepare('SELECT active FROM tm_expenses WHERE id = ?');
+        $st->execute([$id]);
+        jsonOk(['active' => (int) $st->fetchColumn()]);
+
+    // ----------------------------------------------------------------
     case 'delete_expense':
         $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         if (!$id) jsonErr('Ungültige ID.');

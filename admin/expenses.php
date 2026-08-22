@@ -4,14 +4,17 @@ require_once __DIR__ . '/auth.php';
 $db = db();
 $expenses = $db->query('SELECT * FROM tm_expenses ORDER BY title ASC, id ASC')->fetchAll();
 
-// Monatssummen je Währung (Tag*365/12, Monat*1, Jahr/12)
-$totals = [];
+// Monatssummen je Währung + Art (Tag*365/12, Monat*1, Jahr/12)
+$totals = []; // [currency => ['business'=>x, 'private'=>y, 'total'=>z]]
 foreach ($db->query(
-    "SELECT currency,
+    "SELECT currency, scope,
             SUM(CASE period WHEN 'day' THEN amount*365/12 WHEN 'year' THEN amount/12 ELSE amount END) AS monthly
-     FROM tm_expenses GROUP BY currency"
+     FROM tm_expenses WHERE active = 1 GROUP BY currency, scope"
 ) as $t) {
-    $totals[$t['currency']] = (float) $t['monthly'];
+    $c = $t['currency'];
+    if (!isset($totals[$c])) $totals[$c] = ['business' => 0.0, 'private' => 0.0, 'total' => 0.0];
+    $totals[$c][$t['scope']] = (float) $t['monthly'];
+    $totals[$c]['total']    += (float) $t['monthly'];
 }
 
 function curSym(string $c): string { return $c === 'USD' ? '$' : '€'; }
@@ -73,11 +76,18 @@ $renderForm = function (array $e) use ($periodLabels) {
 <link rel="stylesheet" href="../assets/style.css?v=<?php echo APP_VERSION; ?>">
 <script src="../assets/dialog.js"></script>
 <style>
-.exp-total { display: flex; flex-wrap: wrap; gap: 16px; align-items: baseline;
+.exp-total { display: flex; flex-direction: column; gap: 6px;
     margin: 0 0 16px; padding: 12px 16px; border-radius: 8px;
     background: var(--hover-bg); border: 1px solid var(--card-border); }
+.exp-total-line { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 .exp-total .lbl { font-size: 13px; color: var(--text-muted); }
 .exp-total .amt { font-size: 18px; font-weight: 700; }
+.exp-total .amt2 { font-size: 15px; font-weight: 600; }
+.exp-total .sep { color: var(--text-muted); }
+.col-scope { white-space: nowrap; }
+.col-active { white-space: nowrap; }
+tr.exp-inactive td { opacity: .5; }
+tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
 .exp-actions { white-space: nowrap; text-align: right; }
 .exp-actions .btn { font-size: 11px; padding: 2px 8px; margin-left: 4px; }
 .col-cost { white-space: nowrap; }
@@ -115,11 +125,18 @@ $renderForm = function (array $e) use ($periodLabels) {
     <div class="admin-section">
 
         <div class="exp-total">
-            <span class="lbl"><?= h(t('expenses.monthlyTotal')) ?>:</span>
             <?php if (empty($totals)): ?>
-                <span class="amt"><?= fmtMoney(0, 'EUR') ?></span>
-            <?php else: foreach ($totals as $cur => $sum): ?>
-                <span class="amt"><?= fmtMoney($sum, $cur) ?></span>
+            <div class="exp-total-line">
+                <span class="lbl"><?= h(t('expenses.monthlyTotal')) ?>:</span> <span class="amt"><?= fmtMoney(0, 'EUR') ?></span>
+            </div>
+            <?php else: foreach ($totals as $cur => $s): ?>
+            <div class="exp-total-line">
+                <span class="lbl"><?= h(t('expenses.monthlyTotal')) ?>:</span> <span class="amt"><?= fmtMoney($s['total'], $cur) ?></span>
+                <span class="sep">·</span>
+                <span class="lbl"><?= h(t('expenses.scopeBusiness')) ?>:</span> <span class="amt2"><?= fmtMoney($s['business'], $cur) ?></span>
+                <span class="sep">·</span>
+                <span class="lbl"><?= h(t('expenses.scopePrivate')) ?>:</span> <span class="amt2"><?= fmtMoney($s['private'], $cur) ?></span>
+            </div>
             <?php endforeach; endif; ?>
         </div>
 
@@ -142,31 +159,40 @@ $renderForm = function (array $e) use ($periodLabels) {
                     <tr>
                         <th><?= h(t('expenses.fTitle')) ?></th>
                         <th class="col-cost"><?= h(t('expenses.colCost')) ?></th>
+                        <th class="col-scope"><?= h(t('expenses.fScope')) ?></th>
                         <th><?= h(t('expenses.fUsername')) ?></th>
+                        <th class="col-active"><?= h(t('expenses.colActive')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="expTbody">
                 <?php if (empty($expenses)): ?>
-                    <tr id="emptyRow"><td colspan="4" class="empty-message"><?= h(t('expenses.empty')) ?></td></tr>
-                <?php else: foreach ($expenses as $e): $id = (int)$e['id']; ?>
-                    <tr class="entry-row" data-id="<?= $id ?>">
+                    <tr id="emptyRow"><td colspan="6" class="empty-message"><?= h(t('expenses.empty')) ?></td></tr>
+                <?php else: foreach ($expenses as $e): $id = (int)$e['id']; $active = (int)$e['active'] === 1; ?>
+                    <tr class="entry-row<?= $active ? '' : ' exp-inactive' ?>" data-id="<?= $id ?>">
                         <td>
                             <?php if (!empty($e['url'])): ?>
                             <a href="<?= h((string)$e['url']) ?>" target="_blank" rel="noopener noreferrer"><?= h($e['title']) ?></a>
                             <?php else: ?><?= h($e['title']) ?><?php endif; ?>
-                            <span class="exp-badge exp-badge--<?= h($e['scope']) ?>"><?= h($e['scope'] === 'private' ? t('expenses.scopePrivate') : t('expenses.scopeBusiness')) ?></span>
                             <?php if (!empty($e['description'])): ?><div class="exp-desc-cell"><?= h($e['description']) ?></div><?php endif; ?>
                         </td>
                         <td class="col-cost"><?= fmtMoney((float)$e['amount'], $e['currency']) ?> <span class="exp-desc-cell"><?= h($periodLabels[$e['period']] ?? '') ?></span></td>
+                        <td class="col-scope"><span class="exp-badge exp-badge--<?= h($e['scope']) ?>"><?= h($e['scope'] === 'private' ? t('expenses.scopePrivate') : t('expenses.scopeBusiness')) ?></span></td>
                         <td><?= h((string)$e['username']) ?></td>
+                        <td class="col-active">
+                            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+                                <input type="checkbox" onchange="toggleExpense(<?= $id ?>)"<?= $active ? ' checked' : '' ?>>
+                                <span><?= h($active ? t('expenses.active') : t('expenses.inactive')) ?></span>
+                            </label>
+                        </td>
                         <td class="exp-actions">
                             <button type="button" class="btn" onclick="showEdit(<?= $id ?>)"><?= h(t('common.edit')) ?></button>
+                            <button type="button" class="btn" onclick="copyExpense(<?= $id ?>)"><?= h(t('expenses.copy')) ?></button>
                             <button type="button" class="btn btn--danger" onclick="deleteExpense(<?= $id ?>, <?= htmlspecialchars(json_encode($e['title']), ENT_QUOTES) ?>)"><?= h(t('common.delete')) ?></button>
                         </td>
                     </tr>
                     <tr id="edit-<?= $id ?>" class="edit-row hidden">
-                        <td colspan="4">
+                        <td colspan="6">
                             <?php $renderForm($e); ?>
                             <div class="exp-form-actions">
                                 <button type="button" class="btn btn--primary" onclick="saveExpense(<?= $id ?>)"><?= h(t('common.save')) ?></button>
@@ -227,6 +253,18 @@ async function saveExpense(id) {
     const params = isNew ? data : { id, ...data };
     const res = await apiCall('save_expense', params);
     if (!res.success) { if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = res.error || t('common.error'); } return; }
+    location.reload();
+}
+
+async function toggleExpense(id) {
+    const res = await apiCall('toggle_expense', { id });
+    if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || '')); return; }
+    location.reload(); // Summe neu berechnen
+}
+
+async function copyExpense(id) {
+    const res = await apiCall('copy_expense', { id });
+    if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || '')); return; }
     location.reload();
 }
 
