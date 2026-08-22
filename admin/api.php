@@ -2247,6 +2247,55 @@ switch ($action) {
         jsonOk($res);
 
     // ----------------------------------------------------------------
+    case 'save_expense':
+        $id    = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $title = trim($_POST['title'] ?? '');
+        if ($title === '') jsonErr('Titel darf nicht leer sein.');
+
+        $description = trim($_POST['description'] ?? '');
+
+        // Betrag robust parsen ("12,50" / "1.234,56" / "12.50").
+        $norm = str_replace(' ', '', trim($_POST['amount'] ?? ''));
+        if (strpos($norm, ',') !== false) {
+            $norm = str_replace(['.', ','], ['', '.'], $norm);
+        }
+        $amount = is_numeric($norm) ? (float) $norm : 0.0;
+        if ($amount < 0) jsonErr('Kosten dürfen nicht negativ sein.');
+
+        $period   = in_array($_POST['period'] ?? '', ['day', 'month', 'year'], true) ? $_POST['period'] : 'month';
+        $currency = ($_POST['currency'] ?? '') === 'USD' ? 'USD' : 'EUR';
+        $scope    = ($_POST['scope'] ?? '') === 'private' ? 'private' : 'business';
+        $url      = mb_substr(trim($_POST['url'] ?? ''), 0, 500);
+        $username = mb_substr(trim($_POST['username'] ?? ''), 0, 255);
+        $email    = trim($_POST['email'] ?? '');
+        $pwInfo   = mb_substr(trim($_POST['pw_info'] ?? ''), 0, 10);
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) jsonErr('Ungültige E-Mail-Adresse.');
+        $email = mb_substr($email, 0, 255);
+
+        if ($id) {
+            db()->prepare(
+                'UPDATE tm_expenses SET title=?, description=?, amount=?, period=?, currency=?, scope=?,
+                        url=?, username=?, email=?, pw_info=? WHERE id=?'
+            )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
+                        $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null, $id]);
+        } else {
+            db()->prepare(
+                'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, url, username, email, pw_info)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
+                        $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null]);
+            $id = (int) db()->lastInsertId();
+        }
+        jsonOk(['id' => $id]);
+
+    // ----------------------------------------------------------------
+    case 'delete_expense':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('DELETE FROM tm_expenses WHERE id = ?')->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
     case 'create_demo_data':
         require_once dirname(__DIR__) . '/includes/demo_data.php';
         try {
