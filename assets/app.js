@@ -166,7 +166,7 @@ function toggleSuborderFull(ev, id) {
     }
 }
 
-/* „Bearbeitet" – Auftrag heute als bearbeitet markieren (bis morgen ausblenden) */
+/* „Bearbeitet" – Kunde als zuletzt bearbeitet markieren (wandert nach unten) */
 async function markWorked(ev, id) {
     ev.stopPropagation();
     const res = await api('mark_order_worked', { id });
@@ -174,17 +174,9 @@ async function markWorked(ev, id) {
     else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
-/* Liste der heute bearbeiteten Kunden auf-/zuklappen */
-function toggleWorkedList() {
-    const list  = document.getElementById('workedList');
-    const caret = document.getElementById('workedCaret');
-    if (!list) return;
-    const open = list.classList.toggle('hidden') === false;
-    if (caret) caret.innerHTML = open ? '&#9662;' : '&#9656;';
-}
-
-/* Status eines heute bearbeiteten Kunden zurücksetzen */
-async function resetWorked(customerId) {
+/* „Zurücksetzen" – Bearbeitet-Markierung des Kunden aufheben (wandert nach oben) */
+async function resetWorked(ev, customerId) {
+    if (ev) ev.stopPropagation();
     const res = await api('reset_order_worked', { customer_id: customerId });
     if (res.success) location.reload();
     else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
@@ -1074,9 +1066,13 @@ function normalizeOrderRows(tbody) {
     });
 }
 
-function persistOrderOrder(tbody) {
-    const ids = [...tbody.querySelectorAll('tr.order-row')].map(r => r.dataset.id);
-    api('reorder_orders', { ids: ids.join(',') });
+function persistOrderDrag(tbody, dragged) {
+    const rows = [...tbody.querySelectorAll('tr.order-row')];
+    const i    = rows.indexOf(dragged);
+    if (i < 0) return;
+    const prev = i > 0 ? rows[i - 1].dataset.id : '';
+    const next = i < rows.length - 1 ? rows[i + 1].dataset.id : '';
+    api('reorder_orders', { id: dragged.dataset.id, prev, next });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1120,6 +1116,6 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.insertBefore(dragged, after ? row.nextElementSibling : row);
         }
         normalizeOrderRows(tbody);
-        persistOrderOrder(tbody);
+        persistOrderDrag(tbody, dragged);
     });
 });

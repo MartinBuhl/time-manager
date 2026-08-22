@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS `tm_customers` (
     `name`       VARCHAR(255) NOT NULL,
     `active`          TINYINT(1)    NOT NULL DEFAULT 1,
     `billable`        TINYINT(1)    NOT NULL DEFAULT 1,
+    `last_worked_at`  DATETIME(6)            DEFAULT NULL,
     `projects`        TEXT                   DEFAULT NULL,
     `billing_name`    VARCHAR(255)           DEFAULT NULL,
     `billing_street`  VARCHAR(255)           DEFAULT NULL,

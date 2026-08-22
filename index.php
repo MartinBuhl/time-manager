@@ -72,7 +72,6 @@ $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
-$workedCustomers = [];
 $bmByParent = [];
 $activities   = ACTIVITIES;
 $customers    = [];
@@ -167,20 +166,19 @@ if ($loggedIn) {
     try {
         $processingOrders = $pdo->query("
             SELECT o.id, o.customer_id, o.created_at,
+                   c.last_worked_at AS cust_worked,
                    COALESCE(c.name, '') AS customer_name
             FROM tm_orders o
             LEFT JOIN tm_customers c ON c.id = o.customer_id
             WHERE o.status = 'offen' AND o.deleted_at IS NULL
-              AND (o.last_worked_date IS NULL OR o.last_worked_date < CURDATE())
               AND o.id = (
                   SELECT o2.id FROM tm_orders o2
                   WHERE o2.customer_id = o.customer_id AND o2.status = 'offen'
                     AND o2.deleted_at IS NULL
-                    AND (o2.last_worked_date IS NULL OR o2.last_worked_date < CURDATE())
                   ORDER BY o2.created_at ASC, o2.id ASC
                   LIMIT 1
               )
-            ORDER BY (o.sort_order = 0) ASC, o.sort_order ASC, o.created_at ASC, o.id ASC
+            ORDER BY COALESCE(c.last_worked_at, o.created_at) ASC, o.id ASC
         ")->fetchAll();
 
         // Alle offenen Aufträge je Kunde (für die aufklappbare Unterliste)
@@ -192,19 +190,6 @@ if ($loggedIn) {
         ") as $row) {
             $openOrdersByCustomer[(int)$row['customer_id']][] = $row;
         }
-
-        // Heute bearbeitete Kunden: alle offenen Aufträge des Kunden sind
-        // heute als bearbeitet markiert (Status kann zurückgesetzt werden).
-        $workedCustomers = $pdo->query("
-            SELECT o.customer_id, COALESCE(c.name, '') AS customer_name
-            FROM tm_orders o
-            LEFT JOIN tm_customers c ON c.id = o.customer_id
-            WHERE o.status = 'offen' AND o.deleted_at IS NULL
-            GROUP BY o.customer_id, c.name
-            HAVING SUM(o.last_worked_date IS NULL OR o.last_worked_date < CURDATE()) = 0
-               AND SUM(o.last_worked_date = CURDATE()) > 0
-            ORDER BY customer_name ASC, o.customer_id ASC
-        ")->fetchAll();
     } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 
     /* Bookmarks-Baum (parent_id 0 = oberste Ebene / Symbolleiste) */
@@ -862,6 +847,10 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                             <span class="ord-name"><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></span>
                         </td>
                         <td style="text-align:right;white-space:nowrap">
+                            <?php if (!empty($o['cust_worked'])): ?>
+                            <button type="button" class="btn" onclick="resetWorked(event, <?= $cid ?>)"
+                                    title="<?= h(t('orders.resetStatusTitle')) ?>"><?= h(t('orders.resetStatus')) ?></button>
+                            <?php endif; ?>
                             <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
                                     title="<?= h(t('orders.workedTitle')) ?>"><?= h(t('orders.worked')) ?></button>
                         </td>
@@ -910,22 +899,6 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                 <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-
-        <div class="worked-customers"<?= empty($workedCustomers) ? ' style="display:none"' : '' ?> id="workedCustomers">
-            <button type="button" class="worked-toggle" onclick="toggleWorkedList()">
-                <span class="worked-caret" id="workedCaret">&#9656;</span>
-                <span><?= h(t('orders.workedCustomers')) ?> (<span id="workedCount"><?= count($workedCustomers) ?></span>)</span>
-            </button>
-            <div class="worked-list hidden" id="workedList">
-                <?php foreach ($workedCustomers as $wc): $wcid = (int)$wc['customer_id']; ?>
-                <div class="worked-item" id="worked-<?= $wcid ?>">
-                    <span class="worked-name"><?= h($wc['customer_name'] !== '' ? $wc['customer_name'] : '—') ?></span>
-                    <button type="button" class="btn" onclick="resetWorked(<?= $wcid ?>)"
-                            title="<?= h(t('orders.resetStatusTitle')) ?>"><?= h(t('orders.resetStatus')) ?></button>
-                </div>
-                <?php endforeach; ?>
-            </div>
         </div>
 
     </section>

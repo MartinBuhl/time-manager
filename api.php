@@ -367,6 +367,19 @@ switch ($action) {
             ->execute([$_SESSION['user_id'], $customerId, $body]);
         $orderId = (int) $pdo->lastInsertId();
 
+        // War dies der erste offene Auftrag des Kunden (Kunde neu in der Liste),
+        // Sortierung initialisieren -> Kunde unten einreihen. Hatte er bereits
+        // offene Aufträge, bleibt die Position (last_worked_at) unverändert.
+        $cnt = $pdo->prepare(
+            "SELECT COUNT(*) FROM tm_orders
+             WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL AND id <> ?"
+        );
+        $cnt->execute([$customerId, $orderId]);
+        if ((int) $cnt->fetchColumn() === 0) {
+            $pdo->prepare('UPDATE tm_customers SET last_worked_at = NOW(6) WHERE id = ?')
+                ->execute([$customerId]);
+        }
+
         $err = saveOrderFiles($orderId);
         if ($err !== '') jsonErr($err);
 
@@ -440,16 +453,14 @@ switch ($action) {
         $orderId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         if (!$orderId) jsonErr('Ungültige Auftrags-ID.');
 
-        // Variante A: den ganzen Kunden für heute als bearbeitet markieren –
-        // also alle offenen Aufträge dieses Kunden.
+        // Bearbeitungszeitpunkt am Kunden setzen -> Kunde wandert in der
+        // Auftragsliste nach unten (Sortierung nach "zuletzt bearbeitet").
         $cstmt = db()->prepare('SELECT customer_id FROM tm_orders WHERE id = ?');
         $cstmt->execute([$orderId]);
         $custId = $cstmt->fetchColumn();
         if ($custId !== false) {
-            db()->prepare(
-                "UPDATE tm_orders SET last_worked_date = CURDATE()
-                 WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
-            )->execute([$custId]);
+            db()->prepare('UPDATE tm_customers SET last_worked_at = NOW(6) WHERE id = ?')
+                ->execute([$custId]);
         }
         jsonOk();
 
@@ -458,29 +469,53 @@ switch ($action) {
         requireAuth();
         verifyCsrf();
 
-        $idsRaw = trim($_POST['ids'] ?? '');
-        $ids    = array_values(array_filter(array_map('intval', explode(',', $idsRaw))));
-        if (empty($ids)) jsonErr('Keine Reihenfolge übergeben.');
+        // Drag&Drop: der verschobene Kunde bekommt ein "zuletzt bearbeitet"-
+        // Datum zwischen seinen neuen Nachbarn, damit er nach Reload genau dort
+        // einsortiert wird. Sortierschlüssel = COALESCE(last_worked_at, created_at).
+        $pdo  = db();
+        $id   = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $prev = filter_var($_POST['prev'] ?? '', FILTER_VALIDATE_INT);
+        $next = filter_var($_POST['next'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige Auftrags-ID.');
 
-        // Position kundenweise auf ALLE offenen Aufträge schreiben, damit die
-        // manuelle Reihenfolge auch bleibt, wenn der repräsentative Auftrag
-        // (ältester offener) wechselt.
-        $pdo     = db();
-        $getCust = $pdo->prepare('SELECT customer_id FROM tm_orders WHERE id = ?');
-        $upd     = $pdo->prepare(
-            "UPDATE tm_orders SET sort_order = ?
-             WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
+        $cstmt = $pdo->prepare('SELECT customer_id FROM tm_orders WHERE id = ?');
+        $cstmt->execute([$id]);
+        $cid = $cstmt->fetchColumn();
+        if ($cid === false) jsonErr('Auftrag nicht gefunden.');
+
+        // Effektiver Sortierschlüssel eines Nachbar-Auftrags.
+        $keyStmt = $pdo->prepare(
+            'SELECT COALESCE(c.last_worked_at, o.created_at)
+             FROM tm_orders o LEFT JOIN tm_customers c ON c.id = o.customer_id
+             WHERE o.id = ?'
         );
-        $pos  = 1;
-        $seen = [];
-        foreach ($ids as $oid) {
-            $getCust->execute([$oid]);
-            $cid = $getCust->fetchColumn();
-            if ($cid === false || isset($seen[$cid])) continue;
-            $seen[$cid] = true;
-            $upd->execute([$pos++, $cid]);
+        $keyOf = function ($orderId) use ($keyStmt) {
+            if (!$orderId) return null;
+            $keyStmt->execute([$orderId]);
+            $v = $keyStmt->fetchColumn();
+            return $v === false ? null : $v;
+        };
+        $prevKey = $keyOf($prev);
+        $nextKey = $keyOf($next);
+
+        if ($prevKey !== null && $nextKey !== null) {
+            // Mitte zwischen beiden Nachbarn (Mikrosekunden-genau).
+            $pdo->prepare(
+                'UPDATE tm_customers
+                 SET last_worked_at = FROM_UNIXTIME((UNIX_TIMESTAMP(?) + UNIX_TIMESTAMP(?)) / 2)
+                 WHERE id = ?'
+            )->execute([$prevKey, $nextKey, $cid]);
+        } elseif ($nextKey !== null) {
+            // Ganz oben: knapp vor den obersten Nachbarn.
+            $pdo->prepare(
+                'UPDATE tm_customers SET last_worked_at = FROM_UNIXTIME(UNIX_TIMESTAMP(?) - 1) WHERE id = ?'
+            )->execute([$nextKey, $cid]);
+        } elseif ($prevKey !== null) {
+            // Ganz unten: als zuletzt bearbeitet.
+            $pdo->prepare('UPDATE tm_customers SET last_worked_at = NOW(6) WHERE id = ?')
+                ->execute([$cid]);
         }
-        jsonOk(['count' => count($seen)]);
+        jsonOk();
 
     // ----------------------------------------------------------------
     case 'save_info_text':
@@ -562,12 +597,10 @@ switch ($action) {
         $custId = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT);
         if (!$custId) jsonErr('Ungültige Kunden-ID.');
 
-        // "Bearbeitet"-Markierung des Kunden zurücknehmen – alle offenen
-        // Aufträge tauchen wieder in der Auftragsliste auf.
-        db()->prepare(
-            "UPDATE tm_orders SET last_worked_date = NULL
-             WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL"
-        )->execute([$custId]);
+        // "Bearbeitet"-Markierung des Kunden zurücknehmen -> Kunde wandert
+        // wieder nach oben (sortiert dann nach ältestem offenem Auftrag).
+        db()->prepare('UPDATE tm_customers SET last_worked_at = NULL WHERE id = ?')
+            ->execute([$custId]);
         jsonOk();
 
     // ----------------------------------------------------------------
