@@ -174,6 +174,15 @@ async function markWorked(ev, id) {
     else Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
 }
 
+/* Liste der heute bearbeiteten Kunden auf-/zuklappen */
+function toggleWorkedList() {
+    const list  = document.getElementById('workedList');
+    const caret = document.getElementById('workedCaret');
+    if (!list) return;
+    const open = list.classList.toggle('hidden') === false;
+    if (caret) caret.innerHTML = open ? '&#9662;' : '&#9656;';
+}
+
 /* „Zurücksetzen" – Bearbeitet-Markierung des Kunden aufheben (wandert nach oben) */
 async function resetWorked(ev, customerId) {
     if (ev) ev.stopPropagation();

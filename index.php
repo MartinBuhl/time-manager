@@ -72,6 +72,7 @@ $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
+$workedCustomers = [];
 $bmByParent = [];
 $activities   = ACTIVITIES;
 $customers    = [];
@@ -171,6 +172,7 @@ if ($loggedIn) {
             FROM tm_orders o
             LEFT JOIN tm_customers c ON c.id = o.customer_id
             WHERE o.status = 'offen' AND o.deleted_at IS NULL
+              AND (c.last_worked_at IS NULL OR DATE(c.last_worked_at) < CURDATE())
               AND o.id = (
                   SELECT o2.id FROM tm_orders o2
                   WHERE o2.customer_id = o.customer_id AND o2.status = 'offen'
@@ -190,6 +192,18 @@ if ($loggedIn) {
         ") as $row) {
             $openOrdersByCustomer[(int)$row['customer_id']][] = $row;
         }
+
+        // Heute bearbeitete Kunden (last_worked_at = heute) mit offenen Aufträgen:
+        // aus der Hauptliste ausgeblendet, hier gesammelt. Gleiche Sortierung.
+        $workedCustomers = $pdo->query("
+            SELECT o.customer_id, COALESCE(c.name, '') AS customer_name
+            FROM tm_orders o
+            LEFT JOIN tm_customers c ON c.id = o.customer_id
+            WHERE o.status = 'offen' AND o.deleted_at IS NULL
+              AND DATE(c.last_worked_at) = CURDATE()
+            GROUP BY o.customer_id, c.name, c.last_worked_at
+            ORDER BY c.last_worked_at ASC, o.customer_id ASC
+        ")->fetchAll();
     } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 
     /* Bookmarks-Baum (parent_id 0 = oberste Ebene / Symbolleiste) */
@@ -847,10 +861,6 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                             <span class="ord-name"><?= h($o['customer_name'] !== '' ? $o['customer_name'] : '—') ?></span>
                         </td>
                         <td style="text-align:right;white-space:nowrap">
-                            <?php if (!empty($o['cust_worked'])): ?>
-                            <button type="button" class="btn" onclick="resetWorked(event, <?= $cid ?>)"
-                                    title="<?= h(t('orders.resetStatusTitle')) ?>"><?= h(t('orders.resetStatus')) ?></button>
-                            <?php endif; ?>
                             <button type="button" class="btn" onclick="markWorked(event, <?= $oid ?>)"
                                     title="<?= h(t('orders.workedTitle')) ?>"><?= h(t('orders.worked')) ?></button>
                         </td>
@@ -899,6 +909,22 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                 <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+
+        <div class="worked-customers"<?= empty($workedCustomers) ? ' style="display:none"' : '' ?> id="workedCustomers">
+            <button type="button" class="worked-toggle" onclick="toggleWorkedList()">
+                <span class="worked-caret" id="workedCaret">&#9656;</span>
+                <span><?= h(t('orders.workedCustomers')) ?> (<span id="workedCount"><?= count($workedCustomers) ?></span>)</span>
+            </button>
+            <div class="worked-list hidden" id="workedList">
+                <?php foreach ($workedCustomers as $wc): $wcid = (int)$wc['customer_id']; ?>
+                <div class="worked-item" id="worked-<?= $wcid ?>">
+                    <span class="worked-name"><?= h($wc['customer_name'] !== '' ? $wc['customer_name'] : '—') ?></span>
+                    <button type="button" class="btn" onclick="resetWorked(event, <?= $wcid ?>)"
+                            title="<?= h(t('orders.resetStatusTitle')) ?>"><?= h(t('orders.resetStatus')) ?></button>
+                </div>
+                <?php endforeach; ?>
+            </div>
         </div>
 
     </section>
