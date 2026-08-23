@@ -17,6 +17,23 @@ foreach ($db->query(
     $totals[$c]['total']    += (float) $t['monthly'];
 }
 
+// Monatssummen je Währung + Kategorie (für die Aufklapp-Ansicht),
+// absteigend nach Betrag sortiert.
+$catTotals = []; // [currency => [ ['cat'=>string, 'monthly'=>float], ... ]]
+foreach ($db->query(
+    "SELECT currency, category,
+            SUM(CASE period WHEN 'day' THEN amount*365/12 WHEN 'year' THEN amount/12 ELSE amount END) AS monthly
+     FROM tm_expenses WHERE active = 1
+     GROUP BY currency, category
+     ORDER BY monthly DESC"
+) as $t) {
+    $c = $t['currency'];
+    $catTotals[$c][] = [
+        'cat'     => trim((string) ($t['category'] ?? '')),
+        'monthly' => (float) $t['monthly'],
+    ];
+}
+
 function curSym(string $c): string { return $c === 'USD' ? '$' : '€'; }
 function fmtMoney(float $v, string $c): string {
     return number_format($v, 2, ',', '.') . '&nbsp;' . curSym($c);
@@ -86,6 +103,18 @@ $renderForm = function (array $e) use ($periodLabels) {
 .exp-total .amt { font-size: 18px; font-weight: 700; }
 .exp-total .amt2 { font-size: 15px; font-weight: 600; }
 .exp-total .sep { color: var(--text-muted); }
+.exp-cat-toggle { margin-left: auto; background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 2px 4px; line-height: 1; font-size: 13px; }
+.exp-cat-toggle:hover { color: var(--text); }
+.exp-cat-arrow { display: inline-block; transition: transform .15s ease; }
+.exp-cat-toggle[aria-expanded="true"] .exp-cat-arrow { transform: rotate(90deg); }
+.exp-cat-list { display: flex; flex-direction: column; gap: 3px;
+    margin: 2px 0 4px; padding: 8px 10px 4px; border-top: 1px solid var(--card-border); }
+.exp-cat-head { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+.exp-cat-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.exp-cat-name { color: var(--text); }
+.exp-cat-none { color: var(--text-muted); font-style: italic; }
+.exp-cat-amt { font-weight: 600; white-space: nowrap; }
 .col-scope { white-space: nowrap; }
 .col-active { white-space: nowrap; }
 tr.exp-inactive td { opacity: .5; }
@@ -93,6 +122,10 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
 .exp-actions { white-space: nowrap; text-align: right; }
 .exp-actions .btn { font-size: 11px; padding: 2px 8px; margin-left: 4px; }
 .col-cost { white-space: nowrap; }
+#expTable th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+#expTable th.sortable:hover { background: rgba(0,0,0,.04); }
+.sort-icon { font-size: 10px; color: var(--text-muted); margin-left: 3px; }
+#expTable th.sorted .sort-icon { color: var(--accent, #4a7cdc); }
 .exp-form { display: flex; flex-wrap: wrap; gap: 10px 14px; padding: 6px 2px 10px; }
 .exp-form label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); flex: 1 1 150px; }
 .exp-form label.exp-full { flex: 1 1 100%; }
@@ -131,14 +164,30 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
             <div class="exp-total-line">
                 <span class="lbl"><?= h(t('expenses.monthlyTotal')) ?>:</span> <span class="amt"><?= fmtMoney(0, 'EUR') ?></span>
             </div>
-            <?php else: foreach ($totals as $cur => $s): ?>
+            <?php else: foreach ($totals as $cur => $s): $cats = $catTotals[$cur] ?? []; ?>
             <div class="exp-total-line">
                 <span class="lbl"><?= h(t('expenses.monthlyTotal')) ?>:</span> <span class="amt"><?= fmtMoney($s['total'], $cur) ?></span>
                 <span class="sep">·</span>
                 <span class="lbl"><?= h(t('expenses.scopeBusiness')) ?>:</span> <span class="amt2"><?= fmtMoney($s['business'], $cur) ?></span>
                 <span class="sep">·</span>
                 <span class="lbl"><?= h(t('expenses.scopePrivate')) ?>:</span> <span class="amt2"><?= fmtMoney($s['private'], $cur) ?></span>
+                <?php if (!empty($cats)): ?>
+                <button type="button" class="exp-cat-toggle" aria-expanded="false" aria-controls="expCat-<?= h($cur) ?>"
+                        title="<?= h(t('expenses.byCategory')) ?>" onclick="toggleCatList('<?= h($cur) ?>')">
+                    <span class="exp-cat-arrow">&#9656;</span></button>
+                <?php endif; ?>
             </div>
+            <?php if (!empty($cats)): ?>
+            <div class="exp-cat-list hidden" id="expCat-<?= h($cur) ?>">
+                <div class="exp-cat-head"><?= h(t('expenses.byCategory')) ?></div>
+                <?php foreach ($cats as $ct): ?>
+                <div class="exp-cat-row">
+                    <span class="exp-cat-name<?= $ct['cat'] === '' ? ' exp-cat-none' : '' ?>"><?= $ct['cat'] === '' ? h(t('expenses.noCategory')) : h($ct['cat']) ?></span>
+                    <span class="exp-cat-amt"><?= fmtMoney($ct['monthly'], $cur) ?></span>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
             <?php endforeach; endif; ?>
         </div>
 
@@ -159,12 +208,12 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
             <table class="entries-table" id="expTable">
                 <thead>
                     <tr>
-                        <th><?= h(t('expenses.fTitle')) ?></th>
-                        <th class="col-cost"><?= h(t('expenses.colCost')) ?></th>
-                        <th class="col-scope"><?= h(t('expenses.fScope')) ?></th>
-                        <th><?= h(t('expenses.colCategory')) ?></th>
-                        <th><?= h(t('expenses.fUsername')) ?></th>
-                        <th class="col-active"><?= h(t('expenses.colActive')) ?></th>
+                        <th class="sortable" data-col="0"><?= h(t('expenses.fTitle')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable col-cost" data-col="1"><?= h(t('expenses.colCost')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable col-scope" data-col="2"><?= h(t('expenses.fScope')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="3"><?= h(t('expenses.colCategory')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable" data-col="4"><?= h(t('expenses.fUsername')) ?> <span class="sort-icon"></span></th>
+                        <th class="sortable col-active" data-col="5"><?= h(t('expenses.colActive')) ?> <span class="sort-icon"></span></th>
                         <th></th>
                     </tr>
                 </thead>
@@ -279,6 +328,73 @@ async function deleteExpense(id, title) {
     if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || '')); return; }
     location.reload();
 }
+
+/* Kategorie-Aufschlüsselung der Monatssumme auf-/zuklappen. */
+function toggleCatList(cur) {
+    const list = document.getElementById('expCat-' + cur);
+    const btn  = document.querySelector('.exp-cat-toggle[aria-controls="expCat-' + cur + '"]');
+    if (!list) return;
+    const open = list.classList.toggle('hidden');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+}
+
+/* ================================================================
+   SORTIEREN nach Spaltenüberschrift (clientseitig)
+   ================================================================ */
+let sortCol = -1;
+let sortDir = 1;
+
+function getCellValue(row, col) {
+    const cells = row.cells;
+    switch (col) {
+        case 0: { // Titel (ohne Beschreibungs-Zeile)
+            const c = cells[0].cloneNode(true);
+            c.querySelectorAll('.exp-desc-cell').forEach(function(el) { el.remove(); });
+            return (c.textContent || '').trim().toLowerCase();
+        }
+        case 1: { // Kosten – numerisch
+            const t = (cells[1].textContent || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+            return parseFloat(t) || -1;
+        }
+        case 2: return (cells[2].textContent || '').trim().toLowerCase(); // Art
+        case 3: return (cells[3].textContent || '').trim().toLowerCase(); // Kategorie
+        case 4: return (cells[4].textContent || '').trim().toLowerCase(); // Benutzername
+        case 5: return cells[5].querySelector('input[type=checkbox]')?.checked ? 1 : 0; // Aktiv
+        default: return '';
+    }
+}
+
+function sortTable(col) {
+    if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
+    document.querySelectorAll('#expTable thead th.sortable').forEach(function(th) {
+        const icon = th.querySelector('.sort-icon');
+        if (parseInt(th.dataset.col) === col) {
+            icon.textContent = sortDir === 1 ? '▲' : '▼';
+            th.classList.add('sorted');
+        } else {
+            icon.textContent = '';
+            th.classList.remove('sorted');
+        }
+    });
+    const tbody = document.querySelector('#expTable tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr.entry-row'));
+    rows.sort(function(a, b) {
+        const va = getCellValue(a, col);
+        const vb = getCellValue(b, col);
+        if (typeof va === 'number') return (va - vb) * sortDir;
+        return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+    // Jede Datenzeile mit ihrer zugehörigen Bearbeiten-Zeile umhängen.
+    rows.forEach(function(row) {
+        tbody.appendChild(row);
+        const edit = document.getElementById('edit-' + row.dataset.id);
+        if (edit) tbody.appendChild(edit);
+    });
+}
+
+document.querySelectorAll('#expTable thead th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() { sortTable(parseInt(th.dataset.col)); });
+});
 </script>
 </body>
 </html>

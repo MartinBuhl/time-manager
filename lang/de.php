@@ -189,6 +189,8 @@ return [
     'expenses.perYear'      => 'pro Jahr',
     'expenses.colCost'      => 'Kosten',
     'expenses.monthlyTotal' => 'Gesamtausgaben pro Monat',
+    'expenses.byCategory'   => 'Pro Kategorie',
+    'expenses.noCategory'   => 'Ohne Kategorie',
     'expenses.copy'         => 'Kopieren',
     'expenses.colActive'    => 'Aktiv',
     'expenses.active'       => 'aktiv',
