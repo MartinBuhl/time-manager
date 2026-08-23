@@ -2265,6 +2265,7 @@ switch ($action) {
         $period   = in_array($_POST['period'] ?? '', ['day', 'month', 'year'], true) ? $_POST['period'] : 'month';
         $currency = ($_POST['currency'] ?? '') === 'USD' ? 'USD' : 'EUR';
         $scope    = ($_POST['scope'] ?? '') === 'private' ? 'private' : 'business';
+        $category = mb_substr(trim($_POST['category'] ?? ''), 0, 255);
         $url      = mb_substr(trim($_POST['url'] ?? ''), 0, 500);
         $username = mb_substr(trim($_POST['username'] ?? ''), 0, 255);
         $email    = trim($_POST['email'] ?? '');
@@ -2275,15 +2276,15 @@ switch ($action) {
         if ($id) {
             db()->prepare(
                 'UPDATE tm_expenses SET title=?, description=?, amount=?, period=?, currency=?, scope=?,
-                        url=?, username=?, email=?, pw_info=? WHERE id=?'
+                        category=?, url=?, username=?, email=?, pw_info=? WHERE id=?'
             )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
-                        $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null, $id]);
+                        $category ?: null, $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null, $id]);
         } else {
             db()->prepare(
-                'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, url, username, email, pw_info)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, category, url, username, email, pw_info)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
-                        $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null]);
+                        $category ?: null, $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null]);
             $id = (int) db()->lastInsertId();
         }
         jsonOk(['id' => $id]);
@@ -2297,11 +2298,11 @@ switch ($action) {
         $e = $src->fetch(PDO::FETCH_ASSOC);
         if (!$e) jsonErr('Ausgabe nicht gefunden.');
         db()->prepare(
-            'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, url, username, email, pw_info)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, category, url, username, email, pw_info)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute([
             mb_substr($e['title'] . ' (Kopie)', 0, 255), $e['description'], $e['amount'],
-            $e['period'], $e['currency'], $e['scope'], $e['url'], $e['username'], $e['email'], $e['pw_info'],
+            $e['period'], $e['currency'], $e['scope'], $e['category'], $e['url'], $e['username'], $e['email'], $e['pw_info'],
         ]);
         jsonOk(['id' => (int) db()->lastInsertId()]);
 

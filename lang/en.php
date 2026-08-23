@@ -176,6 +176,8 @@ return [
     'expenses.fPeriod'      => 'Period',
     'expenses.fCurrency'    => 'Currency',
     'expenses.fScope'       => 'Type',
+    'expenses.fCategory'    => 'Category',
+    'expenses.colCategory'  => 'Category',
     'expenses.scopePrivate' => 'Private',
     'expenses.scopeBusiness'=> 'Business',
     'expenses.fUrl'         => 'URL',

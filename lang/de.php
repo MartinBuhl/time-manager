@@ -176,6 +176,8 @@ return [
     'expenses.fPeriod'      => 'Zeitraum',
     'expenses.fCurrency'    => 'Währung',
     'expenses.fScope'       => 'Art',
+    'expenses.fCategory'    => 'Kategorie',
+    'expenses.colCategory'  => 'Kategorie',
     'expenses.scopePrivate' => 'Privat',
     'expenses.scopeBusiness'=> 'Geschäftlich',
     'expenses.fUrl'         => 'URL',

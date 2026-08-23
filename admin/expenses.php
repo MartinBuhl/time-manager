@@ -54,6 +54,8 @@ $renderForm = function (array $e) use ($periodLabels) {
                 <option value="private"<?= $scope === 'private' ? ' selected' : '' ?>><?= h(t('expenses.scopePrivate')) ?></option>
                 <option value="business"<?= $scope === 'business' ? ' selected' : '' ?>><?= h(t('expenses.scopeBusiness')) ?></option>
             </select></label>
+        <label><span><?= h(t('expenses.fCategory')) ?></span>
+            <input type="text" class="exp-category" value="<?= $val('category') ?>" maxlength="255"></label>
         <label class="exp-full"><span><?= h(t('expenses.fUrl')) ?></span>
             <input type="text" class="exp-url" value="<?= $val('url') ?>" maxlength="500" placeholder="https://…"></label>
         <label><span><?= h(t('expenses.fUsername')) ?></span>
@@ -160,6 +162,7 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
                         <th><?= h(t('expenses.fTitle')) ?></th>
                         <th class="col-cost"><?= h(t('expenses.colCost')) ?></th>
                         <th class="col-scope"><?= h(t('expenses.fScope')) ?></th>
+                        <th><?= h(t('expenses.colCategory')) ?></th>
                         <th><?= h(t('expenses.fUsername')) ?></th>
                         <th class="col-active"><?= h(t('expenses.colActive')) ?></th>
                         <th></th>
@@ -167,7 +170,7 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
                 </thead>
                 <tbody id="expTbody">
                 <?php if (empty($expenses)): ?>
-                    <tr id="emptyRow"><td colspan="6" class="empty-message"><?= h(t('expenses.empty')) ?></td></tr>
+                    <tr id="emptyRow"><td colspan="7" class="empty-message"><?= h(t('expenses.empty')) ?></td></tr>
                 <?php else: foreach ($expenses as $e): $id = (int)$e['id']; $active = (int)$e['active'] === 1; ?>
                     <tr class="entry-row<?= $active ? '' : ' exp-inactive' ?>" data-id="<?= $id ?>">
                         <td>
@@ -178,6 +181,7 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
                         </td>
                         <td class="col-cost"><?= fmtMoney((float)$e['amount'], $e['currency']) ?> <span class="exp-desc-cell"><?= h($periodLabels[$e['period']] ?? '') ?></span></td>
                         <td class="col-scope"><span class="exp-badge exp-badge--<?= h($e['scope']) ?>"><?= h($e['scope'] === 'private' ? t('expenses.scopePrivate') : t('expenses.scopeBusiness')) ?></span></td>
+                        <td><?= h((string)($e['category'] ?? '')) ?></td>
                         <td><?= h((string)$e['username']) ?></td>
                         <td class="col-active">
                             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
@@ -192,7 +196,7 @@ tr.exp-inactive td.col-active, tr.exp-inactive td.exp-actions { opacity: 1; }
                         </td>
                     </tr>
                     <tr id="edit-<?= $id ?>" class="edit-row hidden">
-                        <td colspan="6">
+                        <td colspan="7">
                             <?php $renderForm($e); ?>
                             <div class="exp-form-actions">
                                 <button type="button" class="btn btn--primary" onclick="saveExpense(<?= $id ?>)"><?= h(t('common.save')) ?></button>
@@ -237,6 +241,7 @@ function collectForm(container) {
         period:      g('.exp-period').value,
         currency:    g('.exp-currency').value,
         scope:       g('.exp-scope').value,
+        category:    g('.exp-category').value.trim(),
         url:         g('.exp-url').value.trim(),
         username:    g('.exp-username').value.trim(),
         email:       g('.exp-email').value.trim(),

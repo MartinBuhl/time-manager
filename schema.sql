@@ -328,6 +328,7 @@ CREATE TABLE IF NOT EXISTS `tm_expenses` (
     `period`      ENUM('day','month','year') NOT NULL DEFAULT 'month',
     `currency`    ENUM('EUR','USD')          NOT NULL DEFAULT 'EUR',
     `scope`       ENUM('business','private') NOT NULL DEFAULT 'business',
+    `category`    VARCHAR(255)  DEFAULT NULL,
     `active`      TINYINT(1)    NOT NULL DEFAULT 1,
     `url`         VARCHAR(500)  DEFAULT NULL,
     `username`    VARCHAR(255)  DEFAULT NULL,

@@ -18,6 +18,9 @@
 # Bookmark-Importdateien (Firefox-Export) – enthalten private Daten
 /import/
 
+# Separates Steuer-System – nicht Teil dieses Repos
+/zz_steuer_system/
+
 # Windows / macOS / IDE
 Thumbs.db
 .DS_Store
