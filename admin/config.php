@@ -99,6 +99,15 @@ $groups = [
             ['key' => 'imap_sent_folder', 'label' => t('cfg.label.imap_sent_folder'), 'type' => 'text', 'width' => 'half'],
         ],
     ],
+    5 => [
+        'title'  => t('cfg.group.5'),
+        'fields' => [
+            ['key' => 'payment_reminder_email',       'label' => t('cfg.label.payment_reminder_email'),       'type' => 'email'],
+            ['key' => 'payment_reminder_days_first',  'label' => t('cfg.label.payment_reminder_days_first'),  'type' => 'text', 'width' => 'half'],
+            ['key' => 'payment_reminder_days_second', 'label' => t('cfg.label.payment_reminder_days_second'), 'type' => 'text', 'width' => 'half'],
+            ['key' => 'payment_reminder_days_daily',  'label' => t('cfg.label.payment_reminder_days_daily'),  'type' => 'text', 'width' => 'half'],
+        ],
+    ],
 ];
 ?><!DOCTYPE html>
 <html lang="<?= h(currentLang()) ?>">

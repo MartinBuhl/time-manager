@@ -256,6 +256,8 @@ switch ($action) {
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_encryption',
             'imap_save_sent', 'imap_host', 'imap_port', 'imap_encryption', 'imap_sent_folder',
             'default_lang',
+            'payment_reminder_email', 'payment_reminder_days_first',
+            'payment_reminder_days_second', 'payment_reminder_days_daily',
         ];
         $stmt = db()->prepare(
             'UPDATE tm_configuration
@@ -2341,6 +2343,103 @@ switch ($action) {
             jsonErr($e->getMessage());
         }
         jsonOk(['deleted' => $deleted]);
+
+    // ----------------------------------------------------------------
+    case 'save_payment':
+        require_once dirname(__DIR__) . '/includes/payments.php';
+        $id    = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $title = trim($_POST['title'] ?? '');
+        if ($title === '') jsonErr('Bezeichnung darf nicht leer sein.');
+
+        // Betrag robust parsen ("12,50" / "1.234,56" / "12.50").
+        $norm = str_replace(' ', '', trim($_POST['amount'] ?? ''));
+        if (strpos($norm, ',') !== false) {
+            $norm = str_replace(['.', ','], ['', '.'], $norm);
+        }
+        $amount = is_numeric($norm) ? (float) $norm : 0.0;
+        if ($amount < 0) jsonErr('Betrag darf nicht negativ sein.');
+
+        $currency   = ($_POST['currency'] ?? '') === 'USD' ? 'USD' : 'EUR';
+        $recurrence = in_array($_POST['recurrence'] ?? '', paymentRecurrences(), true) ? $_POST['recurrence'] : 'once';
+        $note       = trim($_POST['note'] ?? '');
+
+        if ($recurrence === 'once') {
+            // Einmalig: konkretes Datum erforderlich.
+            $due = trim($_POST['due_date'] ?? '');
+            $dt  = DateTime::createFromFormat('Y-m-d', $due);
+            if (!$dt || $dt->format('Y-m-d') !== $due) jsonErr('Bitte ein gültiges Fälligkeitsdatum angeben.');
+            $dueDay = null;
+        } else {
+            // Wiederkehrend: Fälligkeitstag (+ Monat bei viertel-/jährlich);
+            // das nächste Fälligkeitsdatum wird daraus berechnet.
+            $dueDay = filter_var($_POST['due_day'] ?? '', FILTER_VALIDATE_INT);
+            if ($dueDay === false || $dueDay < 1 || $dueDay > 31) {
+                jsonErr('Bitte einen gültigen Fälligkeitstag (1–31) angeben.');
+            }
+            $month = null;
+            if ($recurrence === 'quarterly' || $recurrence === 'yearly') {
+                $month = filter_var($_POST['due_month'] ?? '', FILTER_VALIDATE_INT);
+                if ($month === false || $month < 1 || $month > 12) jsonErr('Bitte einen Monat angeben.');
+            }
+            $due = paymentFirstDueFromParts($recurrence, $dueDay, $month);
+        }
+
+        if ($id) {
+            db()->prepare(
+                'UPDATE tm_payments SET title=?, note=?, amount=?, currency=?, recurrence=?, due_date=?, due_day=? WHERE id=?'
+            )->execute([$title, $note ?: null, $amount, $currency, $recurrence, $due, $dueDay, $id]);
+        } else {
+            db()->prepare(
+                'INSERT INTO tm_payments (title, note, amount, currency, recurrence, due_date, due_day)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            )->execute([$title, $note ?: null, $amount, $currency, $recurrence, $due, $dueDay]);
+            $id = (int) db()->lastInsertId();
+        }
+        jsonOk(['id' => $id]);
+
+    // ----------------------------------------------------------------
+    case 'complete_payment':
+        require_once dirname(__DIR__) . '/includes/payments.php';
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        $st = db()->prepare('SELECT due_date, recurrence, due_day FROM tm_payments WHERE id = ?');
+        $st->execute([$id]);
+        $p = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$p) jsonErr('Zahlung nicht gefunden.');
+        $next = paymentNextDueDate($p['due_date'], $p['recurrence'], $p['due_day'] !== null ? (int) $p['due_day'] : null);
+        if ($next === null) {
+            // Einmalige Zahlung -> erledigt.
+            db()->prepare('UPDATE tm_payments SET done = 1, last_paid_at = NOW() WHERE id = ?')->execute([$id]);
+        } else {
+            // Wiederkehrend -> nächster Termin, Erinnerungen zurücksetzen.
+            db()->prepare(
+                'UPDATE tm_payments SET due_date = ?, reminder_stage = 0, last_reminded_on = NULL, last_paid_at = NOW() WHERE id = ?'
+            )->execute([$next, $id]);
+        }
+        jsonOk(['next_due' => $next]);
+
+    // ----------------------------------------------------------------
+    case 'reopen_payment':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_payments SET done = 0, reminder_stage = 0, last_reminded_on = NULL WHERE id = ?')->execute([$id]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
+    case 'toggle_payment':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('UPDATE tm_payments SET active = 1 - active WHERE id = ?')->execute([$id]);
+        $st = db()->prepare('SELECT active FROM tm_payments WHERE id = ?');
+        $st->execute([$id]);
+        jsonOk(['active' => (int) $st->fetchColumn()]);
+
+    // ----------------------------------------------------------------
+    case 'delete_payment':
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+        db()->prepare('DELETE FROM tm_payments WHERE id = ?')->execute([$id]);
+        jsonOk();
 
     // ----------------------------------------------------------------
     default:

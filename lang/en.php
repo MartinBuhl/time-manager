@@ -198,6 +198,45 @@ return [
     'expenses.empty'        => 'No expenses yet.',
     'expenses.titleRequired'=> 'Title must not be empty.',
     'expenses.confirmDelete'=> 'Delete expense “{title}”?',
+
+    'admin.card.payments'   => 'Payments',
+    'payments.new'          => 'New payment',
+    'payments.fTitle'       => 'Description',
+    'payments.fAmount'      => 'Amount',
+    'payments.fCurrency'    => 'Currency',
+    'payments.fRecurrence'  => 'Recurrence',
+    'payments.fDueDate'     => 'Due date',
+    'payments.fDueDay'      => 'Due day',
+    'payments.fMonth'       => 'Month',
+    'payments.dueDayHint'   => 'Day of month (1–31).',
+    'payments.monthHint'    => 'For quarterly: first month of the cycle (then every 3 months).',
+    'payments.dayRequired'  => 'Please enter a due day.',
+    'payments.fNote'        => 'Note',
+    'payments.recOnce'      => 'One-time',
+    'payments.recMonthly'   => 'Monthly',
+    'payments.recQuarterly' => 'Quarterly',
+    'payments.recYearly'    => 'Yearly',
+    'payments.colAmount'    => 'Amount',
+    'payments.colRecurrence'=> 'Recurrence',
+    'payments.colDueDate'   => 'Next due date',
+    'payments.colStatus'    => 'Status',
+    'payments.colActive'    => 'Active',
+    'payments.active'       => 'active',
+    'payments.inactive'     => 'inactive',
+    'payments.markPaid'     => 'Paid',
+    'payments.markDone'     => 'Done',
+    'payments.reopen'       => 'Reopen',
+    'payments.statusDone'   => 'Done',
+    'payments.dueToday'     => 'Due today',
+    'payments.dueInDays'    => 'in {days} days',
+    'payments.overdueDays'  => 'overdue by {days} days',
+    'payments.empty'        => 'No payments yet.',
+    'payments.titleRequired'=> 'Description must not be empty.',
+    'payments.dateRequired' => 'Please enter a due date.',
+    'payments.confirmDelete'=> 'Delete payment “{title}”?',
+    'payments.confirmPaid'  => 'Mark “{title}” as paid? The next due date will be set automatically.',
+    'payments.confirmDone'  => 'Mark “{title}” as done?',
+    'payments.hint'         => 'Due reminders are checked at login and sent by email (at most once per day).',
     'admin.card.trash'      => 'Trash',
     'admin.card.users'      => 'Users',
     'admin.card.config'     => 'Configuration',
@@ -259,6 +298,11 @@ return [
     'cfg.group.2'           => 'Invoice parameters',
     'cfg.group.3'           => 'System & email',
     'cfg.group.4'           => 'SMTP mail sending',
+    'cfg.group.5'           => 'Payment reminders',
+    'cfg.label.payment_reminder_email'       => 'Recipient for payment reminders (empty = invoice email)',
+    'cfg.label.payment_reminder_days_first'  => 'First reminder: days before due date',
+    'cfg.label.payment_reminder_days_second' => 'Second reminder: days before due date',
+    'cfg.label.payment_reminder_days_daily'  => 'Daily reminder from: days before due date',
 
     // Configuration field labels
     'cfg.label.invoice_company'        => 'Company name',
@@ -782,6 +826,19 @@ Click the following link to set a new password:
 The link is valid for 1 hour.
 
 If you did not make this request, please ignore this email.
+
+-- Time Manager',
+
+    'email.paymentReminder.subject' => 'Payment reminder: {title} – due on {date}',
+    'email.paymentReminder.body'    => 'Hello,
+
+this payment is coming up:
+
+  {title}
+  Amount: {amount}
+  Due on: {date} ({info})
+
+Please don\'t forget. Once paid, mark it as "Paid" or "Done" under "Payments" in Time Manager so no further reminders are sent.
 
 -- Time Manager',
 

@@ -198,6 +198,46 @@ return [
     'expenses.empty'        => 'Noch keine Ausgaben.',
     'expenses.titleRequired'=> 'Titel darf nicht leer sein.',
     'expenses.confirmDelete'=> 'Ausgabe „{title}" löschen?',
+
+    'admin.card.payments'   => 'Zahlungen',
+    'payments.new'          => 'Neue Zahlung',
+    'payments.fTitle'       => 'Bezeichnung',
+    'payments.fAmount'      => 'Betrag',
+    'payments.fCurrency'    => 'Währung',
+    'payments.fRecurrence'  => 'Rhythmus',
+    'payments.fDueDate'     => 'Fälligkeit',
+    'payments.fDueDay'      => 'Fälligkeitstag',
+    'payments.fMonth'       => 'Monat',
+    'payments.dueDayHint'   => 'Tag im Monat (1–31).',
+    'payments.monthHint'    => 'Bei vierteljährlich: erster Monat des Zyklus (dann alle 3 Monate).',
+    'payments.dayRequired'  => 'Bitte einen Fälligkeitstag angeben.',
+    'payments.fNote'        => 'Notiz',
+    'payments.recOnce'      => 'Einmalig',
+    'payments.recMonthly'   => 'Monatlich',
+    'payments.recQuarterly' => 'Vierteljährlich',
+    'payments.recYearly'    => 'Jährlich',
+    'payments.colAmount'    => 'Betrag',
+    'payments.colRecurrence'=> 'Rhythmus',
+    'payments.colDueDate'   => 'Nächste Fälligkeit',
+    'payments.colStatus'    => 'Status',
+    'payments.colActive'    => 'Aktiv',
+    'payments.active'       => 'aktiv',
+    'payments.inactive'     => 'inaktiv',
+    'payments.markPaid'     => 'Bezahlt',
+    'payments.markDone'     => 'Erledigt',
+    'payments.reopen'       => 'Wieder öffnen',
+    'payments.statusDone'   => 'Erledigt',
+    'payments.dueToday'     => 'Heute fällig',
+    'payments.dueInDays'    => 'in {days} Tagen',
+    'payments.overdueDays'  => 'seit {days} Tagen überfällig',
+    'payments.empty'        => 'Noch keine Zahlungen.',
+    'payments.titleRequired'=> 'Bezeichnung darf nicht leer sein.',
+    'payments.dateRequired' => 'Bitte ein Fälligkeitsdatum angeben.',
+    'payments.confirmDelete'=> 'Zahlung „{title}" löschen?',
+    'payments.confirmPaid'  => '„{title}" als bezahlt markieren? Der nächste Termin wird automatisch gesetzt.',
+    'payments.confirmDone'  => '„{title}" als erledigt markieren?',
+    'payments.hint'         => 'Fällige Erinnerungen werden beim Login geprüft und per E-Mail versendet (höchstens einmal pro Tag).',
+
     'admin.card.trash'      => 'Papierkorb',
     'admin.card.users'      => 'Benutzer',
     'admin.card.config'     => 'Konfiguration',
@@ -259,6 +299,11 @@ return [
     'cfg.group.2'           => 'Rechnungsparameter',
     'cfg.group.3'           => 'System & E-Mail',
     'cfg.group.4'           => 'SMTP-Mailversand',
+    'cfg.group.5'           => 'Zahlungserinnerungen',
+    'cfg.label.payment_reminder_email'       => 'Empfänger für Zahlungserinnerungen (leer = Rechnungs-E-Mail)',
+    'cfg.label.payment_reminder_days_first'  => 'Erste Erinnerung: Tage vor Fälligkeit',
+    'cfg.label.payment_reminder_days_second' => 'Zweite Erinnerung: Tage vor Fälligkeit',
+    'cfg.label.payment_reminder_days_daily'  => 'Tägliche Erinnerung ab: Tage vor Fälligkeit',
 
     // Konfigurations-Feldbeschriftungen
     'cfg.label.invoice_company'        => 'Firmenname',
@@ -782,6 +827,19 @@ Klicken Sie auf den folgenden Link, um ein neues Passwort zu vergeben:
 Der Link ist 1 Stunde gültig.
 
 Falls Sie keine Anfrage gestellt haben, ignorieren Sie diese E-Mail bitte.
+
+-- Time Manager',
+
+    'email.paymentReminder.subject' => 'Zahlungserinnerung: {title} – fällig am {date}',
+    'email.paymentReminder.body'    => 'Hallo,
+
+diese Zahlung steht an:
+
+  {title}
+  Betrag: {amount}
+  Fällig am: {date} ({info})
+
+Bitte nicht vergessen. Sobald die Zahlung erledigt ist, im Time Manager unter „Zahlungen" auf „Bezahlt" bzw. „Erledigt" setzen, damit keine weiteren Erinnerungen kommen.
 
 -- Time Manager',
 

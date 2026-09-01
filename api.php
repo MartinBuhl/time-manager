@@ -104,6 +104,10 @@ switch ($action) {
         $_SESSION['user_id']   = $user['id'];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 
+        // Beim Login fällige Zahlungserinnerungen prüfen/versenden (max. 1×/Tag).
+        require_once __DIR__ . '/includes/payments.php';
+        paymentMaybeRunRemindersOnLogin();
+
         jsonOk(['csrf_token' => $_SESSION['csrf_token']]);
 
     // ----------------------------------------------------------------
