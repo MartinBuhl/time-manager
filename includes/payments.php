@@ -21,11 +21,13 @@ function paymentRecurrences(): array
 /**
  * Erstes/nächstes Fälligkeitsdatum aus Bausteinen berechnen (>= heute):
  *   - monthly:   nur $day (nächster Monat mit diesem Tag)
- *   - quarterly: $day + Anker-$month (Zyklus: Monat, +3, +6, +9)
- *   - yearly:    $day + $month
- * $day/$month werden auf gültige Bereiche und die Monatslänge begrenzt.
+ *   - quarterly: $day + Anker-$month (Zyklus: Monat, +3, +6, +9) + optional $year
+ *   - yearly:    $day + $month + optional $year
+ * Mit $year lässt sich ein Beginn in einem künftigen Jahr festlegen; ohne
+ * $year wird beim aktuellen Jahr begonnen. $day/$month werden auf gültige
+ * Bereiche und die Monatslänge begrenzt.
  */
-function paymentFirstDueFromParts(string $recurrence, int $day, ?int $month): string
+function paymentFirstDueFromParts(string $recurrence, int $day, ?int $month, ?int $year = null): string
 {
     $today  = new DateTimeImmutable('today');
     $months = paymentIntervalMonths($recurrence) ?? 1;
@@ -35,7 +37,8 @@ function paymentFirstDueFromParts(string $recurrence, int $day, ?int $month): st
         $cursor = $today->modify('first day of this month');
     } else {
         $m      = max(1, min(12, $month));
-        $cursor = new DateTimeImmutable(sprintf('%04d-%02d-01', (int) $today->format('Y'), $m));
+        $y      = ($year !== null && $year >= 1970) ? $year : (int) $today->format('Y');
+        $cursor = new DateTimeImmutable(sprintf('%04d-%02d-01', $y, $m));
     }
 
     for ($i = 0; $i < 130; $i++) {

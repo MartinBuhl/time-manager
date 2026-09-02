@@ -41,6 +41,7 @@ $renderForm = function (array $p) use ($recLabels, $monthNames) {
     $rec = $p['recurrence'] ?? 'once';
     $due = $p['due_date']   ?? '';
     $dueMonth = $due !== '' ? (int) (new DateTime($due))->format('n') : (int) date('n');
+    $dueYear  = $due !== '' ? (int) (new DateTime($due))->format('Y') : (int) date('Y');
     $dayVal   = $p['due_day'] ?? ($due !== '' ? (new DateTime($due))->format('j') : '');
     ?>
     <div class="pay-form">
@@ -71,6 +72,9 @@ $renderForm = function (array $p) use ($recLabels, $monthNames) {
                 <?php endforeach; ?>
             </select>
             <small class="pay-field-hint"><?= h(t('payments.monthHint')) ?></small></label>
+        <label class="pay-year-wrap<?= in_array($rec, ['quarterly','yearly'], true) ? '' : ' hidden' ?>"><span><?= h(t('payments.fYear')) ?> *</span>
+            <input type="number" class="pay-year" min="<?= (int) date('Y') ?>" max="2100" value="<?= (int) $dueYear ?>">
+            <small class="pay-field-hint"><?= h(t('payments.yearHint')) ?></small></label>
         <label class="pay-full"><span><?= h(t('payments.fNote')) ?></span>
             <textarea class="pay-note" rows="2" maxlength="2000"><?= $val('note') ?></textarea></label>
     </div>
@@ -249,6 +253,7 @@ function collectForm(container) {
         due_date:   g('.pay-due').value,
         due_day:    g('.pay-dueday').value.trim(),
         due_month:  g('.pay-month').value,
+        due_year:   g('.pay-year').value.trim(),
         note:       g('.pay-note').value.trim(),
     };
 }
@@ -258,9 +263,11 @@ function syncRecurrence(sel) {
     const form = sel.closest('.pay-form');
     if (!form) return;
     const rec = sel.value;
+    const withMonth = (rec === 'quarterly' || rec === 'yearly');
     form.querySelector('.pay-date-wrap')  ?.classList.toggle('hidden', rec !== 'once');
     form.querySelector('.pay-dueday-wrap')?.classList.toggle('hidden', rec === 'once');
-    form.querySelector('.pay-month-wrap') ?.classList.toggle('hidden', rec !== 'quarterly' && rec !== 'yearly');
+    form.querySelector('.pay-month-wrap') ?.classList.toggle('hidden', !withMonth);
+    form.querySelector('.pay-year-wrap')  ?.classList.toggle('hidden', !withMonth);
 }
 document.querySelectorAll('.pay-recurrence').forEach(sel => {
     sel.addEventListener('change', () => syncRecurrence(sel));

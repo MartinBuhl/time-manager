@@ -2376,12 +2376,14 @@ switch ($action) {
             if ($dueDay === false || $dueDay < 1 || $dueDay > 31) {
                 jsonErr('Bitte einen gültigen Fälligkeitstag (1–31) angeben.');
             }
-            $month = null;
+            $month = null; $year = null;
             if ($recurrence === 'quarterly' || $recurrence === 'yearly') {
                 $month = filter_var($_POST['due_month'] ?? '', FILTER_VALIDATE_INT);
                 if ($month === false || $month < 1 || $month > 12) jsonErr('Bitte einen Monat angeben.');
+                $year = filter_var($_POST['due_year'] ?? '', FILTER_VALIDATE_INT);
+                if ($year === false || $year < 2000 || $year > 2100) jsonErr('Bitte ein gültiges Jahr angeben.');
             }
-            $due = paymentFirstDueFromParts($recurrence, $dueDay, $month);
+            $due = paymentFirstDueFromParts($recurrence, $dueDay, $month, $year);
         }
 
         if ($id) {
