@@ -15,6 +15,10 @@
 # Hochgeladene Auftrags-Dateien – pro Installation verschieden
 /orders/
 
+# Hochgeladene Zahlungs-Belege – pro Installation verschieden (Ordner + .htaccess bleiben)
+/uploads/payments/*
+!/uploads/payments/.htaccess
+
 # Bookmark-Importdateien (Firefox-Export) – enthalten private Daten
 /import/
 

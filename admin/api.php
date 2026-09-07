@@ -2438,10 +2438,134 @@ switch ($action) {
 
     // ----------------------------------------------------------------
     case 'delete_payment':
+        require_once dirname(__DIR__) . '/includes/payments.php';
         $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
         if (!$id) jsonErr('Ungültige ID.');
+        // Zugehörige Belege zuerst von der Platte entfernen, dann den Datensatz.
+        $stmt = db()->prepare('SELECT files FROM tm_payments WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $frow = $stmt->fetch();
+        if ($frow !== false) {
+            paymentUnlinkFiles(paymentDecodeFiles($frow['files']));
+        }
         db()->prepare('DELETE FROM tm_payments WHERE id = ?')->execute([$id]);
         jsonOk();
+
+    // ---- Datei-Belege einer Zahlung -------------------------------
+    case 'upload_payment_file': {
+        require_once dirname(__DIR__) . '/includes/payments.php';
+        $id = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$id) jsonErr('Ungültige ID.');
+
+        $stmt = db()->prepare('SELECT files FROM tm_payments WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if ($row === false) jsonErr('Zahlung nicht gefunden.', 404);
+
+        if (empty($_FILES['file']) || !isset($_FILES['file']['name'])) {
+            jsonErr('Keine Datei empfangen.');
+        }
+
+        // Ein- und Mehrfach-Upload vereinheitlichen (immer als Liste behandeln).
+        $names = $_FILES['file']['name'];
+        if (!is_array($names)) {
+            $_FILES['file'] = [
+                'name'     => [$_FILES['file']['name']],
+                'type'     => [$_FILES['file']['type']],
+                'tmp_name' => [$_FILES['file']['tmp_name']],
+                'error'    => [$_FILES['file']['error']],
+                'size'     => [$_FILES['file']['size']],
+            ];
+        }
+
+        $allowed = paymentAllowedFileTypes();
+        $maxSize = paymentMaxFileSize();
+        $dir     = paymentEnsureUploadDir();
+        $files   = paymentDecodeFiles($row['files']);
+        $added   = [];
+        $rejected = [];
+
+        $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
+        $count = count($_FILES['file']['name']);
+
+        for ($i = 0; $i < $count; $i++) {
+            $err  = (int) ($_FILES['file']['error'][$i] ?? UPLOAD_ERR_NO_FILE);
+            $orig = basename((string) ($_FILES['file']['name'][$i] ?? ''));
+            $tmp  = (string) ($_FILES['file']['tmp_name'][$i] ?? '');
+            $size = (int) ($_FILES['file']['size'][$i] ?? 0);
+
+            if ($err === UPLOAD_ERR_NO_FILE || $orig === '') continue;
+            if ($err !== UPLOAD_ERR_OK || !is_uploaded_file($tmp)) { $rejected[] = $orig; continue; }
+            if ($size <= 0 || $size > $maxSize) { $rejected[] = $orig; continue; }
+
+            $ext = strtolower((string) pathinfo($orig, PATHINFO_EXTENSION));
+            if ($ext === 'jpeg') $ext = 'jpg';
+            if (!isset($allowed[$ext])) { $rejected[] = $orig; continue; }
+
+            // Tatsächlichen MIME-Typ prüfen (nicht dem Client vertrauen).
+            $realMime = $finfo ? (finfo_file($finfo, $tmp) ?: '') : $allowed[$ext];
+            $okMimes  = $ext === 'jpg' ? ['image/jpeg'] : [$allowed[$ext]];
+            if ($finfo && !in_array($realMime, $okMimes, true)) { $rejected[] = $orig; continue; }
+
+            // Verschlüsselter, eindeutiger Dateiname (keine Dubletten).
+            do {
+                $stored = bin2hex(random_bytes(16)) . '.' . $ext;
+            } while (is_file($dir . '/' . $stored));
+
+            if (!@move_uploaded_file($tmp, $dir . '/' . $stored)) { $rejected[] = $orig; continue; }
+            @chmod($dir . '/' . $stored, 0644);
+
+            $entry = [
+                'stored'   => $stored,
+                'name'     => $orig,
+                'size'     => $size,
+                'mime'     => $allowed[$ext],
+                'uploaded' => date('Y-m-d H:i:s'),
+            ];
+            $files[] = $entry;
+            $added[] = $entry;
+        }
+        if ($finfo) finfo_close($finfo);
+
+        if (!$added && $rejected) {
+            jsonErr('Keine gültige Datei. Erlaubt: JPG, PNG, PDF (max. 20 MB).');
+        }
+
+        db()->prepare('UPDATE tm_payments SET files = ? WHERE id = ?')
+            ->execute([$files ? json_encode($files, JSON_UNESCAPED_UNICODE) : null, $id]);
+
+        jsonOk(['files' => $files, 'added' => $added, 'rejected' => $rejected]);
+    }
+
+    case 'delete_payment_file': {
+        require_once dirname(__DIR__) . '/includes/payments.php';
+        $id     = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        $stored = basename((string) ($_POST['stored'] ?? ''));
+        if (!$id) jsonErr('Ungültige ID.');
+        if (!paymentValidStoredName($stored)) jsonErr('Ungültiger Dateiname.');
+
+        $stmt = db()->prepare('SELECT files FROM tm_payments WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if ($row === false) jsonErr('Zahlung nicht gefunden.', 404);
+
+        $files = paymentDecodeFiles($row['files']);
+        $keep  = [];
+        $found = false;
+        foreach ($files as $f) {
+            if (($f['stored'] ?? '') === $stored) {
+                $found = true;
+            } else {
+                $keep[] = $f;
+            }
+        }
+        if ($found) {
+            @unlink(paymentUploadDir() . '/' . $stored);
+            db()->prepare('UPDATE tm_payments SET files = ? WHERE id = ?')
+                ->execute([$keep ? json_encode($keep, JSON_UNESCAPED_UNICODE) : null, $id]);
+        }
+        jsonOk(['files' => $keep]);
+    }
 
     // ----------------------------------------------------------------
     default:
