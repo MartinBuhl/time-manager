@@ -18,6 +18,84 @@ function paymentRecurrences(): array
     return ['once', 'monthly', 'quarterly', 'yearly'];
 }
 
+/* ------------------------------------------------------------------
+   Datei-Uploads (Belege) je Zahlung
+   Speicherung: geschützter Ordner uploads/payments/ (per .htaccess
+   gesperrt), Dateinamen werden beim Upload zufällig verschlüsselt
+   (bin2hex(random_bytes)), sodass keine Dubletten entstehen. Die
+   Metadaten (verschlüsselter + Originalname, Größe, MIME) landen als
+   JSON-Liste in tm_payments.files. Ausgeliefert wird nur über den
+   authentifizierten Endpoint admin/payment_file.php.
+------------------------------------------------------------------ */
+
+/** Basisordner für Zahlungs-Uploads (außerhalb des direkten Web-Zugriffs). */
+function paymentUploadDir(): string
+{
+    return dirname(__DIR__) . '/uploads/payments';
+}
+
+/** Erlaubte Dateiendungen → MIME-Typ für Belege. */
+function paymentAllowedFileTypes(): array
+{
+    return [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'pdf'  => 'application/pdf',
+    ];
+}
+
+/** Maximale Dateigröße je Beleg (Bytes). */
+function paymentMaxFileSize(): int
+{
+    return 20 * 1024 * 1024; // 20 MB
+}
+
+/** Stellt den geschützten Upload-Ordner sicher (inkl. .htaccess-Sperre). */
+function paymentEnsureUploadDir(): string
+{
+    $dir = paymentUploadDir();
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $ht = $dir . '/.htaccess';
+    if (!is_file($ht)) {
+        @file_put_contents($ht, "Require all denied\nDeny from all\n");
+    }
+    return $dir;
+}
+
+/** Dekodiert die files-Spalte zu einer bereinigten Liste von Einträgen. */
+function paymentDecodeFiles(?string $json): array
+{
+    if ($json === null || $json === '') return [];
+    $arr = json_decode($json, true);
+    if (!is_array($arr)) return [];
+    $out = [];
+    foreach ($arr as $f) {
+        if (is_array($f) && !empty($f['stored'])) $out[] = $f;
+    }
+    return $out;
+}
+
+/** Prüft, ob ein verschlüsselter Dateiname dem erwarteten Muster entspricht. */
+function paymentValidStoredName(string $stored): bool
+{
+    return (bool) preg_match('/^[a-f0-9]{32}\.[a-z0-9]{1,5}$/', $stored);
+}
+
+/** Löscht die physischen Dateien einer Zahlung von der Platte. */
+function paymentUnlinkFiles(array $files): void
+{
+    $dir = paymentUploadDir();
+    foreach ($files as $f) {
+        $stored = basename((string) ($f['stored'] ?? ''));
+        if ($stored !== '' && paymentValidStoredName($stored)) {
+            @unlink($dir . '/' . $stored);
+        }
+    }
+}
+
 /**
  * Erstes/nächstes Fälligkeitsdatum aus Bausteinen berechnen (>= heute):
  *   - monthly:   nur $day (nächster Monat mit diesem Tag)

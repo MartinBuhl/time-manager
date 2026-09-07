@@ -77,6 +77,24 @@ $renderForm = function (array $p) use ($recLabels, $monthNames) {
             <small class="pay-field-hint"><?= h(t('payments.yearHint')) ?></small></label>
         <label class="pay-full"><span><?= h(t('payments.fNote')) ?></span>
             <textarea class="pay-note" rows="2" maxlength="2000"><?= $val('note') ?></textarea></label>
+        <?php if (!empty($p['id'])):
+            $pid    = (int) $p['id'];
+            $pfiles = array_map(
+                fn($f) => ['stored' => (string)($f['stored'] ?? ''), 'name' => (string)($f['name'] ?? ''), 'size' => (int)($f['size'] ?? 0)],
+                paymentDecodeFiles($p['files'] ?? null)
+            );
+        ?>
+        <div class="pay-full pay-files" data-pid="<?= $pid ?>" data-files="<?= h(json_encode($pfiles, JSON_UNESCAPED_UNICODE)) ?>">
+            <span class="pay-files-title"><?= h(t('payments.filesLabel')) ?></span>
+            <ul class="pay-file-list"></ul>
+            <div class="pay-file-upload">
+                <input type="file" class="pay-file-input" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf">
+                <button type="button" class="btn" onclick="uploadPaymentFiles(<?= $pid ?>)"><?= h(t('payments.filesUpload')) ?></button>
+                <span class="pay-file-msg" style="font-size:12px"></span>
+            </div>
+            <small class="pay-field-hint"><?= h(t('payments.filesHint')) ?></small>
+        </div>
+        <?php endif; ?>
     </div>
     <?php
 };
@@ -116,6 +134,23 @@ tr.pay-done td.pay-actions { opacity: 1; }
 .pay-form textarea { resize: vertical; }
 .pay-field-hint { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
 .pay-form-actions { display: flex; gap: 8px; padding: 0 2px 8px; }
+.pay-files { gap: 6px !important; }
+.pay-files-title { font-size: 12px; color: var(--text-muted); }
+.pay-file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pay-file-item { display: flex; align-items: center; gap: 8px; font-size: 13px;
+    padding: 4px 8px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--card-bg); }
+.pay-file-link { color: var(--link, #2563eb); text-decoration: none; word-break: break-all; }
+.pay-file-link:hover { text-decoration: underline; }
+.pay-file-size { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.pay-file-empty { color: var(--text-muted); font-size: 12px; font-style: italic; }
+.pay-file-del { margin-left: auto; font-size: 12px; line-height: 1; padding: 3px 9px; flex: 0 0 auto; }
+.pay-file-upload { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pay-file-input { font-size: 12px; color: var(--text); flex: 1 1 auto; min-width: 0; }
+.col-docs { white-space: nowrap; }
+.pay-doc-link { display: inline-block; color: var(--link, #2563eb); text-decoration: none; font-size: 12px; }
+.pay-doc-link + .pay-doc-link { margin-left: 8px; }
+.pay-doc-link:hover { text-decoration: underline; }
+.pay-doc-none { color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -160,13 +195,14 @@ tr.pay-done td.pay-actions { opacity: 1; }
                         <th class="col-recurrence"><?= h(t('payments.colRecurrence')) ?></th>
                         <th class="col-due"><?= h(t('payments.colDueDate')) ?></th>
                         <th class="col-status"><?= h(t('payments.colStatus')) ?></th>
+                        <th class="col-docs"><?= h(t('payments.colDocs')) ?></th>
                         <th class="col-active"><?= h(t('payments.colActive')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="payTbody">
                 <?php if (empty($payments)): ?>
-                    <tr id="emptyRow"><td colspan="7" class="empty-message"><?= h(t('payments.empty')) ?></td></tr>
+                    <tr id="emptyRow"><td colspan="8" class="empty-message"><?= h(t('payments.empty')) ?></td></tr>
                 <?php else: foreach ($payments as $p):
                     $id = (int)$p['id']; $active = (int)$p['active'] === 1; $done = (int)$p['done'] === 1;
                     $rowClass = 'entry-row' . ($active ? '' : ' pay-inactive') . ($done ? ' pay-done' : '');
@@ -184,6 +220,15 @@ tr.pay-done td.pay-actions { opacity: 1; }
                                 <span class="pay-badge"><?= h(t('payments.statusDone')) ?></span>
                             <?php else: [$stTxt, $stCls] = paymentStatus($p['due_date'], $today); ?>
                                 <span class="pay-status <?= $stCls ?>"><?= h($stTxt) ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="col-docs">
+                            <?php $docs = paymentDecodeFiles($p['files'] ?? null); ?>
+                            <?php if ($docs): ?>
+                                <?php foreach ($docs as $di => $df): ?>
+                                    <a class="pay-doc-link" href="payment_file.php?id=<?= $id ?>&f=<?= h(rawurlencode((string)($df['stored'] ?? ''))) ?>" target="_blank" rel="noopener" title="<?= h((string)($df['name'] ?? '')) ?>"><?= h(t('payments.doc')) ?> <?= $di + 1 ?></a><?php endforeach; ?>
+                            <?php else: ?>
+                                <span class="pay-doc-none">—</span>
                             <?php endif; ?>
                         </td>
                         <td class="col-active">
@@ -207,7 +252,7 @@ tr.pay-done td.pay-actions { opacity: 1; }
                         </td>
                     </tr>
                     <tr id="edit-<?= $id ?>" class="edit-row hidden">
-                        <td colspan="7">
+                        <td colspan="8">
                             <?php $renderForm($p); ?>
                             <div class="pay-form-actions">
                                 <button type="button" class="btn btn--primary" onclick="savePayment(<?= $id ?>)"><?= h(t('common.save')) ?></button>
@@ -316,6 +361,96 @@ async function deletePayment(id, title) {
     if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || '')); return; }
     location.reload();
 }
+
+/* -------- Datei-Belege je Zahlung -------- */
+function fmtFileSize(n) {
+    n = +n || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return Math.round(n / 1024) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+}
+
+function renderPaymentFiles(box, files) {
+    const pid = box.getAttribute('data-pid');
+    const ul  = box.querySelector('.pay-file-list');
+    ul.innerHTML = '';
+    if (!files || !files.length) {
+        const li = document.createElement('li');
+        li.className = 'pay-file-empty';
+        li.textContent = t('payments.filesNone');
+        ul.appendChild(li);
+        return;
+    }
+    files.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'pay-file-item';
+
+        const a = document.createElement('a');
+        a.className = 'pay-file-link';
+        a.href = 'payment_file.php?id=' + encodeURIComponent(pid) + '&f=' + encodeURIComponent(f.stored);
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = f.name || f.stored;
+
+        const sz = document.createElement('span');
+        sz.className = 'pay-file-size';
+        if (f.size) sz.textContent = fmtFileSize(f.size);
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn btn--danger pay-file-del';
+        del.textContent = '×';
+        del.title = t('common.delete');
+        del.onclick = () => deletePaymentFile(pid, f.stored, f.name || f.stored, box);
+
+        li.append(a, sz, del);
+        ul.appendChild(li);
+    });
+}
+
+async function uploadPaymentFiles(pid) {
+    const box   = document.querySelector('.pay-files[data-pid="' + pid + '"]');
+    if (!box) return;
+    const input = box.querySelector('.pay-file-input');
+    const msg   = box.querySelector('.pay-file-msg');
+    const setMsg = (txt, err) => { if (msg) { msg.style.color = err ? 'var(--danger)' : 'var(--text-muted)'; msg.textContent = txt; } };
+
+    if (!input.files || !input.files.length) { setMsg(t('payments.filesChoose'), true); return; }
+
+    const fd = new FormData();
+    fd.append('action', 'upload_payment_file');
+    fd.append('id', pid);
+    for (const file of input.files) fd.append('file[]', file);
+
+    setMsg(t('payments.filesUploading'), false);
+    let res;
+    try {
+        const r = await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: fd });
+        res = await r.json();
+    } catch (e) { setMsg(t('common.error'), true); return; }
+
+    if (!res.success) { setMsg(res.error || t('common.error'), true); return; }
+
+    renderPaymentFiles(box, res.data.files || []);
+    input.value = '';
+    const rej = res.data.rejected || [];
+    if (rej.length) setMsg(t('payments.filesRejected', { files: rej.join(', ') }), true);
+    else setMsg(t('payments.filesUploaded'), false);
+}
+
+async function deletePaymentFile(pid, stored, name, box) {
+    if (!await Dialog.confirm(t('payments.filesConfirmDelete', { name }), { danger: true })) return;
+    const res = await apiCall('delete_payment_file', { id: pid, stored });
+    if (!res.success) { Dialog.alert(t('common.error') + ': ' + (res.error || '')); return; }
+    box = box || document.querySelector('.pay-files[data-pid="' + pid + '"]');
+    if (box) renderPaymentFiles(box, res.data.files || []);
+}
+
+document.querySelectorAll('.pay-files').forEach(box => {
+    let files = [];
+    try { files = JSON.parse(box.getAttribute('data-files') || '[]'); } catch (e) {}
+    renderPaymentFiles(box, files);
+});
 </script>
 </body>
 </html>
