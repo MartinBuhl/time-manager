@@ -146,6 +146,11 @@ tr.pay-done td.pay-actions { opacity: 1; }
 .pay-file-del { margin-left: auto; font-size: 12px; line-height: 1; padding: 3px 9px; flex: 0 0 auto; }
 .pay-file-upload { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pay-file-input { font-size: 12px; color: var(--text); flex: 1 1 auto; min-width: 0; }
+.col-docs { white-space: nowrap; }
+.pay-doc-link { display: inline-block; color: var(--link, #2563eb); text-decoration: none; font-size: 12px; }
+.pay-doc-link + .pay-doc-link { margin-left: 8px; }
+.pay-doc-link:hover { text-decoration: underline; }
+.pay-doc-none { color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -190,13 +195,14 @@ tr.pay-done td.pay-actions { opacity: 1; }
                         <th class="col-recurrence"><?= h(t('payments.colRecurrence')) ?></th>
                         <th class="col-due"><?= h(t('payments.colDueDate')) ?></th>
                         <th class="col-status"><?= h(t('payments.colStatus')) ?></th>
+                        <th class="col-docs"><?= h(t('payments.colDocs')) ?></th>
                         <th class="col-active"><?= h(t('payments.colActive')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody id="payTbody">
                 <?php if (empty($payments)): ?>
-                    <tr id="emptyRow"><td colspan="7" class="empty-message"><?= h(t('payments.empty')) ?></td></tr>
+                    <tr id="emptyRow"><td colspan="8" class="empty-message"><?= h(t('payments.empty')) ?></td></tr>
                 <?php else: foreach ($payments as $p):
                     $id = (int)$p['id']; $active = (int)$p['active'] === 1; $done = (int)$p['done'] === 1;
                     $rowClass = 'entry-row' . ($active ? '' : ' pay-inactive') . ($done ? ' pay-done' : '');
@@ -214,6 +220,15 @@ tr.pay-done td.pay-actions { opacity: 1; }
                                 <span class="pay-badge"><?= h(t('payments.statusDone')) ?></span>
                             <?php else: [$stTxt, $stCls] = paymentStatus($p['due_date'], $today); ?>
                                 <span class="pay-status <?= $stCls ?>"><?= h($stTxt) ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td class="col-docs">
+                            <?php $docs = paymentDecodeFiles($p['files'] ?? null); ?>
+                            <?php if ($docs): ?>
+                                <?php foreach ($docs as $di => $df): ?>
+                                    <a class="pay-doc-link" href="payment_file.php?id=<?= $id ?>&f=<?= h(rawurlencode((string)($df['stored'] ?? ''))) ?>" target="_blank" rel="noopener" title="<?= h((string)($df['name'] ?? '')) ?>"><?= h(t('payments.doc')) ?> <?= $di + 1 ?></a><?php endforeach; ?>
+                            <?php else: ?>
+                                <span class="pay-doc-none">—</span>
                             <?php endif; ?>
                         </td>
                         <td class="col-active">
@@ -237,7 +252,7 @@ tr.pay-done td.pay-actions { opacity: 1; }
                         </td>
                     </tr>
                     <tr id="edit-<?= $id ?>" class="edit-row hidden">
-                        <td colspan="7">
+                        <td colspan="8">
                             <?php $renderForm($p); ?>
                             <div class="pay-form-actions">
                                 <button type="button" class="btn btn--primary" onclick="savePayment(<?= $id ?>)"><?= h(t('common.save')) ?></button>

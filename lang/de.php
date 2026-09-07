@@ -248,6 +248,8 @@ return [
     'payments.filesUploaded'  => 'Hochgeladen.',
     'payments.filesRejected'  => 'Abgelehnt (Typ/Größe): {files}',
     'payments.filesConfirmDelete' => 'Datei „{name}" wirklich löschen?',
+    'payments.colDocs'      => 'Dokumente',
+    'payments.doc'          => 'Dokument',
 
     'admin.card.trash'      => 'Papierkorb',
     'admin.card.users'      => 'Benutzer',

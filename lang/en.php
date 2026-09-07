@@ -248,6 +248,8 @@ return [
     'payments.filesUploaded'  => 'Uploaded.',
     'payments.filesRejected'  => 'Rejected (type/size): {files}',
     'payments.filesConfirmDelete' => 'Really delete file "{name}"?',
+    'payments.colDocs'      => 'Documents',
+    'payments.doc'          => 'Document',
     'admin.card.trash'      => 'Trash',
     'admin.card.users'      => 'Users',
     'admin.card.config'     => 'Configuration',
