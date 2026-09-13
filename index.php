@@ -72,6 +72,7 @@ $monthlyStats = ['total' => 0.0, 'avg' => 0.0];
 $todayEntries = [];
 $processingOrders = [];
 $openOrdersByCustomer = [];
+$orderFilesByOrder = [];
 $workedCustomers = [];
 $bmByParent = [];
 $activities   = ACTIVITIES;
@@ -191,6 +192,17 @@ if ($loggedIn) {
             ORDER BY created_at ASC, id ASC
         ") as $row) {
             $openOrdersByCustomer[(int)$row['customer_id']][] = $row;
+        }
+
+        // Datei-Anhänge der offenen Aufträge, je Auftrag gruppiert.
+        foreach ($pdo->query("
+            SELECT f.id, f.order_id, f.original_name, f.mime
+            FROM tm_order_files f
+            JOIN tm_orders o ON o.id = f.order_id
+            WHERE o.status = 'offen' AND o.deleted_at IS NULL
+            ORDER BY f.id ASC
+        ") as $f) {
+            $orderFilesByOrder[(int)$f['order_id']][] = $f;
         }
 
         // Heute bearbeitete Kunden (last_worked_at = heute) mit offenen Aufträgen:
@@ -809,6 +821,7 @@ $icoCheck  = '<svg viewBox="0 0 448 512" width="14" height="14" aria-hidden="tru
 $icoX      = '<svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>';
 $icoGrip   = '<svg viewBox="0 0 320 512" width="12" height="12" aria-hidden="true"><path d="M40 352l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zm192 0l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zM40 320c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0zm192-128l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zM40 32l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zM232 32l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40z"/></svg>';
 $ordAccept = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.heic,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.txt,.csv';
+$icoFile   = '<svg viewBox="0 0 384 512" width="12" height="12" aria-hidden="true"><path d="M0 64C0 28.7 28.7 0 64 0L224 0l0 128c0 17.7 14.3 32 32 32l128 0 0 288c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 64zm384 64l-128 0L256 0 384 128z"/></svg>';
 $icoList   = '<svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M40 48C26.7 48 16 58.7 16 72l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24L40 48zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L192 64zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zM16 232l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0c-13.3 0-24 10.7-24 24zM40 368c-13.3 0-24 10.7-24 24l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0z"/></svg>';
 
 $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
@@ -894,6 +907,25 @@ $renderOrderEditor = function (int $id) use ($ordAccept) { ?>
                                     </div>
                                     <?php if ($omulti): ?>
                                     <div class="suborder-full hidden" id="sofull-<?= $soid ?>"><?= nl2br(h(implode("\n", $olines))) ?></div>
+                                    <?php endif; ?>
+                                    <?php $ofiles = $orderFilesByOrder[$soid] ?? []; if (!empty($ofiles)): ?>
+                                    <div class="suborder-files" onclick="event.stopPropagation()">
+                                        <?php foreach ($ofiles as $of):
+                                            $fid    = (int)$of['id'];
+                                            $fname  = (string)$of['original_name'];
+                                            $isImage = strpos((string)$of['mime'], 'image/') === 0;
+                                        ?>
+                                        <?php if ($isImage): ?>
+                                        <a class="suborder-file suborder-file--img" href="order_file.php?id=<?= $fid ?>" target="_blank" rel="noopener" title="<?= h($fname) ?>">
+                                            <img src="order_file.php?id=<?= $fid ?>" alt="<?= h($fname) ?>" loading="lazy">
+                                        </a>
+                                        <?php else: ?>
+                                        <a class="suborder-file suborder-file--doc" href="order_file.php?id=<?= $fid ?>" target="_blank" rel="noopener" title="<?= h($fname) ?>">
+                                            <?= $icoFile ?? '📎' ?><span><?= h($fname) ?></span>
+                                        </a>
+                                        <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                     <?php endif; ?>
                                     <div id="oedit-<?= $soid ?>" class="suborder-edit hidden">
                                         <?php $renderOrderEditor($soid); ?>
