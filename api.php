@@ -372,15 +372,19 @@ switch ($action) {
         $orderId = (int) $pdo->lastInsertId();
 
         // War dies der erste offene Auftrag des Kunden (Kunde neu in der Liste),
-        // Sortierung initialisieren -> Kunde unten einreihen. Hatte er bereits
-        // offene Aufträge, bleibt die Position (last_worked_at) unverändert.
+        // last_worked_at auf NULL setzen -> der Kunde sortiert über das
+        // created_at des neuen Auftrags ganz unten in die Bearbeitungsliste ein
+        // und erscheint NICHT unter "Heute bearbeitet". (Ein evtl. alter
+        // last_worked_at aus früheren, abgeschlossenen Aufträgen wird damit
+        // bereinigt.) Hatte er bereits offene Aufträge, bleibt die Position
+        // (last_worked_at) unverändert.
         $cnt = $pdo->prepare(
             "SELECT COUNT(*) FROM tm_orders
              WHERE customer_id = ? AND status = 'offen' AND deleted_at IS NULL AND id <> ?"
         );
         $cnt->execute([$customerId, $orderId]);
         if ((int) $cnt->fetchColumn() === 0) {
-            $pdo->prepare('UPDATE tm_customers SET last_worked_at = NOW(6) WHERE id = ?')
+            $pdo->prepare('UPDATE tm_customers SET last_worked_at = NULL WHERE id = ?')
                 ->execute([$customerId]);
         }
 
