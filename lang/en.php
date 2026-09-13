@@ -626,6 +626,12 @@ The mail can then be reviewed and sent under Mail spool.',
     'trash.orderRestored'   => 'Order restored.',
     'trash.confirmPurge'    => 'Permanently delete order with all files? This cannot be undone.',
     'trash.orderPurged'     => 'Order permanently deleted.',
+    'trash.restoreSelected'          => 'Restore selected',
+    'trash.purgeSelected'            => 'Delete selected permanently',
+    'trash.confirmPurgeSelectedEntries' => 'Permanently delete {count} selected entries? This cannot be undone.',
+    'trash.confirmPurgeSelectedOrders'  => 'Permanently delete {count} selected orders and all their files? This cannot be undone.',
+    'trash.selectedRestored'         => 'Selected items restored.',
+    'trash.selectedPurged'           => 'Selected items permanently deleted.',
 
     // Admin – Billing
     'billing.pageTitle'     => 'Billing – Administration',

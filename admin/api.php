@@ -878,6 +878,56 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    // Papierkorb-Sammelaktionen: kommagetrennte ID-Liste -> gültige Ganzzahlen.
+    // Alle greifen nur auf bereits gelöschte Datensätze (deleted_at IS NOT NULL).
+    case 'restore_entries':
+    case 'purge_entries':
+    case 'restore_orders':
+    case 'purge_orders':
+        $ids = array_values(array_unique(array_filter(array_map(
+            'intval',
+            explode(',', (string) ($_POST['ids'] ?? ''))
+        ), fn($v) => $v > 0)));
+        if (empty($ids)) jsonErr('Keine gültigen IDs.');
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+
+        if ($action === 'restore_entries') {
+            $stmt = db()->prepare(
+                "UPDATE tm_entries SET deleted_at = NULL WHERE id IN ($ph) AND deleted_at IS NOT NULL"
+            );
+            $stmt->execute($ids);
+            jsonOk(['affected' => $stmt->rowCount()]);
+        }
+
+        if ($action === 'purge_entries') {
+            // Endgültig löschen – nur, was tatsächlich im Papierkorb liegt.
+            $stmt = db()->prepare(
+                "DELETE FROM tm_entries WHERE id IN ($ph) AND deleted_at IS NOT NULL"
+            );
+            $stmt->execute($ids);
+            jsonOk(['affected' => $stmt->rowCount()]);
+        }
+
+        if ($action === 'restore_orders') {
+            $stmt = db()->prepare(
+                "UPDATE tm_orders SET deleted_at = NULL WHERE id IN ($ph) AND deleted_at IS NOT NULL"
+            );
+            $stmt->execute($ids);
+            jsonOk(['affected' => $stmt->rowCount()]);
+        }
+
+        // purge_orders: nur gelöschte Aufträge, inkl. Datei-Anhänge (purgeOrder).
+        $sel = db()->prepare(
+            "SELECT id FROM tm_orders WHERE id IN ($ph) AND deleted_at IS NOT NULL"
+        );
+        $sel->execute($ids);
+        $purgeable = $sel->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($purgeable as $oid) {
+            purgeOrder((int) $oid);
+        }
+        jsonOk(['affected' => count($purgeable)]);
+
+    // ----------------------------------------------------------------
     case 'add_user':
         $username = trim($_POST['username'] ?? '');
         $email    = trim($_POST['email'] ?? '');

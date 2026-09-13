@@ -627,6 +627,12 @@ Die Mail kann danach unter Mail-Spool geprüft und versendet werden.',
     'trash.orderRestored'   => 'Auftrag wurde wiederhergestellt.',
     'trash.confirmPurge'    => 'Auftrag mit allen Dateien endgültig löschen? Das kann nicht rückgängig gemacht werden.',
     'trash.orderPurged'     => 'Auftrag wurde endgültig gelöscht.',
+    'trash.restoreSelected'          => 'Ausgewählte wiederherstellen',
+    'trash.purgeSelected'            => 'Ausgewählte endgültig löschen',
+    'trash.confirmPurgeSelectedEntries' => '{count} ausgewählte Einträge endgültig löschen? Das kann nicht rückgängig gemacht werden.',
+    'trash.confirmPurgeSelectedOrders'  => '{count} ausgewählte Aufträge mit allen Dateien endgültig löschen? Das kann nicht rückgängig gemacht werden.',
+    'trash.selectedRestored'         => 'Ausgewählte wiederhergestellt.',
+    'trash.selectedPurged'           => 'Ausgewählte endgültig gelöscht.',
 
     // Admin – Abrechnung
     'billing.pageTitle'     => 'Abrechnung – Administration',
