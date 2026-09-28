@@ -55,6 +55,9 @@ return [
     'tracker.startLabel'        => 'Start:',
     'tracker.changeStart'       => 'Change start time',
     'tracker.timeRunning'       => 'Time is still running',
+    'tracker.addInstance'       => 'Track another customer in parallel',
+    'tracker.closeInstance'     => 'Close this timer',
+    'tracker.confirmCloseRunning' => 'This timer is running. Really close it and discard the time tracked so far?',
 
     // Entries
     'entries.chooseDay'         => 'Choose another day',

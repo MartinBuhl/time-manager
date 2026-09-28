@@ -290,6 +290,19 @@ CREATE TABLE IF NOT EXISTS `tm_user_state` (
     PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `tm_active_timers` (
+    `id`            INT          NOT NULL AUTO_INCREMENT,
+    `user_id`       INT          NOT NULL,
+    `customer_id`   INT          DEFAULT NULL,
+    `customer_name` VARCHAR(255) DEFAULT NULL,
+    `activity`      VARCHAR(100) DEFAULT NULL,
+    `project`       VARCHAR(255) DEFAULT NULL,
+    `start_time`    VARCHAR(8)   DEFAULT NULL,
+    `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `tm_orders` (
     `id`               INT          NOT NULL AUTO_INCREMENT,
     `user_id`          INT          DEFAULT NULL,

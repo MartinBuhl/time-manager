@@ -329,6 +329,16 @@ select:focus {
     font-size: 12px;
 }
 
+/* „+" für weitere parallele Timer-Instanz – gleiche Höhe wie „Stop & Speichern" */
+.addInstanceBtn {
+    flex: none;
+    align-self: stretch;
+    font-weight: 700;
+    padding: 6px 12px;
+}
+/* „×" zum Schließen einer Zusatz-Instanz */
+.closeInstanceBtn { font-size: 15px; line-height: 1; }
+
 /* Countdown */
 .countdown {
     font-weight: 700;

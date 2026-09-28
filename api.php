@@ -157,6 +157,55 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    // Laufenden Timer speichern (parallele Zeiterfassung). Ohne id wird ein
+    // neuer Timer angelegt und dessen id zurückgegeben; mit id wird der
+    // bestehende (eigene) Timer aktualisiert (z. B. geänderte Startzeit).
+    case 'save_timer':
+        requireAuth();
+        verifyCsrf();
+
+        $timerId      = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT) ?: null;
+        $customerId   = filter_var($_POST['customer_id'] ?? '', FILTER_VALIDATE_INT) ?: null;
+        $customerName = trim($_POST['customer_name'] ?? '');
+        $activity     = trim($_POST['activity'] ?? '');
+        $project      = trim($_POST['project'] ?? '') ?: null;
+        $startTime    = trim($_POST['start_time'] ?? '');
+
+        if ($activity === '' || !preg_match(timePattern(), $startTime)) {
+            jsonErr('Ungültige Eingabe.');
+        }
+        $uid = $_SESSION['user_id'];
+
+        if ($timerId) {
+            $stmt = db()->prepare(
+                'UPDATE tm_active_timers
+                    SET customer_id = ?, customer_name = ?, activity = ?, project = ?, start_time = ?
+                  WHERE id = ? AND user_id = ?'
+            );
+            $stmt->execute([$customerId, $customerName ?: null, $activity, $project, $startTime, $timerId, $uid]);
+            jsonOk(['id' => $timerId]);
+        }
+
+        $stmt = db()->prepare(
+            'INSERT INTO tm_active_timers (user_id, customer_id, customer_name, activity, project, start_time)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$uid, $customerId, $customerName ?: null, $activity, $project, $startTime]);
+        jsonOk(['id' => (int) db()->lastInsertId()]);
+
+    // ----------------------------------------------------------------
+    // Laufenden Timer verwerfen (z. B. Zusatz-Block schließen), ohne zu speichern.
+    case 'delete_timer':
+        requireAuth();
+        verifyCsrf();
+
+        $timerId = filter_var($_POST['id'] ?? '', FILTER_VALIDATE_INT);
+        if (!$timerId) jsonErr('Ungültige ID.');
+        db()->prepare('DELETE FROM tm_active_timers WHERE id = ? AND user_id = ?')
+            ->execute([$timerId, $_SESSION['user_id']]);
+        jsonOk();
+
+    // ----------------------------------------------------------------
     case 'send_work':
         requireAuth();
         verifyCsrf();
@@ -213,6 +262,13 @@ switch ($action) {
             $ins->execute([$uid, $customerId, $activity, $project, $comment, $today, $startDt, $endDt, $minutes, $billable]);
         }
 
+        // Zugehörigen laufenden Timer entfernen (parallele Erfassung) …
+        $timerId = filter_var($_POST['timer_id'] ?? '', FILTER_VALIDATE_INT) ?: null;
+        if ($timerId) {
+            $pdo->prepare('DELETE FROM tm_active_timers WHERE id = ? AND user_id = ?')
+                ->execute([$timerId, $uid]);
+        }
+        // … und den alten Einzel-Zustand (Abwärtskompatibilität).
         $pdo->prepare('DELETE FROM tm_user_state WHERE user_id = ?')->execute([$uid]);
         $pdo->commit();
 

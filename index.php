@@ -77,7 +77,7 @@ $workedCustomers = [];
 $bmByParent = [];
 $activities   = ACTIVITIES;
 $customers    = [];
-$userState    = null;
+$activeTimers = [];
 $todayMinutes = 0;
 $userRole     = '';
 $today        = date('Y-m-d');
@@ -150,17 +150,17 @@ if ($loggedIn) {
         $projectsByCustomer[(int)$c['id']] = is_array($p) ? $p : [];
     }
 
-    /* Saved tracking state */
-    $stmt = $pdo->prepare('
-        SELECT customer_id, customer_name, activity, project, start_time
-        FROM   tm_user_state
-        WHERE  user_id = ?
-    ');
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch();
-    if ($row && $row['activity'] !== null) {
-        $userState = $row;
-    }
+    /* Laufende Timer (parallele Zeiterfassung) – je Zeile ein Timer */
+    try {
+        $stmt = $pdo->prepare('
+            SELECT id, customer_id, customer_name, activity, project, start_time
+            FROM   tm_active_timers
+            WHERE  user_id = ?
+            ORDER BY id ASC
+        ');
+        $stmt->execute([$userId]);
+        $activeTimers = $stmt->fetchAll();
+    } catch (Throwable $e) { /* Tabelle evtl. noch nicht vorhanden */ }
 
     /* Bearbeitungsliste: je Kunde der aelteste offene Auftrag,
        insgesamt aeltester zuerst */
@@ -343,7 +343,7 @@ function fmtDate(string $dt): string
     window.CSRF_TOKEN = <?= json_encode($_SESSION['csrf_token']) ?>;
     window.LANG = <?= json_encode(currentLang()) ?>;
     window.I18N = <?= json_encode(i18nStrings(), JSON_UNESCAPED_UNICODE) ?>;
-    window.USER_STATE = <?= $userState ? json_encode($userState) : 'null' ?>;
+    window.ACTIVE_TIMERS = <?= json_encode(array_values($activeTimers), JSON_UNESCAPED_UNICODE) ?>;
     window.SHORTCUTS = <?= json_encode(array_values($shortcuts), JSON_UNESCAPED_UNICODE) ?>;
     window.INFO_TEXT = <?= json_encode(cfg('app_info_text', ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
     window.CUSTOMER_PROJECTS = <?php
@@ -506,55 +506,31 @@ $bmTopLinks   = array_values(array_filter($bmTop, fn($x) => $x['type'] === 'link
     </div>
 
     <!-- ---- TRACKER -------------------------------------------- -->
-    <section class="tracker-card">
-
-        <!-- Header: title + monthly stats -->
-        <div class="tracker-row tracker-header">
-            <strong><?= h(t('tracker.title')) ?></strong>
-            <span class="tracker-stats">
-                <?= $monthlyStats['total'] ?>&nbsp;h
-                &nbsp;/&nbsp;
-                Ø&nbsp;<?= $monthlyStats['avg'] ?>&nbsp;h/d
-            </span>
-            <div class="tracker-header-icons">
-                <button type="button" class="btn-icon btn-bookmarks" id="btnBookmarks" onclick="bmToggleSection()" title="<?= h(t('bookmarks.toggle')) ?>">
-                    <svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M0 48V487.7C0 501.1 10.9 512 24.3 512c5 0 9.9-1.5 14-4.4L192 400 345.7 507.6c4.1 2.9 9 4.4 14 4.4c13.4 0 24.3-10.9 24.3-24.3V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48z"/></svg>
-                </button>
-                <div class="settings-wrap">
-                    <button type="button" class="btn-icon btn-settings" id="btnSettings" title="<?= h(t('settings.title')) ?>">
-                        <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm73.3-48C253 51.7 224.8 32 192 32s-61 19.7-73.3 48L32 80C14.3 80 0 94.3 0 112s14.3 32 32 32l86.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 144c17.7 0 32-14.3 32-32s-14.3-32-32-32L265.3 80z"/></svg>
-                    </button>
-                </div>
-                <button type="button" class="btn-icon btn-reload" onclick="location.reload()" title="<?= h(t('tracker.reload')) ?>">
-                    <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2S461.9 48.1 455 55l-41.6 41.6c-87.6-86.5-228.7-86.2-315.8 1C51.6 143.9 32 198.9 32 256c0 114.9 93.1 208 208 208c55.4 0 105.9-21.4 143.5-56.2c11.1-10.4 11.7-27.8 1.3-38.9s-27.8-11.7-38.9-1.3C317.8 396.3 288.4 408 256 408c-83.9 0-152-68.1-152-152c0-42.4 17.3-80.9 45.2-108.8c59.1-59.1 154.7-59.1 213.8 0l-41.6 41.6c-6.9 6.9-8.9 17.2-5.2 26.2S327.3 232 337 232h126.5z"/></svg>
-                </button>
-            </div>
-        </div>
-
+    <?php
+    /* Gemeinsame Steuer-Zeilen einer Tracker-Instanz. Klassenbasiert (statt
+       IDs), damit mehrere Instanzen parallel existieren können. */
+    $renderTrackerControls = function () use ($customers, $activities) { ?>
         <!-- Controls: reset · countdown · customer label -->
         <div class="tracker-row">
-            <button type="button" id="resetBtn" class="btn"><?= h(t('tracker.reset')) ?></button>
-            <div id="countdown" class="countdown">1800</div>
+            <button type="button" class="btn resetBtn"><?= h(t('tracker.reset')) ?></button>
+            <div class="countdown">1800</div>
             <span class="customer-display">
-                <span id="customerDisplay"></span><span id="projectDisplay" class="display-sep"></span><span id="activityDisplay" class="display-sep"></span>
+                <span class="customerDisplay"></span><span class="projectDisplay display-sep"></span><span class="activityDisplay display-sep"></span>
             </span>
         </div>
 
         <!-- Selects: Kunde | Projekt | Tätigkeit -->
         <div class="tracker-row tracker-selects">
-            <select id="selectCustomer">
+            <select class="selectCustomer">
                 <option value=""><?= h(t('tracker.chooseCustomer')) ?></option>
                 <?php foreach ($customers as $c): ?>
-                <option value="<?= $c['id'] ?>"
-                        data-name="<?= h($c['name']) ?>">
-                    <?= h($c['name']) ?>
-                </option>
+                <option value="<?= $c['id'] ?>" data-name="<?= h($c['name']) ?>"><?= h($c['name']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <select id="selectProject" class="hidden">
+            <select class="selectProject hidden">
                 <option value=""><?= h(t('tracker.chooseProject')) ?></option>
             </select>
-            <select id="selectActivity" class="hidden">
+            <select class="selectActivity hidden">
                 <option value=""><?= h(t('tracker.chooseActivity')) ?></option>
                 <?php foreach ($activities as $act): ?>
                 <option value="<?= h($act) ?>"><?= h($act) ?></option>
@@ -563,33 +539,74 @@ $bmTopLinks   = array_values(array_filter($bmTop, fn($x) => $x['type'] === 'link
         </div>
 
         <!-- State 2: Kommentar -->
-        <div class="tracker-row hidden" id="rowComment">
-            <input type="text" id="inputComment" placeholder="<?= h(t('tracker.commentPlaceholder')) ?>">
+        <div class="tracker-row hidden rowComment">
+            <input type="text" class="inputComment" placeholder="<?= h(t('tracker.commentPlaceholder')) ?>">
         </div>
 
         <!-- Shortcuts -->
-        <div class="tracker-row hidden" id="rowShortcuts">
-            <div id="shortcutBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div class="tracker-row hidden rowShortcuts">
+            <div class="shortcutBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         </div>
 
-        <!-- State 2: Stop + Startzeit -->
-        <div class="tracker-row hidden" id="rowStop">
-            <button type="button" id="stopBtn" class="btn btn--primary">
-                <?= h(t('tracker.stopSave')) ?>
-            </button>
+        <!-- State 2: Stop + Startzeit + „+" (weitere Instanz) -->
+        <div class="tracker-row hidden rowStop">
+            <button type="button" class="btn btn--primary stopBtn"><?= h(t('tracker.stopSave')) ?></button>
             <span class="start-label">
-                <?= h(t('tracker.startLabel')) ?>&nbsp;<span id="startTimeWrap"
+                <?= h(t('tracker.startLabel')) ?>&nbsp;<span class="startTimeWrap"
                       style="position:relative;display:inline-block;cursor:pointer;border-bottom:1px dashed currentColor"
-                      title="<?= h(t('tracker.changeStart')) ?>"
-                      onclick="var p=document.getElementById('startTimePicker'); if(p.showPicker){try{p.showPicker();}catch(e){}}">
-                    <span id="startTime">--:--:--</span>
-                    <input type="time" id="startTimePicker"
+                      title="<?= h(t('tracker.changeStart')) ?>">
+                    <span class="startTime">--:--:--</span>
+                    <input type="time" class="startTimePicker"
                            style="position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0;margin:0">
                 </span>
             </span>
+            <button type="button" class="btn btn--primary addInstanceBtn" style="margin-left:auto"
+                    title="<?= h(t('tracker.addInstance')) ?>">+</button>
         </div>
+    <?php }; ?>
 
-    </section>
+    <div id="trackerHost">
+
+        <!-- Primäre Instanz: mit Monatsstatistik + globalen Icons -->
+        <section class="tracker-card tracker-instance" data-primary="1">
+            <div class="tracker-row tracker-header">
+                <strong><?= h(t('tracker.title')) ?></strong>
+                <span class="tracker-stats">
+                    <?= $monthlyStats['total'] ?>&nbsp;h
+                    &nbsp;/&nbsp;
+                    Ø&nbsp;<?= $monthlyStats['avg'] ?>&nbsp;h/d
+                </span>
+                <div class="tracker-header-icons">
+                    <button type="button" class="btn-icon btn-bookmarks" id="btnBookmarks" onclick="bmToggleSection()" title="<?= h(t('bookmarks.toggle')) ?>">
+                        <svg viewBox="0 0 384 512" width="14" height="14" aria-hidden="true"><path d="M0 48V487.7C0 501.1 10.9 512 24.3 512c5 0 9.9-1.5 14-4.4L192 400 345.7 507.6c4.1 2.9 9 4.4 14 4.4c13.4 0 24.3-10.9 24.3-24.3V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48z"/></svg>
+                    </button>
+                    <div class="settings-wrap">
+                        <button type="button" class="btn-icon btn-settings" id="btnSettings" title="<?= h(t('settings.title')) ?>">
+                            <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm73.3-48C253 51.7 224.8 32 192 32s-61 19.7-73.3 48L32 80C14.3 80 0 94.3 0 112s14.3 32 32 32l86.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 144c17.7 0 32-14.3 32-32s-14.3-32-32-32L265.3 80z"/></svg>
+                        </button>
+                    </div>
+                    <button type="button" class="btn-icon btn-reload" onclick="location.reload()" title="<?= h(t('tracker.reload')) ?>">
+                        <svg viewBox="0 0 512 512" width="14" height="14" aria-hidden="true"><path d="M463.5 224H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2S461.9 48.1 455 55l-41.6 41.6c-87.6-86.5-228.7-86.2-315.8 1C51.6 143.9 32 198.9 32 256c0 114.9 93.1 208 208 208c55.4 0 105.9-21.4 143.5-56.2c11.1-10.4 11.7-27.8 1.3-38.9s-27.8-11.7-38.9-1.3C317.8 396.3 288.4 408 256 408c-83.9 0-152-68.1-152-152c0-42.4 17.3-80.9 45.2-108.8c59.1-59.1 154.7-59.1 213.8 0l-41.6 41.6c-6.9 6.9-8.9 17.2-5.2 26.2S327.3 232 337 232h126.5z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <?php $renderTrackerControls(); ?>
+        </section>
+
+        <!-- Vorlage für zusätzliche parallele Instanzen (schlank, mit „×") -->
+        <template id="trackerTpl">
+            <section class="tracker-card tracker-instance">
+                <div class="tracker-row tracker-header">
+                    <strong><?= h(t('tracker.title')) ?></strong>
+                    <div class="tracker-header-icons">
+                        <button type="button" class="btn-icon closeInstanceBtn" title="<?= h(t('tracker.closeInstance')) ?>">&#10005;</button>
+                    </div>
+                </div>
+                <?php $renderTrackerControls(); ?>
+            </section>
+        </template>
+
+    </div>
 
     <!-- ---- ENTRIES -------------------------------------------- -->
     <section class="entries-section">

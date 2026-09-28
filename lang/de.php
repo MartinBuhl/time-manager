@@ -55,6 +55,9 @@ return [
     'tracker.startLabel'        => 'Start:',
     'tracker.changeStart'       => 'Startzeit ändern',
     'tracker.timeRunning'       => 'Zeit läuft noch',
+    'tracker.addInstance'       => 'Weiteren Kunden parallel erfassen',
+    'tracker.closeInstance'     => 'Diesen Timer schließen',
+    'tracker.confirmCloseRunning' => 'Dieser Timer läuft. Wirklich schließen und die bisher erfasste Zeit verwerfen?',
 
     // Einträge
     'entries.chooseDay'         => 'Anderen Tag wählen',

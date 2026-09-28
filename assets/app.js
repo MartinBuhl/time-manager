@@ -194,37 +194,295 @@ async function resetWorked(ev, customerId) {
 /* ------------------------------------------------------------------
    Countdown
 ------------------------------------------------------------------ */
-let countdownValue    = 1800;
-let countdownInterval = null;
+/* ==================================================================
+   Tracker – eine Instanz der Zeiterfassung. Mehrere Instanzen laufen
+   parallel (je ein Kunde). Alle Elemente werden innerhalb des eigenen
+   Wurzelknotens per Klasse gesucht, nichts hängt an globalen IDs.
+================================================================== */
+const trackers = [];
 
-function updateCountdownDisplay() {
-    const el = document.getElementById('countdown');
-    if (!el) return;
-    el.textContent = countdownValue;
-    el.classList.toggle('warning', countdownValue <= 600 && countdownValue > 120);
-    el.classList.toggle('urgent',  countdownValue <= 120);
+function addTrackerInstance(restoreData = null) {
+    const tpl  = document.getElementById('trackerTpl');
+    const host = document.getElementById('trackerHost');
+    if (!tpl || !host) return null;
+    const frag = tpl.content.cloneNode(true);
+    const root = frag.querySelector('.tracker-instance');
+    host.appendChild(frag);
+    const tr = new Tracker(root);
+    trackers.push(tr);
+    if (restoreData) tr.restore(restoreData);
+    return tr;
 }
 
-function startCountdown() {
-    clearInterval(countdownInterval);
-    countdownInterval = setInterval(() => {
-        countdownValue--;
-        updateCountdownDisplay();
-        if (countdownValue <= 0) {
-            clearInterval(countdownInterval);
-            Dialog.alert(t('tracker.timeRunning'));
-            countdownValue = 1800;
-            updateCountdownDisplay();
-            startCountdown();
+class Tracker {
+    constructor(root) {
+        this.root    = root;
+        this.primary = root.dataset.primary === '1';
+        const $ = sel => root.querySelector(sel);
+
+        this.selectCustomer  = $('.selectCustomer');
+        this.selectProject   = $('.selectProject');
+        this.selectActivity  = $('.selectActivity');
+        this.inputComment    = $('.inputComment');
+        this.resetBtn        = $('.resetBtn');
+        this.stopBtn         = $('.stopBtn');
+        this.customerDisplay = $('.customerDisplay');
+        this.projectDisplay  = $('.projectDisplay');
+        this.activityDisplay = $('.activityDisplay');
+        this.startTimeEl     = $('.startTime');
+        this.startTimePicker = $('.startTimePicker');
+        this.startTimeWrap   = $('.startTimeWrap');
+        this.countdownEl     = $('.countdown');
+        this.rowComment      = $('.rowComment');
+        this.rowStop         = $('.rowStop');
+        this.rowShortcuts    = $('.rowShortcuts');
+        this.shortcutBtns    = $('.shortcutBtns');
+        this.addBtn          = $('.addInstanceBtn');
+        this.closeBtn        = $('.closeInstanceBtn');
+
+        this.serverId          = null;   // tm_active_timers.id
+        this.customerId        = null;
+        this.customerName      = '';
+        this.project           = '';
+        this.activity          = '';
+        this.startTime         = '';
+        this.countdownValue    = 1800;
+        this.countdownInterval = null;
+
+        this.wire();
+        this.updateCountdownDisplay();
+    }
+
+    /* --- Countdown (30-Min-Erinnerung, je Instanz eigen) --- */
+    updateCountdownDisplay() {
+        const el = this.countdownEl;
+        if (!el) return;
+        el.textContent = this.countdownValue;
+        el.classList.toggle('warning', this.countdownValue <= 600 && this.countdownValue > 120);
+        el.classList.toggle('urgent',  this.countdownValue <= 120);
+    }
+    startCountdown() {
+        clearInterval(this.countdownInterval);
+        this.countdownInterval = setInterval(() => {
+            this.countdownValue--;
+            this.updateCountdownDisplay();
+            if (this.countdownValue <= 0) {
+                clearInterval(this.countdownInterval);
+                Dialog.alert(t('tracker.timeRunning'));
+                this.countdownValue = 1800;
+                this.updateCountdownDisplay();
+                this.startCountdown();
+            }
+        }, 1000);
+    }
+    resetCountdown() {
+        clearInterval(this.countdownInterval);
+        this.countdownValue = 1800;
+        this.updateCountdownDisplay();
+        this.startCountdown();
+    }
+    recomputeCountdownFromStart() {
+        if (!this.startTime) return;
+        const [h, m, sec] = this.startTime.split(':').map(Number);
+        const d = new Date(); d.setHours(h, m, sec || 0, 0);
+        const elapsed = Math.floor((new Date() - d) / 1000);
+        this.countdownValue = Math.max(0, 1800 - elapsed);
+        clearInterval(this.countdownInterval);
+        this.updateCountdownDisplay();
+        if (this.countdownValue > 0) this.startCountdown();
+    }
+
+    /* --- Anzeige / Hilfen --- */
+    updateRunningDisplay() {
+        this.customerDisplay.textContent = this.customerName;
+        this.projectDisplay.textContent  = this.project;
+        this.activityDisplay.textContent = this.activity;
+    }
+    setStartTime(timeStr) {
+        this.startTime = timeStr;
+        this.startTimeEl.textContent = timeStr || '--:--:--';
+        if (this.startTimePicker) this.startTimePicker.value = timeStr ? timeStr.slice(0, 5) : '';
+    }
+    showRunningRows() {
+        this.rowComment.classList.remove('hidden');
+        this.rowStop.classList.remove('hidden');
+    }
+    updateShortcuts() {
+        const matching = (window.SHORTCUTS || []).filter(s =>
+            s.activity === this.activity &&
+            (!s.customer_id || String(s.customer_id) === String(this.customerId)));
+        this.shortcutBtns.innerHTML = '';
+        if (matching.length) {
+            matching.forEach(s => {
+                const btn = document.createElement('button');
+                btn.type = 'button'; btn.className = 'btn'; btn.style.fontSize = '12px';
+                btn.textContent = s.shortcut_text;
+                btn.addEventListener('click', () => {
+                    this.inputComment.value = s.shortcut_text;
+                    this.inputComment.dispatchEvent(new Event('input'));
+                });
+                this.shortcutBtns.appendChild(btn);
+            });
+            this.rowShortcuts.classList.remove('hidden');
+        } else {
+            this.rowShortcuts.classList.add('hidden');
         }
-    }, 1000);
-}
+    }
 
-function resetCountdown() {
-    clearInterval(countdownInterval);
-    countdownValue = 1800;
-    updateCountdownDisplay();
-    startCountdown();
+    /* Laufenden Timer serverseitig speichern/aktualisieren (liefert serverId). */
+    async persist() {
+        const res = await api('save_timer', {
+            id:            this.serverId || '',
+            customer_id:   this.customerId || '',
+            customer_name: this.customerName,
+            activity:      this.activity,
+            project:       this.project,
+            start_time:    this.startTime,
+        });
+        if (res.success && res.data && res.data.id) this.serverId = res.data.id;
+    }
+
+    wire() {
+        this.resetBtn.addEventListener('click', () => this.resetCountdown());
+
+        /* Schritt 1 – Kunde gewählt */
+        this.selectCustomer.addEventListener('change', () => {
+            const opt = this.selectCustomer.selectedOptions[0];
+            if (!this.selectCustomer.value) return;
+            this.customerId   = this.selectCustomer.value;
+            this.customerName = opt.dataset.name || opt.text;
+            this.project      = '';
+            this.selectCustomer.disabled = true;
+
+            const projects = (window.CUSTOMER_PROJECTS || {})[this.customerId] || [];
+            if (projects.length > 1) {
+                this.selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
+                projects.forEach(p => { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name; this.selectProject.appendChild(o); });
+                this.selectProject.classList.remove('hidden');
+            } else {
+                if (projects.length === 1) this.project = projects[0].name;
+                this.selectActivity.classList.remove('hidden');
+            }
+        });
+
+        /* Schritt 2 – Projekt gewählt */
+        this.selectProject.addEventListener('change', () => {
+            if (!this.selectProject.value) return;
+            this.project = this.selectProject.value;
+            this.selectProject.disabled = true;
+            this.selectActivity.classList.remove('hidden');
+        });
+
+        /* Schritt 3 – Tätigkeit gewählt → Timer startet */
+        this.selectActivity.addEventListener('change', async () => {
+            if (!this.selectActivity.value) return;
+            this.activity  = this.selectActivity.value;
+            this.startTime = nowTime();
+            this.selectActivity.disabled = true;
+            this.updateRunningDisplay();
+            this.setStartTime(this.startTime);
+            this.stopBtn.disabled   = true;
+            this.inputComment.value = '';
+            this.showRunningRows();
+            this.updateShortcuts();
+            this.resetCountdown();
+            await this.persist();   // legt Timer an → serverId
+        });
+
+        /* Stop – Eintrag speichern */
+        this.stopBtn.addEventListener('click', async () => {
+            clearInterval(this.countdownInterval);
+            const res = await api('send_work', {
+                timer_id:    this.serverId || '',
+                customer_id: this.customerId || '',
+                activity:    this.activity,
+                project:     this.project,
+                comment:     this.inputComment.value.trim(),
+                start_time:  this.startTime,
+                stop_time:   nowTime(),
+                stop_date:   nowDate(),
+            });
+            if (res.success) {
+                location.reload();
+            } else {
+                Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
+                this.startCountdown();
+            }
+        });
+
+        /* Kommentar-Pflichtfeld: Stop erst aktiv, wenn Text vorhanden */
+        this.inputComment.addEventListener('input', () => {
+            this.stopBtn.disabled = this.inputComment.value.trim() === '';
+        });
+
+        /* Startzeit ändern */
+        if (this.startTimePicker) {
+            this.startTimePicker.addEventListener('change', async () => {
+                if (!this.startTimePicker.value || !this.activity) return;
+                this.setStartTime(this.startTimePicker.value + ':00');
+                await this.persist();
+                this.recomputeCountdownFromStart();
+            });
+        }
+        if (this.startTimeWrap && this.startTimePicker) {
+            this.startTimeWrap.addEventListener('click', () => {
+                if (this.startTimePicker.showPicker) { try { this.startTimePicker.showPicker(); } catch (e) {} }
+            });
+        }
+
+        /* „+" – weitere Instanz · „×" – diese Instanz schließen */
+        if (this.addBtn)   this.addBtn.addEventListener('click', () => addTrackerInstance());
+        if (this.closeBtn) this.closeBtn.addEventListener('click', () => this.close());
+    }
+
+    async close() {
+        if (this.serverId) {
+            if (!await Dialog.confirm(t('tracker.confirmCloseRunning'), { danger: true })) return;
+            await api('delete_timer', { id: this.serverId });
+        }
+        clearInterval(this.countdownInterval);
+        const idx = trackers.indexOf(this);
+        if (idx >= 0) trackers.splice(idx, 1);
+        this.root.remove();
+    }
+
+    /* Beim Neuladen: laufenden Timer aus tm_active_timers wiederherstellen */
+    restore(s) {
+        this.serverId     = s.id || null;
+        this.customerId   = s.customer_id   || null;
+        this.customerName = s.customer_name || '';
+        this.activity     = s.activity      || '';
+        this.project      = s.project       || '';
+        this.startTime    = s.start_time    || '';
+
+        if (this.customerId) { this.selectCustomer.value = this.customerId; this.selectCustomer.disabled = true; }
+
+        const projects = (window.CUSTOMER_PROJECTS || {})[this.customerId] || [];
+        if (projects.length > 1) {
+            this.selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
+            projects.forEach(p => { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name; this.selectProject.appendChild(o); });
+            this.selectProject.value = this.project;
+            this.selectProject.classList.remove('hidden');
+            this.selectProject.disabled = true;
+        }
+        this.selectActivity.value = this.activity;
+        this.selectActivity.classList.remove('hidden');
+        this.selectActivity.disabled = true;
+
+        this.updateRunningDisplay();
+        this.setStartTime(this.startTime);
+        if (this.startTime) {
+            const [h, m, sec] = this.startTime.split(':').map(Number);
+            const d = new Date(); d.setHours(h, m, sec, 0);
+            const elapsed = Math.floor((new Date() - d) / 1000);
+            this.countdownValue = Math.max(0, 1800 - elapsed);
+        }
+        this.stopBtn.disabled = true;
+        this.showRunningRows();
+        this.updateShortcuts();
+        this.updateCountdownDisplay();
+        if (this.countdownValue > 0) this.startCountdown();
+    }
 }
 
 /* ------------------------------------------------------------------
@@ -320,23 +578,6 @@ function nowDate() {
         String(d.getMonth() + 1).padStart(2, '0') + '-' +
         String(d.getDate()).padStart(2, '0');
 }
-
-/* ------------------------------------------------------------------
-   Tracker helpers
------------------------------------------------------------------- */
-function lockSelect(sel) {
-    sel.disabled = true;
-}
-
-function showSelect(sel) {
-    sel.classList.remove('hidden');
-}
-
-function showRunningRows() {
-    document.getElementById('rowComment').classList.remove('hidden');
-    document.getElementById('rowStop')   .classList.remove('hidden');
-}
-
 
 /* ------------------------------------------------------------------
    Main
@@ -436,258 +677,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    /* ---- App page ---- */
-    const selectCustomer   = document.getElementById('selectCustomer');
-    const selectProject    = document.getElementById('selectProject');
-    const selectActivity  = document.getElementById('selectActivity');
-    const inputComment    = document.getElementById('inputComment');
-    const resetBtn         = document.getElementById('resetBtn');
-    const stopBtn          = document.getElementById('stopBtn');
-    const customerDisplay  = document.getElementById('customerDisplay');
-    const projectDisplay   = document.getElementById('projectDisplay');
-    const activityDisplay  = document.getElementById('activityDisplay');
-    const startTimeEl      = document.getElementById('startTime');
-    const startTimePicker  = document.getElementById('startTimePicker');
+    /* ---- App page: Tracker-Instanzen (parallele Zeiterfassung) ---- */
+    const primaryTrackerEl = document.querySelector('#trackerHost .tracker-instance[data-primary="1"]');
+    if (!primaryTrackerEl) return;
 
-    function updateRunningDisplay() {
-        customerDisplay.textContent = selectedCustomerName;
-        projectDisplay.textContent  = selectedProject;
-        activityDisplay.textContent = selectedActivity;
-    }
+    const primaryTracker = new Tracker(primaryTrackerEl);
+    trackers.push(primaryTracker);
 
-    /* Startzeit anzeigen + Zeitwähler synchron halten (Format HH:MM:SS) */
-    function setStartTime(timeStr) {
-        trackingStartTime = timeStr;
-        startTimeEl.textContent = timeStr || '--:--:--';
-        if (startTimePicker) startTimePicker.value = timeStr ? timeStr.slice(0, 5) : '';
-    }
-
-    /* Countdown anhand der aktuellen Startzeit neu berechnen */
-    function recomputeCountdownFromStart() {
-        if (!trackingStartTime) return;
-        const [h, m, sec] = trackingStartTime.split(':').map(Number);
-        const savedDate = new Date();
-        savedDate.setHours(h, m, sec || 0, 0);
-        const elapsed = Math.floor((new Date() - savedDate) / 1000);
-        countdownValue = Math.max(0, 1800 - elapsed);
-        clearInterval(countdownInterval);
-        updateCountdownDisplay();
-        if (countdownValue > 0) startCountdown();
-    }
-
-    /* Startzeit per Zeitwähler ändern */
-    if (startTimePicker) {
-        startTimePicker.addEventListener('change', async () => {
-            if (!startTimePicker.value || !selectedActivity) return;
-            setStartTime(startTimePicker.value + ':00');
-
-            await api('save_start_state', {
-                customer_id:   selectedCustomerId || '',
-                customer_name: selectedCustomerName,
-                activity:      selectedActivity,
-                project:       selectedProject,
-                start_time:    trackingStartTime,
-            });
-
-            recomputeCountdownFromStart();
-        });
-    }
-
-    if (!selectCustomer) return;
-
-    let selectedCustomerId   = null;
-    let selectedCustomerName = '';
-    let selectedProject      = '';
-    let selectedActivity     = '';
-    let trackingStartTime    = '';
-
-    function updateShortcuts() {
-        const container = document.getElementById('shortcutBtns');
-        const row       = document.getElementById('rowShortcuts');
-        if (!container || !row) return;
-
-        const matching = (window.SHORTCUTS || []).filter(s =>
-            s.activity === selectedActivity &&
-            (!s.customer_id || String(s.customer_id) === String(selectedCustomerId))
-        );
-
-        container.innerHTML = '';
-        if (matching.length > 0) {
-            matching.forEach(s => {
-                const btn = document.createElement('button');
-                btn.type      = 'button';
-                btn.className = 'btn';
-                btn.style.fontSize = '12px';
-                btn.textContent    = s.shortcut_text;
-                btn.addEventListener('click', () => {
-                    const input = document.getElementById('inputComment');
-                    input.value = s.shortcut_text;
-                    input.dispatchEvent(new Event('input'));
-                });
-                container.appendChild(btn);
-            });
-            row.classList.remove('hidden');
-        } else {
-            row.classList.add('hidden');
-        }
-    }
-
-    /* Reset button */
-    resetBtn.addEventListener('click', resetCountdown);
-
-    /* Step 1 – customer selected */
-    selectCustomer.addEventListener('change', () => {
-        const opt = selectCustomer.selectedOptions[0];
-        if (!selectCustomer.value) return;
-
-        selectedCustomerId   = selectCustomer.value;
-        selectedCustomerName = opt.dataset.name || opt.text;
-        selectedProject      = '';
-
-        lockSelect(selectCustomer);
-
-        const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
-
-        if (projects.length > 1) {
-            selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
-            projects.forEach(function(p) {
-                const o = document.createElement('option');
-                o.value = p.name;
-                o.textContent = p.name;
-                selectProject.appendChild(o);
-            });
-            showSelect(selectProject);
-        } else {
-            if (projects.length === 1) {
-                selectedProject = projects[0].name;
-            }
-            showSelect(selectActivity);
-        }
-    });
-
-    /* Step 2 – project selected */
-    selectProject.addEventListener('change', () => {
-        if (!selectProject.value) return;
-        selectedProject = selectProject.value;
-        lockSelect(selectProject);
-        showSelect(selectActivity);
-    });
-
-    /* Step 3 – activity selected → start timer */
-    selectActivity.addEventListener('change', async () => {
-        if (!selectActivity.value) return;
-
-        selectedActivity  = selectActivity.value;
-        trackingStartTime = nowTime();
-
-        lockSelect(selectActivity);
-
-        updateRunningDisplay();
-        setStartTime(trackingStartTime);
-
-        stopBtn.disabled   = true;
-        inputComment.value = '';
-
-        showRunningRows();
-        updateShortcuts();
-        resetCountdown();
-
-        await api('save_start_state', {
-            customer_id:   selectedCustomerId || '',
-            customer_name: selectedCustomerName,
-            activity:      selectedActivity,
-            project:       selectedProject,
-            start_time:    trackingStartTime,
-        });
-    });
-
-    /* Stop – save entry */
-    stopBtn.addEventListener('click', async () => {
-        clearInterval(countdownInterval);
-
-        const comment   = inputComment.value.trim();
-        const stopTime  = nowTime();
-        const stopDate  = nowDate();
-
-        const res = await api('send_work', {
-            customer_id: selectedCustomerId || '',
-            activity:    selectedActivity,
-            project:     selectedProject,
-            comment,
-            start_time:  trackingStartTime,
-            stop_time:   stopTime,
-            stop_date:   stopDate,
-        });
-
-        if (res.success) {
-            location.reload();
-        } else {
-            Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
-            startCountdown();
-        }
-    });
-
-    /* Kommentar-Pflichtfeld: Stop-Button nur aktiv wenn Inhalt vorhanden */
-    inputComment.addEventListener('input', () => {
-        stopBtn.disabled = inputComment.value.trim() === '';
-    });
-
-    /* Restore state (page reload while tracking) */
-    if (window.USER_STATE) {
-        const s = window.USER_STATE;
-
-        selectedCustomerId   = s.customer_id   || null;
-        selectedCustomerName = s.customer_name || '';
-        selectedActivity     = s.activity      || '';
-        selectedProject      = s.project       || '';
-        trackingStartTime    = s.start_time    || '';
-
-        // Kunde wiederherstellen und sperren
-        if (selectedCustomerId) {
-            selectCustomer.value = selectedCustomerId;
-            lockSelect(selectCustomer);
-        }
-
-        // Projekt wiederherstellen falls mehrere vorhanden
-        const projects = (window.CUSTOMER_PROJECTS || {})[selectedCustomerId] || [];
-        if (projects.length > 1) {
-            selectProject.innerHTML = '<option value="">' + escHtml(t('tracker.chooseProject')) + '</option>';
-            projects.forEach(function(p) {
-                const o = document.createElement('option');
-                o.value = p.name;
-                o.textContent = p.name;
-                selectProject.appendChild(o);
-            });
-            selectProject.value = selectedProject;
-            showSelect(selectProject);
-            lockSelect(selectProject);
-        }
-
-        // Tätigkeit wiederherstellen und sperren
-        selectActivity.value = selectedActivity;
-        showSelect(selectActivity);
-        lockSelect(selectActivity);
-
-        updateRunningDisplay();
-        setStartTime(trackingStartTime);
-
-        if (trackingStartTime) {
-            const [h, m, sec] = trackingStartTime.split(':').map(Number);
-            const savedDate = new Date();
-            savedDate.setHours(h, m, sec, 0);
-            const elapsed = Math.floor((new Date() - savedDate) / 1000);
-            countdownValue = Math.max(0, 1800 - elapsed);
-        }
-
-        stopBtn.disabled = true;
-
-        showRunningRows();
-        updateShortcuts();
-        updateCountdownDisplay();
-
-        if (countdownValue > 0) startCountdown();
-    } else {
-        updateCountdownDisplay();
+    // Laufende Timer wiederherstellen: erster in die primäre Instanz, weitere als Zusatzblöcke.
+    const restoreTimers = window.ACTIVE_TIMERS || [];
+    if (restoreTimers.length) {
+        primaryTracker.restore(restoreTimers[0]);
+        for (let i = 1; i < restoreTimers.length; i++) addTrackerInstance(restoreTimers[i]);
     }
 
     /* ---- Settings view ---- */
