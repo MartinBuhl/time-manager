@@ -339,6 +339,14 @@ select:focus {
 /* „×" zum Schließen einer Zusatz-Instanz */
 .closeInstanceBtn { font-size: 15px; line-height: 1; }
 
+/* Mobile: Stop + „+" in Zeile 1, Startzeit in Zeile 2 – sonst ragt „+" (v. a. mit App-Zoom) aus der Karte */
+@media (max-width: 575px) {
+    .rowStop { flex-wrap: wrap; }
+    .rowStop .stopBtn { flex: 1 1 0; }
+    .rowStop .addInstanceBtn { order: 1; }
+    .rowStop .start-label { order: 2; flex-basis: 100%; }
+}
+
 /* Countdown */
 .countdown {
     font-weight: 700;
