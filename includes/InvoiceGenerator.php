@@ -142,6 +142,7 @@ class InvoiceGenerator
         $mpdf->Output($pdfPath, \Mpdf\Output\Destination::FILE);
 
         $this->attachZugferd($pdfPath);
+        encFileProtect($pdfPath);
 
         return $year . '/' . $filename;
     }

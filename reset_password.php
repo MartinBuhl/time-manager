@@ -16,6 +16,7 @@ function h(string $s): string
 $token   = trim($_REQUEST['token'] ?? '');
 $error   = '';
 $success = false;
+$recoveryRequired = FieldCipher::state() !== 'off';
 
 // Sprache des Benutzers über das Token ermitteln (Fallback: globaler Default)
 $resetLang = null;
@@ -38,8 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['password_confirm'] ?? '';
 
-    if (strlen($password) < 8) {
-        $error = t('resetpw.tooShort');
+    if (mb_strlen($password) < encMinPasswordLength()) {
+        $error = t($recoveryRequired ? 'resetpw.tooShortEnc' : 'resetpw.tooShort');
     } elseif ($password !== $confirm) {
         $error = t('resetpw.mismatch');
     } else {
@@ -57,15 +58,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $token = '';
         } else {
             $pdo  = db();
-            $hash = password_hash($password, PASSWORD_DEFAULT);
+            $envelope = null;
+            if ($recoveryRequired) {
+                try {
+                    $dataKey  = Crypto::unwrapKey(
+                        cfg('encryption_recovery_envelope'),
+                        Crypto::normalizeRecoveryCode($_POST['recovery_code'] ?? '')
+                    );
+                    $envelope = Crypto::wrapKey($dataKey, $password);
+                } catch (CryptoException $e) {
+                    $error = t('resetpw.recoveryInvalid');
+                }
+            }
 
-            $stmt = $pdo->prepare('UPDATE tm_users SET password = ? WHERE id = ?');
-            $stmt->execute([$hash, $reset['user_id']]);
+            if ($error === '') {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
 
-            $stmt = $pdo->prepare('DELETE FROM tm_password_resets WHERE token = ?');
-            $stmt->execute([$token]);
+                $stmt = $pdo->prepare('UPDATE tm_users SET password = ?, enc_key_envelope = ? WHERE id = ?');
+                $stmt->execute([$hash, $envelope, $reset['user_id']]);
 
-            $success = true;
+                $stmt = $pdo->prepare('DELETE FROM tm_password_resets WHERE token = ?');
+                $stmt->execute([$token]);
+
+                $success = true;
+            }
         }
     }
 
@@ -123,9 +139,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
             <form method="post" novalidate>
                 <input type="hidden" name="token" value="<?= h($token) ?>">
+                <?php if ($recoveryRequired): ?>
+                    <p style="font-size:12px;margin:0 0 8px"><?= h(t('resetpw.recoveryHint')) ?></p>
+                    <input type="text"
+                           name="recovery_code"
+                           value="<?= h($_POST['recovery_code'] ?? '') ?>"
+                           placeholder="<?= h(t('resetpw.recoveryCode')) ?>"
+                           autocomplete="off"
+                           spellcheck="false"
+                           required>
+                <?php endif; ?>
                 <input type="password"
                        name="password"
-                       placeholder="<?= h(t('resetpw.newPassword')) ?>"
+                       placeholder="<?= h(t($recoveryRequired ? 'resetpw.newPasswordEnc' : 'resetpw.newPassword')) ?>"
                        autocomplete="new-password"
                        required>
                 <input type="password"

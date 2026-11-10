@@ -304,6 +304,11 @@ $groups = [
     </div>
     <?php endforeach; ?>
 
+    <div class="admin-section" id="cfg-security">
+        <h2><?= h(t('sec.title')) ?></h2>
+        <div id="encPanel"></div>
+    </div>
+
     <div class="admin-section">
         <h2><?= h(t('config.shortcuts')) ?></h2>
 
@@ -427,6 +432,208 @@ function t(key, params) {
     if (params) { for (const k in params) { s = s.split('{' + k + '}').join(params[k]); } }
     return s;
 }
+
+/* ---- Sicherheit: Verschlüsselung ein-/ausschalten ---- */
+let encState = <?= json_encode(FieldCipher::state()) ?>;
+const encSodiumOk   = <?= Crypto::isAvailable() ? 'true' : 'false' ?>;
+const encOtherUsers = <?= (int)db()->query('SELECT COUNT(*) FROM tm_users')->fetchColumn() - 1 ?>;
+
+async function encApi(action, params) {
+    const res = await fetch('api.php', {
+        method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+        body: new URLSearchParams(Object.assign({ action }, params || {}))
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || t('config.serverError'));
+    return data.data || {};
+}
+function encEl() { return document.getElementById('encPanel'); }
+function encMsg(text) {
+    const el = document.getElementById('encErr');
+    if (el) el.textContent = text || '';
+}
+const encErrHtml = '<p id="encErr" style="color:var(--danger);font-size:12px;margin:8px 0 0"></p>';
+
+function encRender() {
+    if (encState === 'encrypting' || encState === 'decrypting') return encRenderResume();
+    if (encState === 'on') return encRenderOn();
+    encRenderOff();
+}
+
+function encRenderOff() {
+    if (!encSodiumOk) {
+        encEl().innerHTML = '<p class="admin-msg admin-msg--err">' + escHtml(t('sec.noSodium')) + '</p>';
+        return;
+    }
+    encEl().innerHTML =
+        '<p style="font-size:13px;margin:0 0 6px"><span class="badge badge--inactive">' + escHtml(t('sec.statusOff')) + '</span></p>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">' + escHtml(t('sec.offHint')) + '</p>' +
+        (encOtherUsers > 0 ? '<p class="admin-msg admin-msg--err">' + escHtml(t('sec.otherUsers', { n: encOtherUsers })) + '</p>' : '') +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input type="password" id="encPw" autocomplete="current-password" placeholder="' + escHtml(t('sec.password')) + '" style="flex:1;min-width:200px">' +
+        '<button class="btn btn--primary" id="encStart">' + escHtml(t('sec.encrypt')) + '</button></div>' + encErrHtml;
+    document.getElementById('encStart').onclick = async function () {
+        encMsg('');
+        this.disabled = true;
+        try {
+            const d = await encApi('enc_prepare', { password: document.getElementById('encPw').value });
+            encRenderCode(d.code);
+        } catch (e) { encMsg(e.message); this.disabled = false; }
+    };
+}
+
+function encRenderCode(code) {
+    encEl().innerHTML =
+        '<p class="admin-msg admin-msg--err">' + escHtml(t('sec.codeWarning')) + '</p>' +
+        '<code id="encCode" style="display:block;font-size:16px;font-weight:700;overflow-wrap:anywhere;padding:12px;margin:10px 0;border:1px solid var(--card-border);border-radius:var(--radius)">' + escHtml(code) + '</code>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
+        '<button class="btn" id="encCopy">' + escHtml(t('sec.copy')) + '</button>' +
+        '<button class="btn" id="encPrint">' + escHtml(t('sec.print')) + '</button></div>' +
+        '<label style="font-size:12px;display:block;margin-bottom:4px">' + escHtml(t('sec.confirmLabel')) + '</label>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input type="text" id="encTail" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX" style="flex:1;min-width:160px">' +
+        '<button class="btn btn--primary" id="encGo">' + escHtml(t('sec.confirmStart')) + '</button>' +
+        '<button class="btn" id="encAbort">' + escHtml(t('common.cancel')) + '</button></div>' + encErrHtml;
+
+    document.getElementById('encCopy').onclick = async function () {
+        try { await navigator.clipboard.writeText(code); this.textContent = t('sec.copied'); }
+        catch (e) { encMsg(t('sec.copyFailed')); }
+    };
+    document.getElementById('encPrint').onclick = function () {
+        const w = window.open('', '_blank');
+        if (!w) { encMsg(t('sec.copyFailed')); return; }
+        w.document.title = t('sec.printTitle');
+        const h = w.document.createElement('h3');
+        h.textContent = t('sec.printTitle');
+        const p = w.document.createElement('pre');
+        p.style.fontSize = '18px';
+        p.textContent = code;
+        w.document.body.append(h, p);
+        w.print();
+    };
+    document.getElementById('encAbort').onclick = async function () {
+        try { await encApi('enc_cancel'); } catch (e) { /* Vorgang läuft ohnehin ab */ }
+        encRender();
+    };
+    document.getElementById('encGo').onclick = async function () {
+        encMsg('');
+        this.disabled = true;
+        try {
+            const d = await encApi('enc_confirm', { tail: document.getElementById('encTail').value });
+            encState = 'encrypting';
+            encRenderProgress(0, d.total);
+            encRun();
+        } catch (e) { encMsg(e.message); this.disabled = false; }
+    };
+}
+
+function encRenderProgress(remaining, total) {
+    const pct = total > 0 ? Math.round((total - remaining) / total * 100) : 100;
+    encEl().innerHTML =
+        '<p style="font-size:13px;margin:0 0 8px">' + escHtml(encState === 'encrypting' ? t('sec.encrypting') : t('sec.decrypting')) + '</p>' +
+        '<div style="height:12px;border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden"><div style="height:100%;width:' + pct + '%;background:var(--accent)"></div></div>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:6px 0 0">' + pct + ' % · ' + escHtml(t('sec.keepOpen')) + '</p>' + encErrHtml;
+}
+
+async function encRun() {
+    try {
+        for (;;) {
+            const d = await encApi('enc_step');
+            encState = d.state;
+            if (d.state === 'on')  return encRenderDone();
+            if (d.state === 'off') return encRender();
+            encRenderProgress(d.remaining, d.total);
+        }
+    } catch (e) {
+        encRenderResume();
+        encMsg(e.message);
+    }
+}
+
+function encRenderResume() {
+    encEl().innerHTML =
+        '<p style="font-size:13px;margin:0 0 10px">' + escHtml(t('sec.interrupted')) + '</p>' +
+        '<button class="btn btn--primary" id="encResume">' + escHtml(t('sec.resume')) + '</button>' + encErrHtml;
+    document.getElementById('encResume').onclick = encRun;
+}
+
+function encRenderDone() {
+    encEl().innerHTML =
+        '<p class="admin-msg admin-msg--ok">' + escHtml(t('sec.done')) + '</p>' +
+        '<p style="font-size:12px;margin:8px 0">' + escHtml(t('sec.doneReminder')) + '</p>' +
+        '<div id="encBackups"></div>' +
+        '<button class="btn" style="margin-top:10px" id="encDoneOk">' + escHtml(t('dialog.ok')) + '</button>';
+    document.getElementById('encDoneOk').onclick = encRender;
+    encLoadBackups();
+}
+
+function encRenderOn() {
+    encEl().innerHTML =
+        '<p style="font-size:13px;margin:0 0 10px"><span class="badge badge--active">' + escHtml(t('sec.statusOn')) + '</span></p>' +
+        '<div id="encBackups" style="margin-bottom:14px"></div>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">' + escHtml(t('sec.disableHint')) + '</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input type="password" id="encPw" autocomplete="current-password" placeholder="' + escHtml(t('sec.password')) + '" style="flex:1;min-width:200px">' +
+        '<button class="btn btn--danger" id="encOff">' + escHtml(t('sec.decrypt')) + '</button></div>' + encErrHtml;
+    document.getElementById('encOff').onclick = async function () {
+        encMsg('');
+        if (!await Dialog.confirm(t('sec.disableConfirm'), { danger: true })) return;
+        this.disabled = true;
+        try {
+            const d = await encApi('enc_disable', { password: document.getElementById('encPw').value });
+            encState = 'decrypting';
+            encRenderProgress(d.total, d.total);
+            encRun();
+        } catch (e) { encMsg(e.message); this.disabled = false; }
+    };
+    encLoadBackups();
+}
+
+async function encLoadBackups() {
+    const box = document.getElementById('encBackups');
+    let files = [], plainFiles = 0;
+    try {
+        const d = await encApi('enc_backups');
+        files = d.files || [];
+        plainFiles = d.plain_files || 0;
+    } catch (e) { return; }
+    const plainHtml = plainFiles > 0
+        ? '<p class="admin-msg admin-msg--err">' + escHtml(t('sec.plainFiles', { n: plainFiles })) + '</p>' +
+          '<button class="btn btn--primary" style="margin:6px 0 12px" id="encFilesGo">' + escHtml(t('sec.encryptFiles')) + '</button>'
+        : '';
+    if (!files.length && !plainHtml) { box.innerHTML = ''; return; }
+    box.innerHTML = plainHtml + (!files.length ? '' :
+        '<p style="font-size:12px;font-weight:600;margin:0 0 4px">' + escHtml(t('sec.oldBackups')) + '</p>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 6px">' + escHtml(t('sec.oldBackupsHint')) + '</p>' +
+        files.map(function (f) {
+            return '<label style="display:block;font-size:12px"><input type="checkbox" class="encBk" value="' + escHtml(f.name) + '"> ' +
+                escHtml(f.name) + ' · ' + escHtml(f.mtime) + '</label>';
+        }).join('') +
+        '<button class="btn btn--danger" style="margin-top:6px" id="encBkDel">' + escHtml(t('sec.deleteSelected')) + '</button>');
+    if (plainHtml) {
+        document.getElementById('encFilesGo').onclick = async function () {
+            this.disabled = true;
+            try {
+                const d = await encApi('enc_resume_files');
+                encState = 'encrypting';
+                encRenderProgress(d.total, d.total);
+                encRun();
+            } catch (e) { encMsg(e.message); this.disabled = false; }
+        };
+    }
+    if (!files.length) return;
+    document.getElementById('encBkDel').onclick = async function () {
+        const names = [...document.querySelectorAll('.encBk:checked')].map(function (c) { return c.value; });
+        if (!names.length) return;
+        if (!await Dialog.confirm(t('sec.deleteConfirm', { n: names.length }), { danger: true })) return;
+        const body = new URLSearchParams({ action: 'enc_delete_backups' });
+        names.forEach(function (n) { body.append('files[]', n); });
+        await fetch('api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body });
+        encLoadBackups();
+    };
+}
+
+encRender();
 
 async function saveDefaultLang() {
     const val = document.getElementById('cfg_default_lang').value;

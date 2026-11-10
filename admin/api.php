@@ -6,6 +6,7 @@ require_once dirname(__DIR__) . '/includes/orders.php';
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
 session_start();
+encSessionRestore();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -69,6 +70,7 @@ function bmNormalizeUrl(string $url): string {
  * damit dasselbe Format auch das Vor-Update-Backup nutzen kann.
  */
 require_once dirname(__DIR__) . '/includes/db_backup.php';
+require_once dirname(__DIR__) . '/includes/backup_files.php';
 
 /**
  * Zerlegt einen SQL-Dump in einzelne Statements.
@@ -266,7 +268,7 @@ switch ($action) {
         );
         foreach ($allowed as $key) {
             if (array_key_exists($key, $_POST)) {
-                $stmt->execute([trim($_POST[$key]), $key]);
+                $stmt->execute([encConfig($key, trim($_POST[$key])), $key]);
             }
         }
         jsonOk();
@@ -328,22 +330,22 @@ switch ($action) {
         $stmt->execute([
             $name,
             $billable,
-            $billingName   ?: null,
-            $billingStreet ?: null,
-            $billingZip    ?: null,
-            $billingCity   ?: null,
-            $billingEmail  ?: null,
-            $billingEmailCc,
-            $billingTaxId  ?: null,
-            $phoneLandline ?: null,
-            $phoneMobile   ?: null,
-            $contactFirstName ?: null,
-            $contactLastName  ?: null,
+            encField($billingName   ?: null),
+            encField($billingStreet ?: null),
+            encField($billingZip    ?: null),
+            encField($billingCity   ?: null),
+            encField($billingEmail  ?: null),
+            encField($billingEmailCc),
+            encField($billingTaxId  ?: null),
+            encField($phoneLandline ?: null),
+            encField($phoneMobile   ?: null),
+            encField($contactFirstName ?: null),
+            encField($contactLastName  ?: null),
             $contactOnInvoice,
             $hourlyRate,
             $invoiceMode,
-            $invoiceText,
-            $mailTemplateHtml,
+            encField($invoiceText),
+            encField($mailTemplateHtml),
             $id,
         ]);
         jsonOk(['name' => $name, 'billable' => $billable]);
@@ -461,8 +463,8 @@ switch ($action) {
         );
         $stmt->execute([
             $customerId, $invoiceDate, $periodStart, $periodEnd,
-            $invoiceMode, $invoiceText,
-            $mailTemplateHtml, $mailTemplatePlain,
+            $invoiceMode, encField($invoiceText),
+            encField($mailTemplateHtml), encField($mailTemplatePlain),
             $taxRate, $rate,
             $invoiceNumber, $nextSeq, $billedMinutes,
             $amountNet, $amountGross, 'erstellt',
@@ -937,7 +939,9 @@ switch ($action) {
 
         if ($username === '')              { jsonErr('Benutzername darf nicht leer sein.'); }
         if (strlen($username) > 50)        { jsonErr('Benutzername zu lang (max. 50 Zeichen).'); }
-        if (strlen($password) < 8)         { jsonErr('Passwort muss mindestens 8 Zeichen haben.'); }
+        if (mb_strlen($password) < encMinPasswordLength()) {
+            jsonErr('Passwort muss mindestens ' . encMinPasswordLength() . ' Zeichen haben.');
+        }
         if (!in_array($userRole, $allowed)){ jsonErr('Ungültige Rolle.'); }
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             jsonErr('Ungültige E-Mail-Adresse.');
@@ -955,9 +959,9 @@ switch ($action) {
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $stmt = db()->prepare(
-            'INSERT INTO tm_users (username, email, password, role) VALUES (?, ?, ?, ?)'
+            'INSERT INTO tm_users (username, email, password, enc_key_envelope, role) VALUES (?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$username, $email !== '' ? $email : null, $hash, $userRole]);
+        $stmt->execute([$username, $email !== '' ? $email : null, $hash, encEnvelopeForPassword($password), $userRole]);
         $newId = (int)db()->lastInsertId();
         jsonOk(['id' => $newId, 'username' => $username, 'email' => $email, 'role' => $userRole]);
 
@@ -989,12 +993,14 @@ switch ($action) {
         }
 
         if ($password !== '') {
-            if (strlen($password) < 8) { jsonErr('Passwort muss mindestens 8 Zeichen haben.'); }
+            if (mb_strlen($password) < encMinPasswordLength()) {
+                jsonErr('Passwort muss mindestens ' . encMinPasswordLength() . ' Zeichen haben.');
+            }
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = db()->prepare(
-                'UPDATE tm_users SET username=?, email=?, password=?, role=? WHERE id=?'
+                'UPDATE tm_users SET username=?, email=?, password=?, enc_key_envelope=?, role=? WHERE id=?'
             );
-            $stmt->execute([$username, $email !== '' ? $email : null, $hash, $userRole, $id]);
+            $stmt->execute([$username, $email !== '' ? $email : null, $hash, encEnvelopeForPassword($password), $userRole, $id]);
         } else {
             $stmt = db()->prepare(
                 'UPDATE tm_users SET username=?, email=?, role=? WHERE id=?'
@@ -1171,11 +1177,11 @@ switch ($action) {
              VALUES (?, ?, ?, ?, ?, ?, NOW())'
         )->execute([
             $invoiceId,
-            $mailBody['subject'],
-            $recipient,
+            encField($mailBody['subject']),
+            encField($recipient),
             $pdfFile,
-            $mailBody['html'],
-            $mailBody['plain'],
+            encField($mailBody['html']),
+            encField($mailBody['plain']),
         ]);
 
         jsonOk(['pdf_file' => $pdfFile]);
@@ -1345,9 +1351,9 @@ switch ($action) {
         if ($periodStart !== null)    { $fields[] = 'period_start = ?';  $values[] = $periodStart; }
         if ($periodEnd   !== null)    { $fields[] = 'period_end = ?';    $values[] = $periodEnd;   }
         $fields[] = 'invoice_mode = ?';  $values[] = $invoiceMode;
-        $fields[] = 'invoice_text = ?';  $values[] = $invoiceText;
-        if ($mailTemplateHtml  !== false) { $fields[] = 'mail_template_html = ?';  $values[] = $mailTemplateHtml;  }
-        if ($mailTemplatePlain !== false) { $fields[] = 'mail_template_plain = ?'; $values[] = $mailTemplatePlain; }
+        $fields[] = 'invoice_text = ?';  $values[] = encField($invoiceText);
+        if ($mailTemplateHtml  !== false) { $fields[] = 'mail_template_html = ?';  $values[] = encField($mailTemplateHtml);  }
+        if ($mailTemplatePlain !== false) { $fields[] = 'mail_template_plain = ?'; $values[] = encField($mailTemplatePlain); }
         if ($taxRate !== null)        { $fields[] = 'tax_rate = ?';      $values[] = $taxRate;     }
         if ($hourlyRate !== null)     { $fields[] = 'hourly_rate = ?';   $values[] = $hourlyRate;  }
 
@@ -1546,7 +1552,7 @@ switch ($action) {
                 if ($spool['pdf_file']) {
                     $pdfPath = dirname(__DIR__) . '/invoices/pdf/' . $spool['pdf_file'];
                     if (is_file($pdfPath)) {
-                        $mail->addAttachment($pdfPath, basename((string)$spool['pdf_file']));
+                        $mail->addStringAttachment(encFileRead($pdfPath), basename((string)$spool['pdf_file']));
                     }
                 }
 
@@ -1567,7 +1573,7 @@ switch ($action) {
                      SET sent_at = NOW(), subject = ?, html_body = ?, text_body = ?
                      WHERE id = ?'
                 );
-                $upd->execute([$mailSubject, $mailHtml, $mailPlain, $spoolId]);
+                $upd->execute([encField($mailSubject), encField($mailHtml), encField($mailPlain), $spoolId]);
                 $sent++;
             } catch (\Throwable $e) {
                 $errors[] = "Rechnung {$spool['invoice_number']}: " . $e->getMessage();
@@ -1639,7 +1645,7 @@ switch ($action) {
             if ($spool['pdf_file']) {
                 $pdfPath = dirname(__DIR__) . '/invoices/pdf/' . $spool['pdf_file'];
                 if (is_file($pdfPath)) {
-                    $mail->addAttachment($pdfPath, basename((string)$spool['pdf_file']));
+                    $mail->addStringAttachment(encFileRead($pdfPath), basename((string)$spool['pdf_file']));
                 }
             }
 
@@ -1768,34 +1774,17 @@ switch ($action) {
 
     // ----------------------------------------------------------------
     case 'create_backup':
-        @set_time_limit(180);
-        $dir = dirname(__DIR__) . '/backups';
-        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
-            jsonErr('Backup-Verzeichnis konnte nicht angelegt werden.');
+        @set_time_limit(300);
+        $withFiles = ($_POST['with_files'] ?? '') === '1';
+        try {
+            $dir  = backupDir();
+            $ts   = date('Y-m-d_His');
+            $name = $withFiles ? "tm_backup_{$ts}_full.zip" : "tm_backup_$ts.zip";
+            backupWriteZip($dir . '/' . $name, "tm_backup_$ts.sql", $withFiles);
+        } catch (RuntimeException $e) {
+            jsonErr($e->getMessage());
         }
-        // Direktzugriff per Web unterbinden
-        $htaccess = $dir . '/.htaccess';
-        if (!is_file($htaccess)) {
-            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
-        }
-
-        $ts   = date('Y-m-d_His');
-        $sql  = buildSqlDump(db());
-        $name = "tm_backup_$ts.zip";
-        $path = $dir . '/' . $name;
-
-        $zip = new ZipArchive();
-        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            jsonErr('ZIP-Datei konnte nicht erstellt werden.');
-        }
-        $zip->addFromString("tm_backup_$ts.sql", $sql);
-        $zip->close();
-
-        jsonOk([
-            'name'  => $name,
-            'size'  => filesize($path),
-            'mtime' => date('d.m.Y H:i:s', filemtime($path)),
-        ]);
+        jsonOk(backupInfo($dir . '/' . $name));
 
     // ----------------------------------------------------------------
     case 'mail_backup':
@@ -1805,6 +1794,9 @@ switch ($action) {
         }
         $path = dirname(__DIR__) . '/backups/' . $name;
         if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
+        if (filesize($path) > BACKUP_MAIL_MAX_BYTES) {
+            jsonErr('Das Backup ist größer als 20 MB und kann nicht per Mail versendet werden. Bitte herunterladen.');
+        }
 
         require_once dirname(__DIR__) . '/includes/MailHelper.php';
         // Admin-E-Mail: zuerst Admin-Benutzer, sonst konfigurierte mail_from
@@ -1937,6 +1929,22 @@ switch ($action) {
         jsonOk();
 
     // ----------------------------------------------------------------
+    case 'enc_prepare':
+    case 'enc_confirm':
+    case 'enc_cancel':
+    case 'enc_disable':
+    case 'enc_step':
+    case 'enc_backups':
+    case 'enc_resume_files':
+    case 'enc_delete_backups':
+        require_once dirname(__DIR__) . '/includes/encryption_admin.php';
+        try {
+            jsonOk(encHandleAction($action, $_POST, $userId));
+        } catch (RuntimeException $e) {
+            jsonErr($e->getMessage());
+        }
+
+    // ----------------------------------------------------------------
     case 'upload_backup':
         if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
             $codes = [
@@ -1957,30 +1965,12 @@ switch ($action) {
             jsonErr('Nur .zip-Backups können hochgeladen werden.');
         }
 
-        // Inhalt prüfen: muss ein gültiges ZIP mit einer .sql-Datei sein
-        $chk = new ZipArchive();
-        if ($chk->open($tmp) !== true) {
-            jsonErr('Die Datei ist kein gültiges ZIP-Archiv.');
-        }
-        $hasSql = false;
-        for ($k = 0; $k < $chk->numFiles; $k++) {
-            if (strtolower((string)pathinfo($chk->getNameIndex($k), PATHINFO_EXTENSION)) === 'sql') {
-                $hasSql = true;
-                break;
-            }
-        }
-        $chk->close();
-        if (!$hasSql) {
-            jsonErr('Das ZIP enthält keine .sql-Datei – kein gültiges Time-Manager-Backup.');
-        }
-
-        $dir = dirname(__DIR__) . '/backups';
-        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
-            jsonErr('Backup-Verzeichnis konnte nicht angelegt werden.');
-        }
-        $htaccess = $dir . '/.htaccess';
-        if (!is_file($htaccess)) {
-            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
+        // Inhalt prüfen: gültiges ZIP mit .sql-Datei, Dateien nur in den erlaubten Ordnern
+        try {
+            backupOpen($tmp, false)['zip']->close();
+            $dir = backupDir();
+        } catch (RuntimeException $e) {
+            jsonErr($e->getMessage());
         }
 
         // Zieldateiname: Originalname übernehmen, wenn er zum Muster passt und
@@ -2001,73 +1991,60 @@ switch ($action) {
             jsonErr('Hochgeladene Datei konnte nicht gespeichert werden.');
         }
 
-        jsonOk([
-            'name'  => $name,
-            'size'  => filesize($path),
-            'mtime' => date('d.m.Y H:i:s', filemtime($path)),
-        ]);
+        jsonOk(backupInfo($path));
 
     // ----------------------------------------------------------------
     case 'restore_backup':
-        @set_time_limit(300);
+        @set_time_limit(600);
         $name = basename((string)($_POST['file'] ?? ''));
-        if (!preg_match('/^tm_backup_[\w\-]+\.zip$/', $name)) {
+        if (!preg_match(BACKUP_NAME_PATTERN, $name)) {
             jsonErr('Ungültiger Dateiname.');
         }
         $path = dirname(__DIR__) . '/backups/' . $name;
         if (!is_file($path)) { jsonErr('Backup-Datei nicht gefunden.'); }
 
-        $zip = new ZipArchive();
-        if ($zip->open($path) !== true) {
-            jsonErr('Backup-ZIP konnte nicht geöffnet werden.');
+        try {
+            $backup = backupOpen($path);
+        } catch (RuntimeException $e) {
+            jsonErr($e->getMessage());
         }
-        $sql = false;
-        for ($k = 0; $k < $zip->numFiles; $k++) {
-            if (strtolower((string)pathinfo($zip->getNameIndex($k), PATHINFO_EXTENSION)) === 'sql') {
-                $sql = $zip->getFromIndex($k);
-                break;
-            }
-        }
-        $zip->close();
-        if ($sql === false || trim($sql) === '') {
-            jsonErr('Im Backup wurde keine SQL-Datei gefunden.');
-        }
+        $sql      = $backup['sql'];
+        $manifest = $backup['manifest'];
 
         $statements = splitSqlStatements($sql);
         if (empty($statements)) {
+            $backup['zip']->close();
             jsonErr('Backup enthält keine ausführbaren SQL-Anweisungen.');
         }
 
         $pdo = db();
 
-        // Sicherheits-Backup des AKTUELLEN Standes anlegen, bevor wir überschreiben.
+        // Sicherheits-Backup des AKTUELLEN Standes inkl. Dateien anlegen, bevor wir überschreiben.
         // Schlägt es fehl, brechen wir ab – lieber kein Restore als kein Rückweg.
-        $dir = dirname(__DIR__) . '/backups';
-        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
-            jsonErr('Sicherheits-Backup fehlgeschlagen: Backup-Verzeichnis nicht verfügbar.');
-        }
-        $htaccess = $dir . '/.htaccess';
-        if (!is_file($htaccess)) {
-            @file_put_contents($htaccess, "Require all denied\nDeny from all\n");
-        }
         $safetyName = 'tm_backup_pre_restore_' . date('Y-m-d_His') . '.zip';
-        $safetyPath = $dir . '/' . $safetyName;
         try {
-            $safetySql = buildSqlDump($pdo);
-            $zip = new ZipArchive();
-            if ($zip->open($safetyPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new \RuntimeException('ZIP-Datei konnte nicht erstellt werden.');
-            }
-            $zip->addFromString(str_replace('.zip', '.sql', $safetyName), $safetySql);
-            $zip->close();
-            if (!is_file($safetyPath) || filesize($safetyPath) === 0) {
-                throw new \RuntimeException('Sicherungsdatei ist leer.');
-            }
+            backupWriteZip(backupDir() . '/' . $safetyName, str_replace('.zip', '.sql', $safetyName), true);
         } catch (\Throwable $e) {
-            @unlink($safetyPath);
+            $backup['zip']->close();
             jsonErr('Sicherheits-Backup vor dem Einspielen fehlgeschlagen – Restore abgebrochen: '
                 . $e->getMessage());
         }
+
+        // Mit Dateien: erst alles entpacken und prüfen, ersetzt wird erst nach der Datenbank.
+        // Ohne Dateien: vorhandene Dateien ggf. für den Schlüssel des Backups vorbereiten.
+        $staged = [];
+        try {
+            if ($manifest !== null) {
+                $staged = backupStageFiles($backup['zip'], $manifest);
+            } else {
+                require_once dirname(__DIR__) . '/includes/encryption_admin.php';
+                encFilesBeforeRestore($sql);
+            }
+        } catch (\RuntimeException $e) {
+            $backup['zip']->close();
+            jsonErr('Dateien konnten nicht vorbereitet werden – Restore abgebrochen: ' . $e->getMessage());
+        }
+        $backup['zip']->close();
 
         $applied = 0;
         try {
@@ -2079,12 +2056,23 @@ switch ($action) {
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
         } catch (\Throwable $e) {
             @$pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+            backupDiscardStaged($staged);
             jsonErr('Fehler beim Einspielen (Anweisung ' . ($applied + 1) . ' von '
                 . count($statements) . '). Der vorherige Stand wurde als „' . $safetyName
                 . '" gesichert und kann erneut eingespielt werden. Fehler: ' . $e->getMessage());
         }
 
-        jsonOk(['statements' => $applied, 'safety' => $safetyName]);
+        $files = null;
+        if ($manifest !== null) {
+            try {
+                $files = backupCommitFiles($staged);
+            } catch (\RuntimeException $e) {
+                jsonErr('Die Datenbank wurde eingespielt, aber nicht alle Dateien: ' . $e->getMessage()
+                    . ' Der vorherige Stand ist als „' . $safetyName . '" gesichert.');
+            }
+        }
+
+        jsonOk(['statements' => $applied, 'safety' => $safetyName, 'files' => $files]);
 
     // ----------------------------------------------------------------
     case 'add_activity':
@@ -2329,14 +2317,16 @@ switch ($action) {
             db()->prepare(
                 'UPDATE tm_expenses SET title=?, description=?, amount=?, period=?, currency=?, scope=?,
                         category=?, url=?, username=?, email=?, pw_info=? WHERE id=?'
-            )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
-                        $category ?: null, $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null, $id]);
+            )->execute([$title, encField($description ?: null), $amount, $period, $currency, $scope,
+                        $category ?: null, encField($url ?: null), encField($username ?: null),
+                        encField($email ?: null), encField($pwInfo ?: null), $id]);
         } else {
             db()->prepare(
                 'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, category, url, username, email, pw_info)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-            )->execute([$title, $description ?: null, $amount, $period, $currency, $scope,
-                        $category ?: null, $url ?: null, $username ?: null, $email ?: null, $pwInfo ?: null]);
+            )->execute([$title, encField($description ?: null), $amount, $period, $currency, $scope,
+                        $category ?: null, encField($url ?: null), encField($username ?: null),
+                        encField($email ?: null), encField($pwInfo ?: null)]);
             $id = (int) db()->lastInsertId();
         }
         jsonOk(['id' => $id]);
@@ -2353,8 +2343,9 @@ switch ($action) {
             'INSERT INTO tm_expenses (title, description, amount, period, currency, scope, category, url, username, email, pw_info)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute([
-            mb_substr($e['title'] . ' (Kopie)', 0, 255), $e['description'], $e['amount'],
-            $e['period'], $e['currency'], $e['scope'], $e['category'], $e['url'], $e['username'], $e['email'], $e['pw_info'],
+            mb_substr($e['title'] . ' (Kopie)', 0, 255), encField($e['description']), $e['amount'],
+            $e['period'], $e['currency'], $e['scope'], $e['category'], encField($e['url']), encField($e['username']),
+            encField($e['email']), encField($e['pw_info']),
         ]);
         jsonOk(['id' => (int) db()->lastInsertId()]);
 
@@ -2439,12 +2430,12 @@ switch ($action) {
         if ($id) {
             db()->prepare(
                 'UPDATE tm_payments SET title=?, note=?, amount=?, currency=?, recurrence=?, due_date=?, due_day=? WHERE id=?'
-            )->execute([$title, $note ?: null, $amount, $currency, $recurrence, $due, $dueDay, $id]);
+            )->execute([encField($title), encField($note ?: null), $amount, $currency, $recurrence, $due, $dueDay, $id]);
         } else {
             db()->prepare(
                 'INSERT INTO tm_payments (title, note, amount, currency, recurrence, due_date, due_day)
                  VALUES (?, ?, ?, ?, ?, ?, ?)'
-            )->execute([$title, $note ?: null, $amount, $currency, $recurrence, $due, $dueDay]);
+            )->execute([encField($title), encField($note ?: null), $amount, $currency, $recurrence, $due, $dueDay]);
             $id = (int) db()->lastInsertId();
         }
         jsonOk(['id' => $id]);
@@ -2564,6 +2555,7 @@ switch ($action) {
 
             if (!@move_uploaded_file($tmp, $dir . '/' . $stored)) { $rejected[] = $orig; continue; }
             @chmod($dir . '/' . $stored, 0644);
+            encFileProtect($dir . '/' . $stored);
 
             $entry = [
                 'stored'   => $stored,
@@ -2582,7 +2574,7 @@ switch ($action) {
         }
 
         db()->prepare('UPDATE tm_payments SET files = ? WHERE id = ?')
-            ->execute([$files ? json_encode($files, JSON_UNESCAPED_UNICODE) : null, $id]);
+            ->execute([encField($files ? json_encode($files, JSON_UNESCAPED_UNICODE) : null), $id]);
 
         jsonOk(['files' => $files, 'added' => $added, 'rejected' => $rejected]);
     }
@@ -2612,7 +2604,7 @@ switch ($action) {
         if ($found) {
             @unlink(paymentUploadDir() . '/' . $stored);
             db()->prepare('UPDATE tm_payments SET files = ? WHERE id = ?')
-                ->execute([$keep ? json_encode($keep, JSON_UNESCAPED_UNICODE) : null, $id]);
+                ->execute([encField($keep ? json_encode($keep, JSON_UNESCAPED_UNICODE) : null), $id]);
         }
         jsonOk(['files' => $keep]);
     }

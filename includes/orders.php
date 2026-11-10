@@ -70,7 +70,8 @@ function saveOrderFiles(int $orderId): string
         $mime = function_exists('mime_content_type')
             ? (mime_content_type($dir . '/' . $stored) ?: null)
             : null;
-        $ins->execute([$orderId, $stored, mb_substr($origName, 0, 255), $mime, $size]);
+        encFileProtect($dir . '/' . $stored);
+        $ins->execute([$orderId, $stored, encField(mb_substr($origName, 0, 255)), $mime, $size]);
     }
     return '';
 }

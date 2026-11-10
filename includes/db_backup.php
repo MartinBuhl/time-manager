@@ -25,7 +25,8 @@ if (!function_exists('buildSqlDump')) {
             $out .= "DROP TABLE IF EXISTS `$table`;\n";
             $out .= ($create['Create Table'] ?? '') . ";\n\n";
 
-            $rows = $pdo->query("SELECT * FROM `$table`");
+            // Roh lesen: Das Backup darf verschlüsselte Werte nicht im Klartext enthalten.
+            $rows = dbRawStatement($pdo, "SELECT * FROM `$table`");
             $rows->setFetchMode(PDO::FETCH_NUM);
             foreach ($rows as $row) {
                 $vals = array_map(

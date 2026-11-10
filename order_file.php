@@ -6,6 +6,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
 
 session_start();
+encSessionRestore();
 
 if (empty($_SESSION['user_id'])) {
     http_response_code(403);
@@ -47,7 +48,6 @@ $inline = preg_match('#^(image/|application/pdf$)#', $mime) === 1;
 header('Content-Type: ' . $mime);
 header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment')
     . '; filename="' . rawurlencode((string) $file['original_name']) . '"');
-header('Content-Length: ' . filesize($realFile));
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: private, no-cache');
-readfile($realFile);
+encFileSend($realFile);

@@ -14,11 +14,13 @@ require_once __DIR__ . '/includes/db.php';
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
 session_start();
+encSessionRestore();
 
 /* ------------------------------------------------------------------
    Logout
 ------------------------------------------------------------------ */
 if (isset($_GET['logout'])) {
+    encSessionEnd();
     session_unset();
     session_destroy();
     header('Location: index.php');

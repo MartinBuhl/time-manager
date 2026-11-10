@@ -18,6 +18,11 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/payments.php';
 
+// Ohne Login gibt es keinen Schlüssel für Titel und SMTP-Zugang; beim Login läuft die Prüfung normal.
+if (FieldCipher::state() !== 'off') {
+    exit("Bei aktiver Verschlüsselung läuft die Prüfung nur beim Login.\n");
+}
+
 $logger = static function (string $m): void {
     $line = '[' . date('Y-m-d H:i:s') . '] ' . $m;
     echo $line . "\n";

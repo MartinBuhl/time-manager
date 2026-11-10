@@ -12,6 +12,7 @@ require_once dirname(__DIR__) . '/includes/db.php';
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
 session_start();
+encSessionRestore();
 
 $adminUserId = (int)($_SESSION['user_id'] ?? 0);
 

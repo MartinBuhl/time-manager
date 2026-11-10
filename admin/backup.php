@@ -1,20 +1,19 @@
 <?php
 require_once __DIR__ . '/auth.php';
+require_once dirname(__DIR__) . '/includes/backup_files.php';
 
 define('BACKUP_DIR', dirname(__DIR__) . '/backups');
 
 // Vorhandene Backups einlesen
 $backups = [];
 if (is_dir(BACKUP_DIR)) {
-    foreach (glob(BACKUP_DIR . '/tm_backup_*.zip') ?: [] as $path) {
-        $backups[] = [
-            'name'  => basename($path),
-            'size'  => filesize($path),
-            'mtime' => filemtime($path),
-        ];
+    $paths = glob(BACKUP_DIR . '/tm_backup_*.zip') ?: [];
+    usort($paths, fn($a, $b) => filemtime($b) <=> filemtime($a));
+    foreach ($paths as $path) {
+        $backups[] = backupInfo($path);
     }
-    usort($backups, fn($a, $b) => $b['mtime'] <=> $a['mtime']);
 }
+$uploadLimit = backupUploadLimit();
 
 function fmtSize(int $bytes): string
 {
@@ -35,6 +34,11 @@ function fmtSize(int $bytes): string
 <style>
 .col-num { white-space: nowrap; }
 .backup-msg { font-size: 13px; margin-left: 8px; }
+.backup-opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.backup-hint { font-size: 12px; color: var(--text-muted); margin: -8px 0 16px; }
+.backup-badge { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--border, #ddd); white-space: nowrap; }
+.backup-actions .btn { font-size: 11px; padding: 2px 8px; margin-left: 4px; }
+.backup-actions .btn:first-child { margin-left: 0; }
 </style>
 </head>
 <body>
@@ -57,10 +61,14 @@ function fmtSize(int $bytes): string
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
             <button type="button" class="btn btn--primary" id="createBtn"><?= h(t('backup.create')) ?></button>
+            <label class="backup-opt"><input type="checkbox" id="withFiles" checked> <?= h(t('backup.withFiles')) ?></label>
             <label for="uploadInput" class="btn" id="uploadBtn" style="cursor:pointer"><?= h(t('backup.upload')) ?></label>
             <input type="file" id="uploadInput" accept=".zip" style="display:none">
             <span id="createMsg" class="backup-msg"></span>
         </div>
+        <?php if ($uploadLimit > 0): ?>
+        <p class="backup-hint"><?= h(t('backup.uploadLimit', ['size' => fmtSize($uploadLimit)])) ?></p>
+        <?php endif; ?>
 
         <h2><?= h(t('backup.existing')) ?></h2>
 
@@ -70,27 +78,16 @@ function fmtSize(int $bytes): string
                     <tr>
                         <th><?= h(t('logs.colName')) ?></th>
                         <th class="col-num"><?= h(t('users.colCreated')) ?></th>
+                        <th><?= h(t('backup.colContent')) ?></th>
                         <th class="col-num"><?= h(t('logs.colSize')) ?></th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (empty($backups)): ?>
-                    <tr id="emptyRow"><td colspan="4" class="empty-message"><?= h(t('backup.empty')) ?></td></tr>
+                    <tr id="emptyRow"><td colspan="5" class="empty-message"><?= h(t('backup.empty')) ?></td></tr>
                 <?php else: foreach ($backups as $b): ?>
-                    <tr class="entry-row" id="row-<?= h($b['name']) ?>">
-                        <td><?= h($b['name']) ?></td>
-                        <td class="col-num"><?= h(date('d.m.Y H:i:s', $b['mtime'])) ?></td>
-                        <td class="col-num"><?= h(fmtSize((int)$b['size'])) ?></td>
-                        <td style="white-space:nowrap">
-                            <button type="button" class="btn restore-btn" data-file="<?= h($b['name']) ?>"
-                                    style="font-size:11px;padding:2px 8px"><?= h(t('backup.restore')) ?></button>
-                            <button type="button" class="btn mail-btn" data-file="<?= h($b['name']) ?>"
-                                    style="font-size:11px;padding:2px 8px;margin-left:4px"><?= h(t('backup.mail')) ?></button>
-                            <button type="button" class="btn btn--danger del-btn" data-file="<?= h($b['name']) ?>"
-                                    style="font-size:11px;padding:2px 8px;margin-left:4px"><?= h(t('common.delete')) ?></button>
-                        </td>
-                    </tr>
+                    <tr class="entry-row" id="row-<?= h($b['name']) ?>"></tr>
                 <?php endforeach; endif; ?>
                 </tbody>
             </table>
@@ -108,6 +105,7 @@ function t(key, params) {
     return s;
 }
 const CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;
+const BACKUPS = <?= json_encode($backups, JSON_UNESCAPED_UNICODE) ?>;
 
 function escAttr(s) {
     return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -132,13 +130,16 @@ function attachRowHandlers(row) {
 }
 
 function rowHtml(b) {
-    return '<td>' + escAttr(b.name) + '</td>' +
+    const file = escAttr(b.name);
+    return '<td>' + file + '</td>' +
         '<td class="col-num">' + escAttr(b.mtime) + '</td>' +
+        '<td><span class="backup-badge">' + escAttr(t(b.files ? 'backup.contentFull' : 'backup.contentDb')) + '</span></td>' +
         '<td class="col-num">' + fmtSize(b.size) + '</td>' +
-        '<td style="white-space:nowrap">' +
-            '<button type="button" class="btn restore-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px">' + escAttr(t('backup.restore')) + '</button>' +
-            '<button type="button" class="btn mail-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + escAttr(t('backup.mail')) + '</button>' +
-            '<button type="button" class="btn btn--danger del-btn" data-file="' + escAttr(b.name) + '" style="font-size:11px;padding:2px 8px;margin-left:4px">' + escAttr(t('common.delete')) + '</button>' +
+        '<td class="backup-actions" style="white-space:nowrap">' +
+            '<a class="btn" href="backup_download.php?file=' + encodeURIComponent(b.name) + '" download>' + escAttr(t('backup.download')) + '</a>' +
+            '<button type="button" class="btn restore-btn" data-file="' + file + '" data-files="' + (b.files ? '1' : '') + '">' + escAttr(t('backup.restore')) + '</button>' +
+            (b.mailable ? '<button type="button" class="btn mail-btn" data-file="' + file + '">' + escAttr(t('backup.mail')) + '</button>' : '') +
+            '<button type="button" class="btn btn--danger del-btn" data-file="' + file + '">' + escAttr(t('common.delete')) + '</button>' +
         '</td>';
 }
 
@@ -169,7 +170,8 @@ document.getElementById('createBtn').addEventListener('click', async function() 
     msg.style.color = '';
 
     try {
-        const data = await apiCall('create_backup', {});
+        const withFiles = document.getElementById('withFiles').checked ? '1' : '';
+        const data = await apiCall('create_backup', { with_files: withFiles });
         if (data.success) {
             addBackupRow(data.data);
             msg.style.color = '#27ae60';
@@ -231,7 +233,9 @@ document.getElementById('uploadInput').addEventListener('change', async function
 async function handleRestore(ev) {
     const btn  = ev.currentTarget;
     const file = btn.dataset.file;
-    if (!await Dialog.confirm(t('backup.confirmRestore', { file: file }), { danger: true })) return;
+    let question = t('backup.confirmRestore', { file: file });
+    if (btn.dataset.files) question += '\n\n' + t('backup.confirmRestoreFiles');
+    if (!await Dialog.confirm(question, { danger: true })) return;
 
     const orig = btn.textContent;
     btn.disabled = true;
@@ -240,10 +244,14 @@ async function handleRestore(ev) {
     try {
         const data = await apiCall('restore_backup', { file });
         if (data.success) {
-            await Dialog.alert(t('backup.restoreDone', {
+            let done = t('backup.restoreDone', {
                 statements: data.data.statements,
                 safety: data.data.safety || '—',
-            }));
+            });
+            if (data.data.files) {
+                done += '\n\n' + t('backup.restoreFiles', { restored: data.data.files.restored, removed: data.data.files.removed });
+            }
+            await Dialog.alert(done);
             location.reload();
         } else {
             Dialog.alert(t('backup.restoreErrorPrefix') + ': ' + (data.error || t('common.unknownError')));
@@ -298,7 +306,7 @@ async function handleDelete(ev) {
             row?.remove();
             if (!document.querySelector('#backupTable tbody tr')) {
                 const tbody = document.querySelector('#backupTable tbody');
-                tbody.innerHTML = '<tr id="emptyRow"><td colspan="4" class="empty-message">' + t('backup.empty') + '</td></tr>';
+                tbody.innerHTML = '<tr id="emptyRow"><td colspan="5" class="empty-message">' + t('backup.empty') + '</td></tr>';
             }
         } else {
             Dialog.alert(t('common.error') + ': ' + (data.error || t('common.unknownError')));
@@ -310,7 +318,10 @@ async function handleDelete(ev) {
     }
 }
 
-document.querySelectorAll('#backupTable tbody tr').forEach(attachRowHandlers);
+BACKUPS.forEach(b => {
+    const tr = document.getElementById('row-' + b.name);
+    if (tr) { tr.innerHTML = rowHtml(b); attachRowHandlers(tr); }
+});
 </script>
 </body>
 </html>

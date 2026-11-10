@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/field_encryption.php';
+
 define('APP_VERSION', is_readable(dirname(__DIR__) . '/VERSION')
     ? trim(file_get_contents(dirname(__DIR__) . '/VERSION'))
     : '0.0.0');
@@ -14,6 +16,7 @@ function db(): PDO
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
+        PDO::ATTR_STATEMENT_CLASS    => [DecryptingStatement::class, []],
     ]);
     return $pdo;
 }
@@ -21,14 +24,24 @@ function db(): PDO
 function cfg(string $key, string $default = ''): string
 {
     static $cache = null;
-    if ($cache === null) {
+    static $generation = -1;
+    // Nach dem Entsperren neu laden, sonst fehlen die verschlüsselten Werte.
+    if ($cache === null || $generation !== FieldCipher::configGeneration()) {
+        $generation = FieldCipher::configGeneration();
         $cache = [];
         try {
-            $rows = db()->query(
-                'SELECT configuration_key, configuration_value FROM tm_configuration'
+            // Einzeln entschlüsseln: Ein defekter Wert darf encryption_state nicht mitreißen.
+            $rows = dbRawStatement(
+                db(), 'SELECT configuration_key, configuration_value FROM tm_configuration'
             )->fetchAll();
             foreach ($rows as $row) {
-                $cache[$row['configuration_key']] = $row['configuration_value'];
+                try {
+                    if (!FieldCipher::isLocked($row['configuration_value'])) {
+                        $cache[$row['configuration_key']] = FieldCipher::decrypt($row['configuration_value']);
+                    }
+                } catch (CryptoException $e) {
+                    error_log('cfg: Wert nicht lesbar: ' . $row['configuration_key']);
+                }
             }
         } catch (\Throwable $e) {
             // table not yet created

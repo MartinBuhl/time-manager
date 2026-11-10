@@ -58,8 +58,7 @@ if ($name === '') $name = $stored;
 
 header('Content-Type: ' . $mime);
 header('Content-Disposition: ' . $dispose . '; filename="' . $name . '"');
-header('Content-Length: ' . filesize($path));
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: private, max-age=0, must-revalidate');
 
-readfile($path);
+encFileSend($path);

@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/db.php';
 ini_set('session.cookie_httponly', '1');
 ini_set('session.cookie_samesite', 'Strict');
 session_start();
+encSessionRestore();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -100,9 +101,18 @@ switch ($action) {
             jsonErr('Ungültige Anmeldedaten.');
         }
 
+        try {
+            $dataKey = encLoginDataKey((int)$user['id'], $password);
+        } catch (CryptoException $e) {
+            jsonErr('Die Daten konnten nicht entsperrt werden. Bitte das Passwort mit dem Wiederherstellungsschlüssel zurücksetzen.');
+        }
+
         session_regenerate_id(true);
         $_SESSION['user_id']   = $user['id'];
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        if ($dataKey !== null) {
+            encSessionStart($dataKey);
+        }
 
         // Beim Login fällige Zahlungserinnerungen prüfen/versenden (max. 1×/Tag).
         require_once __DIR__ . '/includes/payments.php';
@@ -424,7 +434,7 @@ switch ($action) {
 
         $pdo = db();
         $pdo->prepare('INSERT INTO tm_orders (user_id, customer_id, body) VALUES (?, ?, ?)')
-            ->execute([$_SESSION['user_id'], $customerId, $body]);
+            ->execute([$_SESSION['user_id'], $customerId, encField($body)]);
         $orderId = (int) $pdo->lastInsertId();
 
         // War dies der erste offene Auftrag des Kunden (Kunde neu in der Liste),
@@ -490,7 +500,7 @@ switch ($action) {
 
         $body = trim($_POST['body'] ?? '');
         $body = (string) preg_replace('#<script\b[^>]*>.*?</script>#is', '', $body);
-        db()->prepare('UPDATE tm_orders SET body = ? WHERE id = ?')->execute([$body, $orderId]);
+        db()->prepare('UPDATE tm_orders SET body = ? WHERE id = ?')->execute([encField($body), $orderId]);
 
         $err = saveOrderFiles($orderId);
         if ($err !== '') jsonErr($err);
@@ -591,7 +601,7 @@ switch ($action) {
         db()->prepare(
             "UPDATE tm_configuration SET configuration_value = ?
              WHERE configuration_key = 'app_info_text'"
-        )->execute([$text]);
+        )->execute([encConfig('app_info_text', $text)]);
         jsonOk();
 
     // ----------------------------------------------------------------
