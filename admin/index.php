@@ -150,6 +150,10 @@ function t(key, params) {
 // Kartendefinitionen
 // ----------------------------------------------------------------
 const CARDS = {
+    email: {
+        label: t('admin.card.email'), href: 'mail.php',
+        icon: '<path d="M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/>',
+    },
     customers: {
         label: t('admin.card.customers'), href: 'customers.php',
         icon: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
@@ -221,7 +225,7 @@ const CARDS = {
 };
 
 const DEFAULT_LAYOUT = {
-    top:    ['customers', 'billing', 'invoices', 'entries', 'orders'],
+    top:    ['customers', 'billing', 'invoices', 'entries', 'orders', 'email'],
     bottom: ['activities', 'bookmarks', 'expenses', 'payments', 'trash', 'users', 'config', 'statistics', 'mailspool', 'logs', 'backup', 'info'],
 };
 // ----------------------------------------------------------------

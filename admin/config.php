@@ -99,6 +99,32 @@ $groups = [
             ['key' => 'imap_sent_folder', 'label' => t('cfg.label.imap_sent_folder'), 'type' => 'text', 'width' => 'half'],
         ],
     ],
+    7 => [
+        'title'  => t('cfg.group.7'),
+        'intro'  => t('cfg.mc.intro'),
+        'fields' => [
+            ['key' => 'mc_from_name',       'label' => t('cfg.label.mc_from_name'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_from_email',      'label' => t('cfg.label.mc_from_email'),      'type' => 'email',  'width' => 'half'],
+            ['key' => 'mc_imap_host',       'label' => t('cfg.label.mc_imap_host'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_imap_port',       'label' => t('cfg.label.mc_imap_port'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_imap_encryption', 'label' => t('cfg.label.mc_imap_encryption'), 'type' => 'select', 'width' => 'half',
+                'options' => ['ssl' => t('cfg.mc.encSsl'), 'tls' => t('cfg.mc.encTls'), 'none' => t('cfg.mc.encNone')]],
+            ['key' => 'mc_imap_user',       'label' => t('cfg.label.mc_imap_user'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_imap_password',   'label' => t('cfg.label.mc_imap_password'),   'type' => 'secret', 'width' => 'half'],
+            ['key' => 'mc_smtp_host',       'label' => t('cfg.label.mc_smtp_host'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_smtp_port',       'label' => t('cfg.label.mc_smtp_port'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_smtp_encryption', 'label' => t('cfg.label.mc_smtp_encryption'), 'type' => 'select', 'width' => 'half',
+                'options' => ['ssl' => t('cfg.mc.encSsl'), 'tls' => t('cfg.mc.encTls'), 'none' => t('cfg.mc.encNone')]],
+            ['key' => 'mc_smtp_user',       'label' => t('cfg.label.mc_smtp_user'),       'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_smtp_password',   'label' => t('cfg.label.mc_smtp_password'),   'type' => 'secret', 'width' => 'half'],
+            ['key' => 'mc_sent_folder',     'label' => t('cfg.label.mc_sent_folder'),     'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_drafts_folder',   'label' => t('cfg.label.mc_drafts_folder'),   'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_trash_folder',    'label' => t('cfg.label.mc_trash_folder'),    'type' => 'text',   'width' => 'half'],
+            ['key' => 'mc_save_sent',       'label' => t('cfg.label.mc_save_sent'),       'type' => 'select', 'width' => 'half',
+                'options' => ['1' => t('common.yes'), '0' => t('cfg.mc.saveSentNo')]],
+            ['key' => 'mc_signature',       'label' => t('cfg.label.mc_signature'),       'type' => 'textarea'],
+        ],
+    ],
     5 => [
         'title'  => t('cfg.group.5'),
         'fields' => [
@@ -244,6 +270,9 @@ $groups = [
     <?php foreach ($groups as $gid => $group): ?>
     <div class="admin-section" id="cfg-group-section-<?= $gid ?>">
         <h2><?= h($group['title']) ?></h2>
+        <?php if (!empty($group['intro'])): ?>
+        <p style="font-size:12px;color:var(--text-muted);margin:-4px 0 12px"><?= h($group['intro']) ?></p>
+        <?php endif; ?>
         <div class="cfg-grid" id="group-<?= $gid ?>">
             <?php foreach ($group['fields'] as $f):
                 $type  = $f['type'] ?? 'text';
@@ -278,6 +307,15 @@ $groups = [
                     <option value="<?= h((string)$ov) ?>"<?= (string)$val === (string)$ov ? ' selected' : '' ?>><?= h((string)$ol) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php elseif ($type === 'secret'): ?>
+                <input
+                    type="password"
+                    id="cfg_<?= h($f['key']) ?>"
+                    data-key="<?= h($f['key']) ?>"
+                    value=""
+                    placeholder="<?= h($val !== '' ? t('cfg.mc.secretSaved') : '') ?>"
+                    autocomplete="new-password"
+                >
                 <?php else: ?>
                 <input
                     type="<?= h($type) ?>"
@@ -296,8 +334,15 @@ $groups = [
             <button class="btn" type="button" onclick="sendTestMail()"><?= h(t('config.testMail')) ?></button>
             <button class="btn" type="button" onclick="listImapFolders()"><?= h(t('config.showImapFolders')) ?></button>
             <?php endif; ?>
+            <?php if ($gid === 7): ?>
+            <button class="btn" type="button" onclick="mcTest('imap')"><?= h(t('cfg.mc.testImap')) ?></button>
+            <button class="btn" type="button" onclick="mcTest('smtp')"><?= h(t('cfg.mc.testSmtp')) ?></button>
+            <?php endif; ?>
             <span class="cfg-msg" id="gmsg-<?= $gid ?>" style="font-size:12px"></span>
         </div>
+        <?php if ($gid === 7): ?>
+        <div id="mcTestResult" style="margin-top:10px; font-size:12px"></div>
+        <?php endif; ?>
         <?php if ($gid === 4): ?>
         <div id="imapFoldersResult" style="margin-top:10px; font-size:12px"></div>
         <?php endif; ?>
@@ -680,6 +725,30 @@ function rteLink(btn) {
     body.focus();
     if (range) { sel.removeAllRanges(); sel.addRange(range); }
     document.execCommand('createLink', false, url);
+}
+
+async function mcTest(kind) {
+    const out = document.getElementById('mcTestResult');
+    const params = { action: kind === 'imap' ? 'test_imap' : 'test_smtp' };
+    document.querySelectorAll('#group-7 [data-key]').forEach(el => { params[el.dataset.key] = el.value; });
+    out.style.color = 'var(--text-muted)';
+    out.textContent = t('cfg.mc.testing');
+    try {
+        const res  = await fetch('mail_api.php', { method: 'POST', headers: { 'X-CSRF-Token': CSRF }, body: new URLSearchParams(params) });
+        const data = await res.json();
+        if (data.success) {
+            out.style.color = 'var(--success)';
+            out.textContent = kind === 'imap'
+                ? t('cfg.mc.imapOk', { n: data.data.folders }) + ' ' + data.data.names.join(', ')
+                : t('cfg.mc.smtpOk');
+        } else {
+            out.style.color = 'var(--danger)';
+            out.textContent = data.error || t('common.unknownError');
+        }
+    } catch (e) {
+        out.style.color = 'var(--danger)';
+        out.textContent = t('config.serverError');
+    }
 }
 
 async function saveGroup(gid) {

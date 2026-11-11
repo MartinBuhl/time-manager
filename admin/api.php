@@ -257,6 +257,10 @@ switch ($action) {
             'mail_signature_html', 'mail_signature_plain',
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'smtp_encryption',
             'imap_save_sent', 'imap_host', 'imap_port', 'imap_encryption', 'imap_sent_folder',
+            'mc_from_name', 'mc_from_email',
+            'mc_imap_host', 'mc_imap_port', 'mc_imap_encryption', 'mc_imap_user', 'mc_imap_password',
+            'mc_smtp_host', 'mc_smtp_port', 'mc_smtp_encryption', 'mc_smtp_user', 'mc_smtp_password',
+            'mc_sent_folder', 'mc_trash_folder', 'mc_drafts_folder', 'mc_save_sent', 'mc_signature',
             'default_lang',
             'payment_reminder_email', 'payment_reminder_days_first',
             'payment_reminder_days_second', 'payment_reminder_days_daily',
@@ -266,8 +270,13 @@ switch ($action) {
              SET configuration_value = ?, last_modified = NOW()
              WHERE configuration_key = ?'
         );
+        // Passwörter des E-Mail-Clients werden nicht angezeigt; leer heißt „unverändert“.
+        $keepIfEmpty = ['mc_imap_password', 'mc_smtp_password'];
         foreach ($allowed as $key) {
             if (array_key_exists($key, $_POST)) {
+                if (in_array($key, $keepIfEmpty, true) && trim($_POST[$key]) === '') {
+                    continue;
+                }
                 $stmt->execute([encConfig($key, trim($_POST[$key])), $key]);
             }
         }
@@ -1825,42 +1834,25 @@ switch ($action) {
 
     // ----------------------------------------------------------------
     case 'list_imap_folders':
-        if (!function_exists('imap_open')) {
-            jsonErr('PHP-imap-Extension ist nicht installiert/aktiviert.');
-        }
         $host = trim(cfg('imap_host'));
         if ($host === '') {
             jsonErr('Kein IMAP-Server konfiguriert. Bitte IMAP-Server, Port und Verschlüsselung eintragen und speichern.');
         }
-        $port = (int)(cfg('imap_port') ?: '993');
+        require_once dirname(__DIR__) . '/includes/ImapClient.php';
         $enc  = strtolower(trim(cfg('imap_encryption', 'ssl')));
-        $flags = '/imap';
-        if ($enc === 'ssl')      { $flags .= '/ssl'; }
-        elseif ($enc === 'tls')  { $flags .= '/tls'; }
-        else                     { $flags .= '/notls'; }
-        $ref  = '{' . $host . ':' . $port . $flags . '}';
-
-        $imap = @imap_open($ref, cfg('smtp_user'), cfg('smtp_password'), OP_HALFOPEN);
-        if ($imap === false) {
-            jsonErr('IMAP-Verbindung fehlgeschlagen: ' . imap_last_error());
-        }
-        $list = @imap_list($imap, $ref, '*');
-        imap_close($imap);
-        if ($list === false) {
-            jsonErr('Ordnerliste konnte nicht geladen werden: ' . imap_last_error());
-        }
-
-        $folders = [];
-        foreach ($list as $entry) {
-            $decoded = $entry;
-            if (function_exists('mb_convert_encoding')) {
-                $d = @mb_convert_encoding($entry, 'UTF-8', 'UTF7-IMAP');
-                if (is_string($d) && $d !== '') { $decoded = $d; }
-            }
-            $folders[] = preg_replace('/^\{[^}]*\}/', '', $decoded);
+        $enc  = in_array($enc, ['ssl', 'tls', 'none', 'notls'], true) ? ($enc === 'notls' ? 'none' : $enc) : 'ssl';
+        $port = (int)(cfg('imap_port') ?: ($enc === 'ssl' ? '993' : '143'));
+        try {
+            $imap = new ImapClient($host, $port, $enc);
+            $imap->connect();
+            $imap->login(cfg('smtp_user'), cfg('smtp_password'));
+            $folders = array_column(array_filter($imap->listFolders(), fn($f) => $f['selectable']), 'display');
+            $imap->logout();
+        } catch (ImapException $e) {
+            jsonErr('IMAP-Verbindung fehlgeschlagen: ' . $e->getMessage());
         }
         sort($folders);
-        jsonOk(['folders' => $folders]);
+        jsonOk(['folders' => array_values($folders)]);
 
     // ----------------------------------------------------------------
     case 'bulk_assign_project':

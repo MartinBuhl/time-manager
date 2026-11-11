@@ -151,12 +151,6 @@ class MailHelper
         if (cfg('imap_save_sent') !== '1') {
             return '';
         }
-        if (!function_exists('imap_open')) {
-            $m = 'PHP-imap-Extension ist nicht installiert/aktiviert.';
-            self::imapLog('FEHLER: ' . $m);
-            return $m;
-        }
-
         $host = trim(cfg('imap_host'));
         if ($host === '') {
             $m = 'Kein IMAP-Server konfiguriert.';
@@ -164,41 +158,24 @@ class MailHelper
             return $m;
         }
         $folder = trim(cfg('imap_sent_folder')) ?: 'Sent';
-        $port   = (int)(cfg('imap_port') ?: '993');
         $enc    = strtolower(trim(cfg('imap_encryption', 'ssl')));
+        $enc    = in_array($enc, ['ssl', 'tls', 'none', 'notls'], true) ? ($enc === 'notls' ? 'none' : $enc) : 'ssl';
+        $port   = (int)(cfg('imap_port') ?: ($enc === 'ssl' ? '993' : '143'));
+        $user   = cfg('smtp_user');
 
-        $flags = '/imap';
-        if ($enc === 'ssl') {
-            $flags .= '/ssl';
-        } elseif ($enc === 'tls') {
-            $flags .= '/tls';
-        } else {
-            $flags .= '/notls';
-        }
+        self::imapLog('Verbinde zu ' . $host . ':' . $port . ' (' . $enc . ') als ' . $user . ', Ordner ' . $folder);
 
-        $mailbox = '{' . $host . ':' . $port . $flags . '}' . $folder;
-        $user    = cfg('smtp_user');
-        $pass    = cfg('smtp_password');
-
-        self::imapLog('Verbinde zu ' . $mailbox . ' als ' . $user);
-
-        // imap_errors() leeren, damit alte Meldungen nicht stören
-        if (function_exists('imap_errors')) { @imap_errors(); }
-
-        $imap = @imap_open($mailbox, $user, $pass, OP_HALFOPEN);
-        if ($imap === false) {
-            $m = 'Verbindung/Login fehlgeschlagen: ' . (imap_last_error() ?: 'unbekannt');
-            self::imapLog('FEHLER: ' . $m);
-            return $m;
-        }
-
-        // IMAP erwartet CRLF-Zeilenenden
-        $msg = preg_replace('/\r?\n/', "\r\n", $rawMessage);
-        $ok  = @imap_append($imap, $mailbox, $msg, "\\Seen");
-        imap_close($imap);
-
-        if (!$ok) {
-            $m = 'Ablage im Ordner "' . $folder . '" fehlgeschlagen: ' . (imap_last_error() ?: 'unbekannt');
+        require_once __DIR__ . '/ImapClient.php';
+        try {
+            $imap = new ImapClient($host, $port, $enc);
+            $imap->connect();
+            $imap->login($user, cfg('smtp_password'));
+            // Ordnernamen mit Umlauten erwartet der Server in „modified UTF-7“
+            $mailbox = preg_match('/[^\x20-\x7e]/', $folder) ? mb_convert_encoding($folder, 'UTF7-IMAP', 'UTF-8') : $folder;
+            $imap->append($mailbox, $rawMessage, ['\\Seen']);
+            $imap->logout();
+        } catch (ImapException $e) {
+            $m = 'Ablage im Ordner "' . $folder . '" fehlgeschlagen: ' . $e->getMessage();
             self::imapLog('FEHLER: ' . $m);
             return $m;
         }
