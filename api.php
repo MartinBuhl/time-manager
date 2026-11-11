@@ -180,6 +180,7 @@ switch ($action) {
         $activity     = trim($_POST['activity'] ?? '');
         $project      = trim($_POST['project'] ?? '') ?: null;
         $startTime    = trim($_POST['start_time'] ?? '');
+        $comment      = mb_substr(trim($_POST['comment'] ?? ''), 0, 5000) ?: null;
 
         if ($activity === '' || !preg_match(timePattern(), $startTime)) {
             jsonErr('Ungültige Eingabe.');
@@ -189,18 +190,18 @@ switch ($action) {
         if ($timerId) {
             $stmt = db()->prepare(
                 'UPDATE tm_active_timers
-                    SET customer_id = ?, customer_name = ?, activity = ?, project = ?, start_time = ?
+                    SET customer_id = ?, customer_name = ?, activity = ?, project = ?, start_time = ?, comment = ?
                   WHERE id = ? AND user_id = ?'
             );
-            $stmt->execute([$customerId, $customerName ?: null, $activity, $project, $startTime, $timerId, $uid]);
+            $stmt->execute([$customerId, $customerName ?: null, $activity, $project, $startTime, $comment, $timerId, $uid]);
             jsonOk(['id' => $timerId]);
         }
 
         $stmt = db()->prepare(
-            'INSERT INTO tm_active_timers (user_id, customer_id, customer_name, activity, project, start_time)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO tm_active_timers (user_id, customer_id, customer_name, activity, project, start_time, comment)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$uid, $customerId, $customerName ?: null, $activity, $project, $startTime]);
+        $stmt->execute([$uid, $customerId, $customerName ?: null, $activity, $project, $startTime, $comment]);
         jsonOk(['id' => (int) db()->lastInsertId()]);
 
     // ----------------------------------------------------------------

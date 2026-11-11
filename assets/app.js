@@ -201,6 +201,14 @@ async function resetWorked(ev, customerId) {
 ================================================================== */
 const trackers = [];
 
+/* Seite neu laden, nachdem die Kommentare aller laufenden Timer gespeichert sind. */
+async function reloadAfterSavingTrackers(except = null) {
+    try {
+        await Promise.all(trackers.filter(tr => tr !== except && tr.serverId).map(tr => tr.flush()));
+    } catch (e) { /* trotzdem neu laden */ }
+    location.reload();
+}
+
 function addTrackerInstance(restoreData = null) {
     const tpl  = document.getElementById('trackerTpl');
     const host = document.getElementById('trackerHost');
@@ -248,6 +256,8 @@ class Tracker {
         this.startTime         = '';
         this.countdownValue    = 1800;
         this.countdownInterval = null;
+        this.saveChain         = Promise.resolve();   // Speichervorgänge nacheinander
+        this.commentTimer      = null;                // verzögertes Speichern des Kommentars
 
         this.wire();
         this.updateCountdownDisplay();
@@ -329,17 +339,35 @@ class Tracker {
         }
     }
 
-    /* Laufenden Timer serverseitig speichern/aktualisieren (liefert serverId). */
-    async persist() {
-        const res = await api('save_timer', {
-            id:            this.serverId || '',
-            customer_id:   this.customerId || '',
-            customer_name: this.customerName,
-            activity:      this.activity,
-            project:       this.project,
-            start_time:    this.startTime,
+    /* Laufenden Timer serverseitig speichern/aktualisieren (liefert serverId).
+       Aufrufe laufen nacheinander, damit beim schnellen Tippen kein zweiter
+       Timer angelegt wird, solange die serverId noch fehlt. */
+    persist() {
+        clearTimeout(this.commentTimer);
+        this.commentTimer = null;
+        this.saveChain = this.saveChain.catch(() => {}).then(async () => {
+            if (!this.activity || !this.startTime) return;
+            const res = await api('save_timer', {
+                id:            this.serverId || '',
+                customer_id:   this.customerId || '',
+                customer_name: this.customerName,
+                activity:      this.activity,
+                project:       this.project,
+                start_time:    this.startTime,
+                comment:       this.inputComment.value.trim(),
+            });
+            if (res.success && res.data && res.data.id) this.serverId = res.data.id;
         });
-        if (res.success && res.data && res.data.id) this.serverId = res.data.id;
+        return this.saveChain;
+    }
+    /* Kommentar kurz nach dem Tippen zwischenspeichern */
+    scheduleCommentSave() {
+        clearTimeout(this.commentTimer);
+        this.commentTimer = setTimeout(() => this.persist(), 600);
+    }
+    /* Noch ausstehende Speichervorgänge abschließen (z. B. vor dem Neuladen) */
+    flush() {
+        return this.commentTimer ? this.persist() : this.saveChain.catch(() => {});
     }
 
     wire() {
@@ -403,7 +431,9 @@ class Tracker {
                 stop_date:   nowDate(),
             });
             if (res.success) {
-                location.reload();
+                clearTimeout(this.commentTimer);
+                this.commentTimer = null;
+                await reloadAfterSavingTrackers(this);
             } else {
                 Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
                 this.startCountdown();
@@ -413,7 +443,9 @@ class Tracker {
         /* Kommentar-Pflichtfeld: Stop erst aktiv, wenn Text vorhanden */
         this.inputComment.addEventListener('input', () => {
             this.stopBtn.disabled = this.inputComment.value.trim() === '';
+            if (this.activity) this.scheduleCommentSave();
         });
+        this.inputComment.addEventListener('blur', () => { if (this.commentTimer) this.persist(); });
 
         /* Startzeit ändern */
         if (this.startTimePicker) {
@@ -477,7 +509,8 @@ class Tracker {
             const elapsed = Math.floor((new Date() - d) / 1000);
             this.countdownValue = Math.max(0, 1800 - elapsed);
         }
-        this.stopBtn.disabled = true;
+        this.inputComment.value = s.comment || '';
+        this.stopBtn.disabled = this.inputComment.value.trim() === '';
         this.showRunningRows();
         this.updateShortcuts();
         this.updateCountdownDisplay();

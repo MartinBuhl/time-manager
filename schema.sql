@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS `tm_active_timers` (
     `activity`      VARCHAR(100) DEFAULT NULL,
     `project`       VARCHAR(255) DEFAULT NULL,
     `start_time`    VARCHAR(8)   DEFAULT NULL,
+    `comment`       TEXT         DEFAULT NULL,
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `idx_user` (`user_id`)
