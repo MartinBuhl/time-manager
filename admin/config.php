@@ -61,6 +61,7 @@ $groups = [
         'title'  => t('cfg.group.2'),
         'fields' => [
             ['key' => 'invoice_hourly_rate',    'label' => t('cfg.label.invoice_hourly_rate'),   'type' => 'text', 'width' => 'half'],
+            ['key' => 'billing_min_amount',     'label' => t('cfg.label.billing_min_amount'),    'type' => 'text', 'width' => 'half'],
             ['key' => 'invoice_tax_rate',       'label' => t('cfg.label.invoice_tax_rate'),              'type' => 'text', 'width' => 'half'],
             ['key' => 'invoice_payment_days',   'label' => t('cfg.label.invoice_payment_days'),        'type' => 'text', 'width' => 'half'],
             ['key' => 'invoice_number_prefix',  'label' => t('cfg.label.invoice_number_prefix'),     'type' => 'text', 'width' => 'half'],

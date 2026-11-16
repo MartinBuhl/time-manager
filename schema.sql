@@ -246,6 +246,7 @@ INSERT IGNORE INTO `tm_configuration`
 ('invoice_bank',           'Musterbank',                       1, 100),
 ('invoice_account_holder', '',                                 1, 110),
 ('invoice_hourly_rate',     '85.00',  2,  10),
+('billing_min_amount',     '0',      2,  15),
 ('invoice_tax_rate',       '19',     2,  20),
 ('invoice_payment_days',   '14',     2,  30),
 ('invoice_number_prefix',  'RE-',    2,  40),

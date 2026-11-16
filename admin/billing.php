@@ -30,6 +30,20 @@ foreach ($customers as &$cRow) {
 unset($cRow);
 usort($customers, fn($a, $b) => $b['amount_net'] <=> $a['amount_net']);
 
+// Mindestbetrag aus der Konfiguration: kleinere Beträge ausblenden
+// (per ?all=1 lassen sich vorübergehend alle anzeigen)
+$minAmount = max(0.0, (float)str_replace(',', '.', trim(cfg('billing_min_amount', '0'))));
+$showAll   = ($_GET['all'] ?? '') === '1';
+$hidden    = [];
+if ($minAmount > 0 && !$showAll) {
+    $hidden    = array_values(array_filter($customers, fn($c) => $c['amount_net'] <  $minAmount));
+    $customers = array_values(array_filter($customers, fn($c) => $c['amount_net'] >= $minAmount));
+}
+$hiddenAmount = array_sum(array_column($hidden, 'amount_net'));
+$totalEntries = array_sum(array_map('intval', array_column($customers, 'entry_count')));
+$totalMinutes = array_sum(array_map('intval', array_column($customers, 'total_minutes')));
+$totalAmount  = array_sum(array_column($customers, 'amount_net'));
+
 // Alle offenen Einträge je Kunde für die Detailansicht vorladen
 $entriesByCustomer = [];
 $entryStmt = db()->query(
@@ -91,6 +105,13 @@ function fmtEur(float $amount): string
 .detail-comment { color: var(--text-muted); font-size: 12px; }
 .customer-link { color: var(--text); text-decoration: none; font-weight: 600; }
 .customer-link:hover { color: #3b82f6; text-decoration: underline; }
+.entries-table tfoot.billing-total td {
+    border-top: 2px solid var(--card-border);
+    font-weight: 700;
+    color: var(--text);
+}
+.billing-min-note { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }
+.billing-min-note a { color: inherit; }
 </style>
 </head>
 <body>
@@ -115,8 +136,10 @@ function fmtEur(float $amount): string
     <div class="admin-section" id="listSection">
         <h2><?= h(t('billing.unbilledHeading')) ?></h2>
 
-        <?php if (empty($customers)): ?>
+        <?php if (empty($customers) && empty($hidden)): ?>
             <p class="empty-message"><?= h(t('billing.empty')) ?></p>
+        <?php elseif (empty($customers)): ?>
+            <p class="empty-message"><?= h(t('billing.allBelowMin', ['amount' => fmtEur($minAmount)])) ?></p>
         <?php else: ?>
         <div class="table-wrapper">
             <table class="entries-table">
@@ -207,8 +230,30 @@ function fmtEur(float $amount): string
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
+                <tfoot class="billing-total">
+                    <tr>
+                        <td colspan="2"><?= h(t('billing.total')) ?></td>
+                        <td><?= $totalEntries ?></td>
+                        <td class="col-dur"><?= fmtH($totalMinutes) ?></td>
+                        <td></td>
+                        <td class="col-dur"><?= fmtEur($totalAmount) ?></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
+        <?php endif; ?>
+
+        <?php if ($hidden): ?>
+            <p class="billing-min-note">
+                <?= h(t('billing.hiddenBelowMin', ['n' => count($hidden), 'amount' => fmtEur($hiddenAmount)])) ?>
+                <a href="billing.php?all=1"><?= h(t('billing.showAll')) ?></a>
+            </p>
+        <?php elseif ($minAmount > 0 && $showAll): ?>
+            <p class="billing-min-note">
+                <a href="billing.php"><?= h(t('billing.applyMin')) ?></a>
+                (<?= h(fmtEur($minAmount)) ?>)
+            </p>
         <?php endif; ?>
     </div>
 
