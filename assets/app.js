@@ -28,6 +28,14 @@ async function api(action, data = {}) {
     return res.json();
 }
 
+/* Button während einer laufenden Aktion sperren und mit Ladekreis anzeigen */
+function setButtonBusy(btn, busy) {
+    if (!btn) return;
+    btn.classList.toggle('is-busy', busy);
+    btn.disabled = busy;
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
 /* API-Aufruf mit Datei-Upload (multipart) */
 async function apiForm(action, formData) {
     formData.append('action', action);
@@ -419,22 +427,32 @@ class Tracker {
 
         /* Stop – Eintrag speichern */
         this.stopBtn.addEventListener('click', async () => {
+            if (this.stopBtn.classList.contains('is-busy')) return;
             clearInterval(this.countdownInterval);
-            const res = await api('send_work', {
-                timer_id:    this.serverId || '',
-                customer_id: this.customerId || '',
-                activity:    this.activity,
-                project:     this.project,
-                comment:     this.inputComment.value.trim(),
-                start_time:  this.startTime,
-                stop_time:   nowTime(),
-                stop_date:   nowDate(),
-            });
+            setButtonBusy(this.stopBtn, true);
+            let res;
+            try {
+                res = await api('send_work', {
+                    timer_id:    this.serverId || '',
+                    customer_id: this.customerId || '',
+                    activity:    this.activity,
+                    project:     this.project,
+                    comment:     this.inputComment.value.trim(),
+                    start_time:  this.startTime,
+                    stop_time:   nowTime(),
+                    stop_date:   nowDate(),
+                });
+            } catch (e) {
+                res = { success: false, error: e.message };
+            }
             if (res.success) {
+                // Ladekreis bleibt bis zum Neuladen sichtbar
                 clearTimeout(this.commentTimer);
                 this.commentTimer = null;
                 await reloadAfterSavingTrackers(this);
             } else {
+                setButtonBusy(this.stopBtn, false);
+                this.stopBtn.disabled = this.inputComment.value.trim() === '';
                 Dialog.alert(t('common.error') + ': ' + (res.error || t('common.unknownError')));
                 this.startCountdown();
             }
@@ -548,21 +566,30 @@ async function saveEdit(id) {
     const customerId = editRow.querySelector('.edit-customer').value;
     const activity   = editRow.querySelector('.edit-activity').value;
     const project    = editRow.querySelector('.edit-project').value.trim();
+    const saveBtn    = editRow.querySelector('.edit-save');
+    if (saveBtn && saveBtn.classList.contains('is-busy')) return;
 
-    const res = await api('update_entry', {
-        id,
-        date,
-        start_datetime: start,
-        end_datetime:   end,
-        comment,
-        customer_id:    customerId,
-        activity,
-        project,
-    });
+    setButtonBusy(saveBtn, true);
+    let res;
+    try {
+        res = await api('update_entry', {
+            id,
+            date,
+            start_datetime: start,
+            end_datetime:   end,
+            comment,
+            customer_id:    customerId,
+            activity,
+            project,
+        });
+    } catch (e) {
+        res = { success: false, error: e.message };
+    }
 
     if (res.success) {
-        location.reload();
+        location.reload();   // Ladekreis bleibt bis zum Neuladen
     } else {
+        setButtonBusy(saveBtn, false);
         Dialog.alert(t('common.saveError') + ' ' + (res.error || t('common.unknownError')));
     }
 }

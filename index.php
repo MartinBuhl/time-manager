@@ -766,7 +766,7 @@ $bmTopLinks   = array_values(array_filter($bmTop, fn($x) => $x['type'] === 'link
                                        value="<?= h((string)$e['comment']) ?>"
                                        placeholder="<?= h(t('entries.commentPlaceholder')) ?>">
                                 <button type="button"
-                                        class="btn btn--primary"
+                                        class="btn btn--primary edit-save"
                                         onclick="saveEdit(<?= $e['id'] ?>)">
                                     <?= h(t('common.save')) ?>
                                 </button>

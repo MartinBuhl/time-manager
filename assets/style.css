@@ -177,6 +177,32 @@ select:focus {
     pointer-events: none;
 }
 
+/* Ladeanzeige im Button (z. B. während des Speicherns) */
+.btn.is-busy,
+.btn.is-busy:disabled {
+    position: relative;
+    color: transparent !important;
+    opacity: 1;
+    cursor: progress;
+    pointer-events: none;
+}
+.btn.is-busy::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 14px; height: 14px;
+    margin: -7px 0 0 -7px;
+    border: 2px solid var(--text);
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin .7s linear infinite;
+}
+.btn--primary.is-busy::after { border-color: #fff; border-right-color: transparent; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .btn.is-busy::after { animation-duration: 2s; }
+}
+
 .btn-icon {
     display: inline-flex;
     align-items: center;
